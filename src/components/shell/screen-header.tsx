@@ -2,7 +2,8 @@
 
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { CHANNELS, DMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,16 @@ export function ScreenHeader({
 }) {
   const unread = useUiStore((s) => [...CHANNELS, ...DMS].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
   const router = useRouter();
+  const pathname = usePathname();
+  const leaving = useRef(false);
+  useEffect(() => {
+    leaving.current = false;
+  }, [pathname]);
   // Pop history when we got here from inside the app, so Back doesn't stack /home entries.
+  // A double tap must not pop twice (that would leave the app).
   const goBack = (e: React.MouseEvent) => {
+    if (leaving.current) return e.preventDefault();
+    leaving.current = true;
     if (useUiStore.getState().navDepth > 1) {
       e.preventDefault();
       router.back();

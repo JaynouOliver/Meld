@@ -23,7 +23,11 @@ export function useSheetHistory() {
   // Back pressed while a sheet entry is on top: close the top-most sheet.
   useEffect(() => {
     const onPop = () => {
-      if (!pushed.current) return;
+      if (!pushed.current) {
+        // Forward landed on an entry for a sheet that's already closed: skip it.
+        if (history.state?.meldSheet) history.back();
+        return;
+      }
       pushed.current = false;
       const s = useUiStore.getState();
       if (s.ticketId) s.closeTicket();

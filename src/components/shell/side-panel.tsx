@@ -23,7 +23,7 @@ export function SidePanel({
   children: React.ReactNode;
 }) {
   const docked = useMediaQuery("(min-width: 1280px)");
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   // As an overlay it behaves like a dialog: focus moves in, Esc closes, focus returns after.
   useEffect(() => {
@@ -31,7 +31,28 @@ export function SidePanel({
     const opener = document.activeElement as HTMLElement | null;
     // Respect a child that already took focus (e.g. the title of a new ticket).
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onClose();
+      if (e.key !== "Tab" || !ref.current) return;
+      // Keep keyboard focus inside the dialog.
+      const items = [...ref.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea, select, [tabindex]:not([tabindex="-1"])',
+      )].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (!ref.current.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (active === first || active === ref.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
@@ -42,10 +63,10 @@ export function SidePanel({
   return (
     <>
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 hidden bg-black/30 sm:block xl:hidden" />
-      <aside
+      <div
         ref={ref}
         aria-label={label}
-        role={docked ? undefined : "dialog"}
+        role={docked ? "complementary" : "dialog"}
         aria-modal={docked ? undefined : true}
         tabIndex={-1}
         className={cn(
@@ -57,7 +78,7 @@ export function SidePanel({
         )}
       >
         {children}
-      </aside>
+      </div>
     </>
   );
 }
