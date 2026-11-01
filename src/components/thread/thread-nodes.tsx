@@ -90,7 +90,9 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
   const inputId = `reply-${node.id}`;
   const boxRef = useRef<HTMLDivElement>(null);
   // Bring the reply box into view above the thread composer when it opens.
-  useEffect(() => boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
+  useEffect(() => {
+    boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
 
   const submit = () => {
     const text = draft.trim();
@@ -114,7 +116,11 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Escape") return setReplyTo(null);
+              if (e.key === "Escape") {
+                // Esc cancels this reply only, not the whole thread panel (which skips handled events).
+                e.preventDefault();
+                return setReplyTo(null);
+              }
               if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

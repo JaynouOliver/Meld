@@ -32,7 +32,8 @@ export function SidePanel({
     // Respect a child that already took focus (e.g. the title of a new ticket).
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") return onClose();
+      // Inner controls (inline reply, mention popover) claim Esc via preventDefault.
+      if (e.key === "Escape") return e.defaultPrevented ? undefined : onClose();
       if (e.key !== "Tab" || !ref.current) return;
       // Keep keyboard focus inside the dialog.
       const items = [...ref.current.querySelectorAll<HTMLElement>(

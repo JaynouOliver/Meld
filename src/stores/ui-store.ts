@@ -35,6 +35,8 @@ interface UiState {
   linkKind: "PR" | "Issue";
   /** In-app page views this session; >1 means history.back() stays inside the app. */
   navDepth: number;
+  /** Bumped when the user sends from the main composer, to scroll to their message. */
+  sentTick: number;
 
   setRole: (role: Role) => void;
   setAccent: (accent: string) => void;
@@ -74,6 +76,7 @@ export const useUiStore = create<UiState>()(
       collapsed: {},
       linkKind: "PR",
       navDepth: 0,
+      sentTick: 0,
 
       setRole: (role) => set({ role }),
       setAccent: (accent) => set({ accent }),

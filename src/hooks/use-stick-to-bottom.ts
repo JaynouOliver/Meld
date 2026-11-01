@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const THRESHOLD = 40;
 
@@ -19,10 +19,18 @@ export function useStickToBottom<T extends HTMLElement = HTMLDivElement>(resetKe
     const el = scrollRef.current;
     if (!el) return;
     pinned.current = true;
+    let lastHeight = el.scrollHeight;
     const toBottom = () => {
+      lastHeight = el.scrollHeight;
       if (pinned.current) el.scrollTop = el.scrollHeight;
     };
     const onScroll = () => {
+      // Growing content (e.g. a ticket card resolving) also fires scroll events;
+      // those must not count as the user scrolling away from the bottom.
+      if (el.scrollHeight !== lastHeight) {
+        lastHeight = el.scrollHeight;
+        return;
+      }
       pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < THRESHOLD;
     };
     toBottom();
@@ -39,11 +47,11 @@ export function useStickToBottom<T extends HTMLElement = HTMLDivElement>(resetKe
   }, [resetKey]);
 
   /** Call after the user sends something: always jump to the newest message. */
-  const pin = () => {
+  const pin = useCallback(() => {
     pinned.current = true;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  };
+  }, []);
 
   return { scrollRef, contentRef, pin };
 }

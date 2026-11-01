@@ -1,9 +1,8 @@
 "use client";
 
 import { LockIcon } from "lucide-react";
-import { useState } from "react";
+import { Popover } from "radix-ui";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { STATUS_COLORS } from "@/lib/constants";
 import { splitText, type TextPart } from "@/lib/text";
@@ -77,16 +76,17 @@ export function RichText({ text, className }: { text: string; className?: string
   return <p className={cn("whitespace-pre-wrap [overflow-wrap:anywhere]", className)}>{out}</p>;
 }
 
-/** A ticket the viewer's role can't see. Tapping explains why (tooltips don't open on touch by hover). */
+/**
+ * A ticket the viewer's role can't see. Tapping (or clicking) explains why.
+ * A Popover, not a Tooltip: tooltips don't open on touch and close on pointerdown.
+ */
 function LockedChip({ id }: { id: string }) {
-  const [open, setOpen] = useState(false);
   return (
-    <Tooltip open={open} onOpenChange={setOpen}>
-      <TooltipTrigger asChild>
+    <Popover.Root>
+      <Popover.Trigger asChild>
         <button
           type="button"
           data-chip
-          onClick={() => setOpen((o) => !o)}
           className={cn(
             HIT,
             "mx-px inline-flex cursor-help items-center gap-1 rounded-md border border-dashed border-[#B8BEC8] bg-white px-1.5 align-baseline text-[13px] leading-[1.6] font-semibold text-muted-foreground",
@@ -95,8 +95,20 @@ function LockedChip({ id }: { id: string }) {
           <LockIcon className="size-3" strokeWidth={2.4} />
           {id} · Restricted
         </button>
-      </TooltipTrigger>
-      <TooltipContent>Your role can’t see this ticket</TooltipContent>
-    </Tooltip>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="top"
+          sideOffset={6}
+          collisionPadding={8}
+          // Portaled content still bubbles React events to the message row; don't open the thread.
+          onClick={(e) => e.stopPropagation()}
+          className="z-50 max-w-64 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-md animate-in fade-in-0 zoom-in-95"
+        >
+          Your role can’t see this ticket. Ask an org owner or someone on its team.
+          <Popover.Arrow className="fill-foreground" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }

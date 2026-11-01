@@ -4,6 +4,7 @@ import { AtSignIcon, SendIcon, TicketIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { useSendMessage } from "@/hooks/use-messages";
+import { useUiStore } from "@/stores/ui-store";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { CHAT_META, MENTIONABLE, PEOPLE, STATUS_COLORS, teamName } from "@/lib/constants";
 import type { ChatId } from "@/lib/types";
@@ -84,6 +85,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
     const text = draft.trim();
     if (!text) return;
     send.mutate({ chatId, text });
+    useUiStore.setState((s) => ({ sentTick: s.sentTick + 1 }));
     setDraft("");
     setPop(null);
     inputRef.current?.focus();
@@ -104,6 +106,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
       }
     }
     if (pop && e.key === "Escape") {
+      e.preventDefault(); // handled: closes the popover, not an open panel
       setPop(null);
       return;
     }
@@ -127,7 +130,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           role="listbox"
           id="composer-pop"
           aria-label={isPeople ? "Mention" : "Tickets you can see"}
-          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[min(300px,calc(100dvh-150px))] w-[380px] max-w-[calc(100%-24px)] md:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
+          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[max(104px,min(300px,calc(100dvh-84px)))] w-[380px] max-w-[calc(100%-24px)] md:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
         >
           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground [@media(max-height:500px)]:hidden">{isPeople ? "Mention" : "Tickets you can see"}</div>
           {options.map((o, i) => (

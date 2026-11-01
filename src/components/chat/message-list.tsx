@@ -5,6 +5,8 @@ import { MessageCircleIcon } from "lucide-react";
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
+import { useEffect } from "react";
+
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
@@ -16,10 +18,15 @@ import { TicketCard } from "./ticket-card";
 export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Message[] | undefined }) {
   const typing = useUiStore((s) => s.typing);
   const showTyping = typing && typing.chat === chatId && !typing.thread;
-  const { scrollRef, contentRef } = useStickToBottom(chatId);
+  const { scrollRef, contentRef, pin } = useStickToBottom(chatId);
+  // Sending always jumps to your own new message, even if you'd scrolled up.
+  const sentTick = useUiStore((s) => s.sentTick);
+  useEffect(() => {
+    if (sentTick) pin();
+  }, [sentTick, pin]);
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto pt-2 pb-3">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto pt-2 pb-3 [overflow-anchor:none]">
       <div ref={contentRef}>
       <div className="flex items-center gap-3 px-3 pt-3 pb-2 sm:px-5">
         <span className="h-px flex-1 bg-border" />

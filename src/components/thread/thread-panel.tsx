@@ -44,7 +44,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
         </div>
       </PanelHeader>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-3 [overflow-anchor:none]">
         <div ref={contentRef}>
         <div className="flex gap-3 px-4 pt-1 pb-2 sm:px-5">
           <Avatar person={p} size="xl" />
