@@ -29,7 +29,8 @@ export function SidePanel({
   useEffect(() => {
     if (docked) return;
     const opener = document.activeElement as HTMLElement | null;
-    ref.current?.focus({ preventScroll: true });
+    // Respect a child that already took focus (e.g. the title of a new ticket).
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
     return () => {

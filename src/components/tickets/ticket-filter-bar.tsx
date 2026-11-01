@@ -26,7 +26,7 @@ export function TicketFilterBar() {
           id="tq"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={wide ? "Filter: status:review assignee:ravi team:payments -status:done" : "Filter, e.g. status:review"}
+          placeholder={wide ? "Filter: status:review assignee:ravi team:payments -status:done" : "e.g. status:review"}
           autoComplete="off"
           spellCheck={false}
           className="min-w-0 flex-1 border-none bg-transparent py-[9px] font-mono text-base text-foreground md:text-sm outline-none placeholder:text-muted-foreground"

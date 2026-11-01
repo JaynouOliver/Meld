@@ -44,6 +44,12 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
   const [desc, setDesc] = useState(t.description);
   const [linkNum, setLinkNum] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // iOS Safari doesn't always blur on outside taps, so the confirm also disarms itself.
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirming]);
   // Title wraps and grows instead of being cut off on narrow screens.
   const titleRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {

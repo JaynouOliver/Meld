@@ -45,8 +45,8 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         <ScopeTabs scope={scope} />
         <p className="-mt-1 text-[13px] text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
         <TicketStats tickets={scoped} />
-        {/* Phones lead with the list; the charts move to the end. */}
-        <div className="order-last sm:order-none">
+        {/* Phones, landscape and tablets lead with the list; charts move to the end until there's room. */}
+        <div className="order-last lg:order-none">
           <TicketCharts tickets={scoped} />
         </div>
         <TicketFilterBar />
