@@ -1,0 +1,164 @@
+"use client";
+
+import { ChevronDownIcon, CircleDashedIcon, CircleDotIcon, PlusIcon } from "lucide-react";
+
+import { Avatar } from "@/components/common/avatar";
+import { StatusPill } from "@/components/common/status-pill";
+import { useCreateTicket } from "@/hooks/use-tickets";
+import { PEOPLE, PERSON_ORDER, PRIORITY_COLOR, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
+import { matchQuery } from "@/lib/query-language";
+import type { Ticket } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui-store";
+
+const COLS = "grid-cols-[44px_minmax(260px,1fr)_170px_130px_110px_90px]";
+
+interface GroupDef {
+  key: string;
+  label: string;
+  badge: string;
+  color: string;
+  round: boolean;
+  test: (t: Ticket) => boolean;
+  preset: Partial<Ticket>;
+}
+
+export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: boolean }) {
+  const query = useUiStore((s) => s.ticketQuery);
+  const groupBy = useUiStore((s) => s.groupBy);
+  const collapsed = useUiStore((s) => s.collapsed);
+  const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
+  const role = useUiStore((s) => s.role);
+  const ticketId = useUiStore((s) => s.ticketId);
+  const openTicket = useUiStore((s) => s.openTicket);
+  const create = useCreateTicket();
+
+  const filtered = tickets.filter((t) => matchQuery(t, query));
+
+  let defs: GroupDef[];
+  if (groupBy === "status") {
+    defs = STATUS_ORDER.map((k) => ({ key: k, label: k, badge: "", color: STATUS_COLORS[k][3], round: true, test: (t) => t.status === k, preset: { status: k } }));
+  } else if (groupBy === "team") {
+    defs = TEAMS.map((k) => ({ key: k, label: teamName(k), badge: teamName(k).charAt(0), color: "#3D4451", round: false, test: (t) => t.team === k, preset: { team: k } }));
+  } else {
+    defs = PERSON_ORDER.map((k) => ({
+      key: k, label: k === "me" ? "Suvra Das (you)" : PEOPLE[k].name, badge: PEOPLE[k].initials, color: PEOPLE[k].color, round: true,
+      test: (t) => t.assignee === k, preset: { assignee: k, team: PEOPLE[k].team ?? "design" },
+    }));
+  }
+
+  const groups = defs
+    .map((g) => ({ ...g, items: filtered.filter(g.test) }))
+    .filter((g) => g.items.length > 0);
+  // Row numbers run across groups, counting only expanded rows (like a spreadsheet).
+  const rowNum = new Map<string, number>();
+  groups.forEach((g) => {
+    if (!collapsed[`${groupBy}:${g.key}`]) g.items.forEach((t) => rowNum.set(t.id, rowNum.size + 1));
+  });
+
+  return (
+    <div className="overflow-x-auto rounded-[10px] border bg-white">
+      <div className="min-w-[860px]" role="table" aria-label="Tickets">
+        <div role="row" className={cn("grid border-b text-xs font-semibold text-muted-foreground", COLS)}>
+          <span role="columnheader" className="px-3 py-2.5">
+            <span className="sr-only">Row</span>
+          </span>
+          <span role="columnheader" className="px-3 py-2.5">Title</span>
+          <span role="columnheader" className="border-l px-3 py-2.5">Assignee</span>
+          <span role="columnheader" className="border-l px-3 py-2.5">Status</span>
+          <span role="columnheader" className="border-l px-3 py-2.5">Team</span>
+          <span role="columnheader" className="border-l px-3 py-2.5">Priority</span>
+        </div>
+
+        {loading && <div className="px-4 py-7 text-center text-sm text-muted-foreground">Loading tickets…</div>}
+
+        {groups.map((g) => {
+          const ck = `${groupBy}:${g.key}`;
+          const open = !collapsed[ck];
+          const preset = { ...g.preset, ...(role === "member" ? { team: "design" as const } : {}) };
+          return (
+            <div key={g.key} className="border-b last:border-b-0" role="rowgroup">
+              <button
+                type="button"
+                onClick={() => toggleCollapsed(ck)}
+                aria-expanded={open}
+                className="flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6]"
+              >
+                <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} strokeWidth={2.4} />
+                <span
+                  aria-hidden
+                  className={cn("flex size-6 shrink-0 items-center justify-center text-[10px] font-bold text-white", g.round ? "rounded-full" : "rounded-md")}
+                  style={{ background: g.color }}
+                >
+                  {g.badge}
+                </span>
+                <span className="text-[15px] font-bold text-foreground">{g.label}</span>
+                <span className="rounded-full bg-border px-2 py-px text-xs font-semibold text-ink-2">{g.items.length}</span>
+              </button>
+              {open && (
+                <>
+                  {g.items.map((t) => {
+                    const a = PEOPLE[t.assignee];
+                    const linked = t.links.length > 0;
+                    return (
+                      <div
+                        key={t.id}
+                        role="row"
+                        className={cn("grid min-h-10 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-[#F8F9FB]")}
+                      >
+                        <span role="cell" className="px-3 text-right text-xs text-muted-foreground">{rowNum.get(t.id)}</span>
+                        <span role="cell" className="flex min-w-0 items-center gap-2 px-3">
+                          {linked ? (
+                            <CircleDotIcon aria-label="Linked to GitHub" className="size-4 shrink-0 text-[#1A7F37]" strokeWidth={2.2} />
+                          ) : (
+                            <CircleDashedIcon aria-label="Draft, no GitHub link" className="size-4 shrink-0 text-subtle" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openTicket(t.id)}
+                            className={cn("min-w-0 cursor-pointer truncate py-2 text-left font-medium hover:underline", linked ? "text-foreground" : "text-ink-2")}
+                          >
+                            {t.title || "Untitled ticket"}
+                          </button>
+                          <span className="shrink-0 text-[13px] text-muted-foreground">
+                            {t.id}
+                            {linked && ` · ${t.links[0].kind === "PR" ? "PR " : ""}#${t.links[0].num}`}
+                          </span>
+                        </span>
+                        <span role="cell" className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
+                          <Avatar person={a} size="xs" />
+                          <span className="truncate text-[13px]">{a.name}</span>
+                        </span>
+                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3">
+                          <StatusPill status={t.status} bordered className="py-px" />
+                        </span>
+                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3 text-[13px] text-ink-2">{teamName(t.team)}</span>
+                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3 text-[13px] font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
+                          {t.priority}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {role !== "guest" && (
+                    <button
+                      type="button"
+                      onClick={() => create.mutate(preset)}
+                      className="flex min-h-10 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-5 text-left text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
+                    >
+                      <PlusIcon className="size-3.5" strokeWidth={2.2} />
+                      Add item
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+
+        {!loading && groups.length === 0 && (
+          <div className="px-4 py-7 text-center text-sm text-muted-foreground">No tickets match this filter for your role.</div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,127 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Meld design tokens. Values come from the "Team Chat Interface" Claude design.
+ * shadcn semantic tokens map onto them, so shadcn components match the design.
+ * --brand is the workspace accent and can be changed at runtime (see ui-store).
+ */
+:root {
+  --brand: #2f6feb;
+  --radius: 0.5rem;
+
+  --background: #ffffff;
+  --foreground: #1d2129;
+  --card: #ffffff;
+  --card-foreground: #1d2129;
+  --popover: #ffffff;
+  --popover-foreground: #1d2129;
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: #f6f7f9;
+  --secondary-foreground: #1d2129;
+  --muted: #f6f7f9;
+  --muted-foreground: #5b6472;
+  --accent: #eef0f3;
+  --accent-foreground: #1d2129;
+  --destructive: #b42318;
+  --border: #e4e7ec;
+  --input: #cdd2da;
+  --ring: #2f6feb;
+
+  /* extended palette from the design */
+  --ink-2: #3d4451;
+  --subtle: #8b95a5;
+  --line-soft: #eef0f3;
+  --canvas: #fbfbfc;
+  --link: #2459c9;
+  --link-hover: #1a3f8f;
+  --mention: #e3ecfd;
+  --mention-foreground: #1e4fbf;
+  --selected: #eef3fd;
+  --agent: #ede9fe;
+  --agent-foreground: #5b21b6;
+  --unread: #e5484d;
+  --online: #22a06b;
+  --atlas-series: #d97706;
+
+  --sidebar: #1c2230;
+  --sidebar-foreground: #c9d1dc;
+  --sidebar-muted: #8b95a5;
+  --sidebar-border: #2c3444;
+  --sidebar-input: #2a3242;
+  --sidebar-input-border: #3a4357;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-brand: var(--brand);
+  --color-ink-2: var(--ink-2);
+  --color-subtle: var(--subtle);
+  --color-line-soft: var(--line-soft);
+  --color-canvas: var(--canvas);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --color-mention: var(--mention);
+  --color-mention-foreground: var(--mention-foreground);
+  --color-selected: var(--selected);
+  --color-agent: var(--agent);
+  --color-agent-foreground: var(--agent-foreground);
+  --color-unread: var(--unread);
+  --color-online: var(--online);
+  --color-atlas-series: var(--atlas-series);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-input: var(--sidebar-input);
+  --color-sidebar-input-border: var(--sidebar-input-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  a {
+    color: var(--link);
+  }
+  a:hover {
+    color: var(--link-hover);
+  }
+}

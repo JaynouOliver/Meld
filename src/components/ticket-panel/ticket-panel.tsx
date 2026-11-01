@@ -1,0 +1,293 @@
+"use client";
+
+import { CircleDotIcon, GitPullRequestIcon, ImageIcon, TicketIcon, Trash2Icon, XIcon } from "lucide-react";
+import { useState } from "react";
+
+import { Avatar } from "@/components/common/avatar";
+import { StatusPill } from "@/components/common/status-pill";
+import { SidePanel } from "@/components/shell/side-panel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useDeleteTicket, useUpdateTicket, useVisibleTickets } from "@/hooks/use-tickets";
+import { DEFAULT_REPO, PEOPLE, PERSON_ORDER, PRIORITIES, STATUSES, teamName } from "@/lib/constants";
+import { canDelete } from "@/lib/rbac";
+import type { PersonId, Priority, Ticket, TicketStatus } from "@/lib/types";
+import { useUiStore } from "@/stores/ui-store";
+
+/** Ticket detail panel. Rendered by the shell; shows whichever ticket is open and visible. */
+export function TicketPanel() {
+  const ticketId = useUiStore((s) => s.ticketId);
+  const closeTicket = useUiStore((s) => s.closeTicket);
+  const { visible } = useVisibleTickets();
+  const ticket = ticketId ? visible.find((t) => t.id === ticketId) : undefined;
+  if (!ticket) return null;
+  return (
+    <SidePanel label="Ticket" width="ticket" onClose={closeTicket}>
+      {/* key resets local drafts when switching tickets */}
+      <TicketDetail key={ticket.id} ticket={ticket} onClose={closeTicket} />
+    </SidePanel>
+  );
+}
+
+const sectionLabel = "text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase";
+
+function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => void }) {
+  const role = useUiStore((s) => s.role);
+  const linkKind = useUiStore((s) => s.linkKind);
+  const setLinkKind = useUiStore((s) => s.setLinkKind);
+  const update = useUpdateTicket();
+  const del = useDeleteTicket();
+  const [title, setTitle] = useState(t.title);
+  const [desc, setDesc] = useState(t.description);
+  const [linkNum, setLinkNum] = useState("");
+  const reporter = PEOPLE[t.reporter];
+
+  const commitTitle = () => title !== t.title && update.mutate({ id: t.id, patch: { title } });
+  const commitDesc = () => desc !== t.description && update.mutate({ id: t.id, patch: { description: desc } });
+  const addLink = () => {
+    const num = linkNum.replace(/[^0-9]/g, "");
+    if (!num) return;
+    update.mutate({ id: t.id, addLink: { kind: linkKind, num } });
+    setLinkNum("");
+  };
+  const onImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => update.mutate({ id: t.id, addImage: { src: String(rd.result), name: f.name } });
+    rd.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  return (
+    <>
+      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b pr-3 pl-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <TicketIcon aria-hidden className="size-[18px] text-agent-foreground" />
+          <h2 className="text-base font-bold">{t.id}</h2>
+          <StatusPill status={t.status} />
+          <span className="text-xs text-muted-foreground">{teamName(t.team)}</span>
+        </div>
+        <div className="flex gap-0.5">
+          {canDelete(role) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Delete ticket"
+              title="Delete ticket (org owners only)"
+              className="text-destructive hover:text-destructive"
+              onClick={() => del.mutate(t.id)}
+            >
+              <Trash2Icon className="size-[17px]" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" aria-label="Close ticket" onClick={onClose}>
+            <XIcon className="size-[18px]" />
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-5 pt-4 pb-6">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="tk-title" className={sectionLabel}>
+            Title
+          </Label>
+          <input
+            id="tk-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+            placeholder="Add a title"
+            className="-mx-2 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xl font-bold text-foreground outline-none hover:border-border focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field id="tk-status" label="Status">
+            <Select value={t.status} onValueChange={(v) => update.mutate({ id: t.id, patch: { status: v as TicketStatus } })}>
+              <SelectTrigger id="tk-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field id="tk-priority" label="Priority">
+            <Select value={t.priority} onValueChange={(v) => update.mutate({ id: t.id, patch: { priority: v as Priority } })}>
+              <SelectTrigger id="tk-priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field id="tk-assignee" label="Assignee">
+            <Select value={t.assignee} onValueChange={(v) => update.mutate({ id: t.id, patch: { assignee: v as PersonId } })}>
+              <SelectTrigger id="tk-assignee">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERSON_ORDER.map((k) => (
+                  <SelectItem key={k} value={k}>
+                    <Avatar person={PEOPLE[k]} size="xs" />
+                    {PEOPLE[k].name}
+                    {PEOPLE[k].isAgent ? " (agent)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-muted-foreground">Reporter</span>
+            <span className="flex min-h-[38px] items-center gap-2 text-sm">
+              <Avatar person={reporter} size="sm" />
+              {reporter.name}
+              {reporter.isAgent ? " (agent)" : ""}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="tk-desc" className={sectionLabel}>
+            Description
+          </Label>
+          <Textarea
+            id="tk-desc"
+            rows={5}
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onBlur={commitDesc}
+            placeholder="Describe the work, acceptance criteria, links…"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className={sectionLabel}>Images · {t.images.length}</span>
+            <label
+              htmlFor="tk-image"
+              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 text-[13px] font-semibold text-foreground hover:bg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring"
+            >
+              <ImageIcon className="size-[15px]" />
+              Add image
+              <input id="tk-image" type="file" accept="image/*" onChange={onImage} className="sr-only" />
+            </label>
+          </div>
+          {t.images.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {t.images.map((im) => (
+                <div key={im.id} className="relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- user uploads as data URLs */}
+                  <img src={im.src} alt={im.name} className="block size-full object-cover" />
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    onClick={() => update.mutate({ id: t.id, removeImageId: im.id })}
+                    className="absolute top-1 right-1 flex size-7 cursor-pointer items-center justify-center rounded-md bg-[rgba(20,24,33,0.7)] text-white"
+                  >
+                    <XIcon className="size-3.5" strokeWidth={2.4} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-input p-3.5 text-center text-[13px] text-muted-foreground">
+              No images yet. Add screenshots or mockups.
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className={sectionLabel}>GitHub</span>
+          {t.links.map((l) => (
+            <div key={l.id} className="flex items-center gap-2.5 rounded-lg border py-1.5 pr-1.5 pl-3">
+              {l.kind === "PR" ? (
+                <GitPullRequestIcon aria-hidden className="size-4 text-[#1A7F37]" />
+              ) : (
+                <CircleDotIcon aria-hidden className="size-4 text-[#1A7F37]" />
+              )}
+              <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
+                <span className="text-sm font-semibold">{(l.kind === "PR" ? "Pull request #" : "Issue #") + l.num}</span>
+                <span className="text-xs text-muted-foreground">{l.repo}</span>
+              </span>
+              <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-semibold text-[#166534]">Open</span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Unlink ${l.kind} #${l.num}`}
+                onClick={() => update.mutate({ id: t.id, removeLinkId: l.id })}
+              >
+                <XIcon className="size-3.5" strokeWidth={2.2} />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <Select value={linkKind} onValueChange={(v) => setLinkKind(v as "PR" | "Issue")}>
+              <SelectTrigger aria-label="Link type" className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PR">Pull request</SelectItem>
+                <SelectItem value="Issue">Issue</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              aria-label="Number"
+              value={linkNum}
+              onChange={(e) => setLinkNum(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addLink();
+                }
+              }}
+              placeholder="Number, e.g. 512"
+              inputMode="numeric"
+              autoComplete="off"
+              className="flex-1"
+            />
+            <Button variant="outline" className="h-[38px]" onClick={addLink}>
+              Link
+            </Button>
+          </div>
+          <span className="text-xs text-muted-foreground">Repository: {DEFAULT_REPO}</span>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className={sectionLabel}>Activity</span>
+          {[...t.activity].reverse().map((a, i) => (
+            <div key={i} className="flex gap-2 text-[13px] leading-[1.45] text-ink-2">
+              <span className="mt-[7px] size-1.5 shrink-0 rounded-full" style={{ background: a.who === "Atlas" ? "#D97706" : "var(--brand)" }} />
+              <span>
+                <strong className="font-semibold text-foreground">{a.who}</strong> {a.text} · <span className="text-muted-foreground">{a.time}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}

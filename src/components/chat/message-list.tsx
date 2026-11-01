@@ -1,0 +1,113 @@
+"use client";
+
+import { MessageCircleIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
+
+import { AgentBadge } from "@/components/common/agent-badge";
+import { Avatar } from "@/components/common/avatar";
+import { RichText } from "@/components/common/rich-text";
+import { PEOPLE } from "@/lib/constants";
+import { countReplies } from "@/lib/text";
+import type { ChatId, Message, Person } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui-store";
+import { TicketCard } from "./ticket-card";
+
+export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Message[] | undefined }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const typing = useUiStore((s) => s.typing);
+  const showTyping = typing && typing.chat === chatId && !typing.thread;
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [messages?.length, chatId, showTyping]);
+
+  return (
+    <div ref={ref} className="flex-1 overflow-y-auto pt-2 pb-3">
+      <div className="flex items-center gap-3 px-5 pt-3 pb-2">
+        <span className="h-px flex-1 bg-border" />
+        <span className="rounded-full border px-3 py-[3px] text-xs font-semibold text-muted-foreground">Today</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      {!messages && <MessageSkeleton />}
+      {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
+      {showTyping && <div className="px-5 pt-1.5 pl-[68px] text-[13px] text-muted-foreground italic">{typing.label}</div>}
+    </div>
+  );
+}
+
+function MessageRow({ message: m }: { message: Message }) {
+  const threadId = useUiStore((s) => s.threadId);
+  const openThread = useUiStore((s) => s.openThread);
+  const p = PEOPLE[m.who];
+  const n = countReplies(m.replies);
+  const participants: Person[] = [];
+  m.replies.forEach((r) => {
+    if (!participants.some((x) => x.id === r.who)) participants.push(PEOPLE[r.who]);
+  });
+  const pending = m.id.startsWith("pending-");
+
+  return (
+    <div
+      className={cn(
+        "group relative flex gap-3 px-3 py-2 sm:px-5",
+        threadId === m.id ? "bg-selected" : "hover:bg-muted",
+        pending && "opacity-60",
+      )}
+    >
+      <Avatar person={p} size="xl" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[15px] font-bold">{p.name}</span>
+          {p.isAgent && <AgentBadge />}
+          <span className="text-xs text-muted-foreground">{m.time}</span>
+        </div>
+        <RichText text={m.text} className="mt-0.5 text-[15px] leading-[1.6]" />
+        {m.ticket && <TicketCard id={m.ticket} />}
+        {n > 0 && (
+          <button
+            type="button"
+            onClick={() => openThread(m.id)}
+            className="mt-1.5 inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-[13px] transition-colors hover:border-input hover:bg-white"
+          >
+            <span aria-hidden className="flex gap-0.5">
+              {participants.map((pp) => (
+                <Avatar key={pp.id} person={pp} size="sm" />
+              ))}
+            </span>
+            <span className="font-bold text-link">{n === 1 ? "1 reply" : `${n} replies`}</span>
+            <span className="text-muted-foreground">Last reply {m.replies[m.replies.length - 1].time}</span>
+          </button>
+        )}
+      </div>
+      {!pending && (
+        <div className="absolute -top-3.5 right-5 flex rounded-lg border bg-white p-0.5 opacity-0 shadow-[0_2px_6px_rgba(20,24,33,0.08)] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => openThread(m.id)}
+            aria-label="Reply in thread"
+            className="flex h-8 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          >
+            <MessageCircleIcon className="size-[17px]" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 px-5 py-2" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex animate-pulse gap-3">
+          <div className="size-9 rounded-lg bg-accent" />
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="h-3.5 w-40 rounded bg-accent" />
+            <div className="h-3.5 w-3/4 rounded bg-accent" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
