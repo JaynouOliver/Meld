@@ -15,6 +15,7 @@ npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run lint && npm run typecheck
+npm run preview:build  # single-file preview: dist-preview/index.html
 ```
 
 ## Stack
