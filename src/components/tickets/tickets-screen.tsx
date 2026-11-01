@@ -26,7 +26,7 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
       <ScreenHeader
         actions={
           role !== "guest" && (
-            <Button onClick={() => create.mutate({})} disabled={create.isPending} aria-label="New ticket" className="size-10 px-0 sm:w-auto sm:px-3.5">
+            <Button onClick={() => create.mutate({})} disabled={create.isPending} aria-label="New ticket" className="size-11 px-0 sm:h-10 sm:w-auto sm:px-3.5">
               <PlusIcon strokeWidth={2.2} className="size-5 sm:size-4" />
               <span className="hidden sm:inline">New ticket</span>
             </Button>
@@ -45,9 +45,14 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         <ScopeTabs scope={scope} />
         <p className="-mt-1 text-[13px] text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
         <TicketStats tickets={scoped} />
-        <TicketCharts tickets={scoped} />
+        {/* Phones lead with the list; the charts move to the end. */}
+        <div className="order-last sm:order-none">
+          <TicketCharts tickets={scoped} />
+        </div>
         <TicketFilterBar />
-        <TicketTable tickets={scoped} loading={isPending} />
+        <div className="@container">
+          <TicketTable tickets={scoped} loading={isPending} />
+        </div>
       </div>
     </main>
   );
@@ -68,7 +73,7 @@ function ScopeTabs({ scope }: { scope: TicketScope }) {
           role="tab"
           aria-selected={scope === t.value}
           className={
-            "flex h-9 items-center justify-center rounded-md text-sm font-semibold no-underline " +
+            "flex h-10 items-center justify-center rounded-md text-sm font-semibold no-underline " +
             (scope === t.value ? "bg-white text-foreground shadow-sm hover:text-foreground" : "text-muted-foreground hover:text-muted-foreground")
           }
         >

@@ -5,7 +5,7 @@ export const DEFAULT_REPO = "northwind/web";
 export const CURRENT_USER: PersonId = "me";
 
 export const PEOPLE: Record<PersonId, Person> = {
-  me: { id: "me", name: "Suvra Das", first: "Suvra", initials: "SD", color: "#2F6FEB", team: "design" },
+  me: { id: "me", name: "Suvra Das", first: "Suvra", initials: "SD", color: "var(--brand)", team: "design" },
   aiko: { id: "aiko", name: "Aiko Tanaka", first: "Aiko", initials: "AT", color: "#C2410C", team: "design" },
   ravi: { id: "ravi", name: "Ravi Menon", first: "Ravi", initials: "RM", color: "#0F766E", team: "payments" },
   lena: { id: "lena", name: "Lena Park", first: "Lena", initials: "LP", color: "#BE185D", team: "payments" },

@@ -1,11 +1,11 @@
 "use client";
 
 import { MessageCircleIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
 
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
+import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message, Person } from "@/lib/types";
@@ -14,16 +14,13 @@ import { useUiStore } from "@/stores/ui-store";
 import { TicketCard } from "./ticket-card";
 
 export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Message[] | undefined }) {
-  const ref = useRef<HTMLDivElement>(null);
   const typing = useUiStore((s) => s.typing);
   const showTyping = typing && typing.chat === chatId && !typing.thread;
-
-  useEffect(() => {
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
-  }, [messages?.length, chatId, showTyping]);
+  const { scrollRef, contentRef } = useStickToBottom(chatId);
 
   return (
-    <div ref={ref} className="flex-1 overflow-y-auto pt-2 pb-3">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto pt-2 pb-3">
+      <div ref={contentRef}>
       <div className="flex items-center gap-3 px-3 pt-3 pb-2 sm:px-5">
         <span className="h-px flex-1 bg-border" />
         <span className="rounded-full border px-3 py-[3px] text-xs font-semibold text-muted-foreground">Today</span>
@@ -32,6 +29,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
       {!messages && <MessageSkeleton />}
       {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
       {showTyping && <div className="pt-1.5 pr-3 pl-[60px] text-[13px] sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typing.label}</div>}
+      </div>
     </div>
   );
 }
@@ -51,7 +49,7 @@ function MessageRow({ message: m }: { message: Message }) {
   // unless the tap was on a link, chip or button inside it.
   const onTap = (e: React.MouseEvent) => {
     if (pending || !window.matchMedia("(pointer: coarse)").matches) return;
-    if ((e.target as HTMLElement).closest("button, a, input")) return;
+    if ((e.target as HTMLElement).closest("button, a, input, [data-chip]")) return;
     openThread(m.id);
   };
 

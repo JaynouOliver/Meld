@@ -1,12 +1,13 @@
 "use client";
 
 import { SendIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
 import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { useSendMessage } from "@/hooks/use-messages";
+import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { CHAT_META, PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message } from "@/lib/types";
@@ -18,21 +19,20 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
   const typing = useUiStore((s) => s.typing);
   const [draft, setDraft] = useState("");
   const send = useSendMessage();
-  const listRef = useRef<HTMLDivElement>(null);
+  const { scrollRef, contentRef, pin } = useStickToBottom(root.id);
+  const inputRef = useRef<HTMLInputElement>(null);
   const meta = CHAT_META[chatId];
   const p = PEOPLE[root.who];
   const n = countReplies(root.replies);
   const showTyping = typing && typing.thread === root.id;
-
-  useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [root.id, root.replies.length, showTyping]);
 
   const submit = () => {
     const text = draft.trim();
     if (!text) return;
     send.mutate({ chatId, text, threadId: root.id });
     setDraft("");
+    pin();
+    inputRef.current?.focus();
   };
 
   return (
@@ -44,7 +44,8 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
         </div>
       </PanelHeader>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-3">
+        <div ref={contentRef}>
         <div className="flex gap-3 px-4 pt-1 pb-2 sm:px-5">
           <Avatar person={p} size="xl" />
           <div className="min-w-0 flex-1">
@@ -63,6 +64,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
         </div>
         <ThreadNodes chatId={chatId} rootId={root.id} nodes={root.replies} depth={0} />
         {showTyping && <div className="px-5 pt-1.5 pl-[68px] text-[13px] text-muted-foreground italic">{typing.label}</div>}
+        </div>
       </div>
 
       <div className="px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-5">
@@ -72,6 +74,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
           </label>
           <input
             id="thread-input"
+            ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -88,6 +91,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
           <button
             type="button"
             onClick={submit}
+            onMouseDown={(e) => e.preventDefault()}
             aria-label="Send reply"
             className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-white hover:opacity-90"
           >

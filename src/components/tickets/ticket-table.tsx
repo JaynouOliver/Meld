@@ -57,17 +57,15 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   });
 
   return (
-    <div className="-mx-4 border-y bg-white sm:mx-0 sm:rounded-[10px] sm:border md:overflow-x-auto">
-      <div className="md:min-w-[860px]" role="table" aria-label="Tickets">
-        <div role="row" className={cn("hidden border-b md:grid text-xs font-semibold text-muted-foreground", COLS)}>
-          <span role="columnheader" className="px-3 py-2.5">
-            <span className="sr-only">Row</span>
-          </span>
-          <span role="columnheader" className="px-3 py-2.5">Title</span>
-          <span role="columnheader" className="border-l px-3 py-2.5">Assignee</span>
-          <span role="columnheader" className="border-l px-3 py-2.5">Status</span>
-          <span role="columnheader" className="border-l px-3 py-2.5">Team</span>
-          <span role="columnheader" className="border-l px-3 py-2.5">Priority</span>
+    <div className="-mx-4 border-y bg-white sm:mx-0 sm:rounded-[10px] sm:border">
+      <div role="region" aria-label="Tickets">
+        <div aria-hidden className={cn("hidden border-b @min-[860px]:grid text-xs font-semibold text-muted-foreground", COLS)}>
+          <span className="px-3 py-2.5" />
+          <span className="px-3 py-2.5">Title</span>
+          <span className="border-l px-3 py-2.5">Assignee</span>
+          <span className="border-l px-3 py-2.5">Status</span>
+          <span className="border-l px-3 py-2.5">Team</span>
+          <span className="border-l px-3 py-2.5">Priority</span>
         </div>
 
         {loading && <div className="px-4 py-7 text-center text-sm text-muted-foreground">Loading tickets…</div>}
@@ -77,12 +75,12 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
           const open = !collapsed[ck];
           const preset = { ...g.preset, ...(role === "member" ? { team: "design" as const } : {}) };
           return (
-            <div key={g.key} className="border-b last:border-b-0" role="rowgroup">
+            <div key={g.key} className="border-b last:border-b-0">
               <button
                 type="button"
                 onClick={() => toggleCollapsed(ck)}
                 aria-expanded={open}
-                className="sticky top-0 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6] md:static"
+                className="sticky -top-3 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6] sm:-top-4 @min-[860px]:static"
               >
                 <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} strokeWidth={2.4} />
                 <span
@@ -97,23 +95,23 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
               </button>
               {open && (
                 <>
-                  <ul className="md:hidden">
+                  <ul className="@min-[860px]:hidden">
                     {g.items.map((t) => (
                       <TicketCardRow key={t.id} t={t} selected={ticketId === t.id} onOpen={() => openTicket(t.id)} />
                     ))}
                   </ul>
-                  <div className="hidden md:block">
+                  <div className="hidden @min-[860px]:block">
                   {g.items.map((t) => {
                     const a = PEOPLE[t.assignee];
                     const linked = t.links.length > 0;
                     return (
                       <div
                         key={t.id}
-                        role="row"
+                       
                         className={cn("grid min-h-10 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-[#F8F9FB]")}
                       >
-                        <span role="cell" className="px-3 text-right text-xs text-muted-foreground">{rowNum.get(t.id)}</span>
-                        <span role="cell" className="flex min-w-0 items-center gap-2 px-3">
+                        <span className="px-3 text-right text-xs text-muted-foreground">{rowNum.get(t.id)}</span>
+                        <span className="flex min-w-0 items-center gap-2 px-3">
                           {linked ? (
                             <CircleDotIcon aria-label="Linked to GitHub" className="size-4 shrink-0 text-[#1A7F37]" strokeWidth={2.2} />
                           ) : (
@@ -131,15 +129,15 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                             {linked && ` · ${t.links[0].kind === "PR" ? "PR " : ""}#${t.links[0].num}`}
                           </span>
                         </span>
-                        <span role="cell" className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
+                        <span className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
                           <Avatar person={a} size="xs" />
                           <span className="truncate text-[13px]">{a.name}</span>
                         </span>
-                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3">
+                        <span className="flex h-full items-center border-l border-line-soft px-3">
                           <StatusPill status={t.status} bordered className="py-px" />
                         </span>
-                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3 text-[13px] text-ink-2">{teamName(t.team)}</span>
-                        <span role="cell" className="flex h-full items-center border-l border-line-soft px-3 text-[13px] font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-[13px] text-ink-2">{teamName(t.team)}</span>
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-[13px] font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
                           {t.priority}
                         </span>
                       </div>
@@ -150,7 +148,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                     <button
                       type="button"
                       onClick={() => create.mutate(preset)}
-                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-4 text-left md:min-h-10 md:pl-5 text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-4 text-left @min-[860px]:min-h-10 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
                     >
                       <PlusIcon className="size-3.5" strokeWidth={2.2} />
                       Add item

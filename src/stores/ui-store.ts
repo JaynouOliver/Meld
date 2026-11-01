@@ -33,6 +33,8 @@ interface UiState {
   unread: Partial<Record<ChatId, number>>;
   collapsed: Record<string, boolean>;
   linkKind: "PR" | "Issue";
+  /** In-app page views this session; >1 means history.back() stays inside the app. */
+  navDepth: number;
 
   setRole: (role: Role) => void;
   setAccent: (accent: string) => void;
@@ -71,6 +73,7 @@ export const useUiStore = create<UiState>()(
       unread: SEED_UNREAD,
       collapsed: {},
       linkKind: "PR",
+      navDepth: 0,
 
       setRole: (role) => set({ role }),
       setAccent: (accent) => set({ accent }),

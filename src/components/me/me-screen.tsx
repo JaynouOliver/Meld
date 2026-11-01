@@ -37,9 +37,9 @@ export function MeScreen() {
 
           <fieldset className="flex flex-col gap-2">
             <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">View as role (RBAC demo)</legend>
-            <div className="overflow-hidden rounded-xl border bg-white">
+            <div className="relative overflow-hidden rounded-xl border bg-white">
               {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-                <label key={r} className="flex min-h-14 cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0 active:bg-muted">
+                <label key={r} className="flex min-h-14 cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0 active:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-ring">
                   <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="text-[15px] font-semibold">{ROLE_LABEL[r]}</span>

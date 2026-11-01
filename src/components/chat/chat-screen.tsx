@@ -20,6 +20,8 @@ export function ChatScreen({ chatId }: { chatId: ChatId }) {
   const markRead = useUiStore((s) => s.markRead);
 
   useEffect(() => markRead(chatId), [chatId, markRead]);
+  // Leaving the chat closes its thread, so it doesn't reappear on return.
+  useEffect(() => () => useUiStore.getState().closeThread(), [chatId]);
   useEffect(() => {
     if (seededThread) return;
     seededThread = true;

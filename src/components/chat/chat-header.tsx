@@ -30,7 +30,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div title="Channel members" className="flex shrink-0 items-center gap-2 rounded-lg border py-1 pr-2.5 pl-1.5">
-          <span aria-hidden className="flex pl-1">
+          <span aria-hidden className="flex pl-1 max-[360px]:hidden">
             {meta.members.slice(0, 3).map((k) => (
               <Avatar key={k} person={PEOPLE[k]} size="sm" className="-ml-1 rounded-md border-2 border-white" />
             ))}

@@ -43,7 +43,7 @@
   --selected: #eef3fd;
   --agent: #ede9fe;
   --agent-foreground: #5b21b6;
-  --unread: #e5484d;
+  --unread: #d13438; /* 4.9:1 with white badge text */
   --online: #22a06b;
   --atlas-series: #d97706;
 
@@ -135,6 +135,18 @@
 }
 
 @layer base {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
   /* No grey flash when tapping, and no double-tap zoom delay on controls. */
   button,
   a,

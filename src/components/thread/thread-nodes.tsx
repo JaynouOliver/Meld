@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRightIcon, ReplyIcon, SendIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
@@ -15,6 +15,8 @@ import { useUiStore } from "@/stores/ui-store";
 
 const MAX_INDENT = 6;
 // Phones get shallower indents so deep replies keep a readable width.
+// Indent steps are CSS variables so phones get shallower nesting.
+const ROW = "pr-4 sm:pr-5 [--thread-pad:16px] [--thread-step:14px] sm:[--thread-pad:20px] sm:[--thread-step:22px]";
 const indent = (depth: number) => `calc(var(--thread-pad) + ${Math.max(0, Math.min(depth, MAX_INDENT) - 1)} * var(--thread-step))`;
 
 /** Recursive, collapsible reply tree with inline reply composers. */
@@ -39,7 +41,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
 
   return (
     <>
-      <div className="pr-4 hover:bg-muted sm:pr-5 [--thread-pad:16px] [--thread-step:14px] sm:[--thread-pad:20px] sm:[--thread-step:22px]" style={{ paddingLeft: indent(depth) }}>
+      <div className={cn(ROW, "hover:bg-muted")} style={{ paddingLeft: indent(depth) }}>
         <div className={cn("flex gap-2.5 border-l-2 py-[7px]", nested ? "border-border pl-3" : "border-transparent pl-0")}>
           <Avatar person={p} size={nested ? "md" : "xl"} className={nested ? "" : "rounded-[7px]"} />
           <div className="min-w-0 flex-1">
@@ -55,7 +57,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
                   type="button"
                   onClick={() => setExpanded(node.id, !open)}
                   aria-expanded={open}
-                  className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-bold text-link hover:underline"
+                  className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-bold text-link hover:underline pointer-coarse:min-h-10"
                 >
                   <ChevronRightIcon className={cn("size-[13px] transition-transform", open && "rotate-90")} strokeWidth={2.4} />
                   {open ? "Hide replies" : k === 1 ? "1 reply" : `${k} replies`}
@@ -64,7 +66,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
               <button
                 type="button"
                 onClick={() => setReplyTo(replying ? null : node.id)}
-                className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-semibold text-muted-foreground hover:underline"
+                className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-semibold text-muted-foreground hover:underline pointer-coarse:min-h-10"
               >
                 <ReplyIcon className="size-[13px]" />
                 {replying ? "Cancel" : "Reply"}
@@ -86,6 +88,9 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
   const setExpanded = useUiStore((s) => s.setExpanded);
   const name = PEOPLE[node.who].first;
   const inputId = `reply-${node.id}`;
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Bring the reply box into view above the thread composer when it opens.
+  useEffect(() => boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
 
   const submit = () => {
     const text = draft.trim();
@@ -97,8 +102,8 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
   };
 
   return (
-    <div style={{ paddingLeft: indent(depth) }}>
-      <div className="border-l-2 border-border pt-1 pb-2.5 pl-3">
+    <div ref={boxRef} className={ROW} style={{ paddingLeft: indent(depth) }}>
+      <div className="border-l-2 border-border pt-1 pb-3 pl-3">
         <div className="flex items-center gap-1.5 rounded-lg border border-input bg-white py-[3px] pr-[3px] pl-2.5 focus-within:border-[#8B95A5]">
           <label htmlFor={inputId} className="sr-only">
             Reply to {name}
@@ -118,13 +123,14 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
             }}
             placeholder={`Reply to ${name}…`}
             autoComplete="off"
-            className="min-w-0 flex-1 border-none bg-transparent py-[7px] text-base outline-none placeholder:text-muted-foreground sm:text-sm"
+            className="min-w-0 flex-1 border-none bg-transparent py-[7px] text-base outline-none placeholder:text-muted-foreground md:text-sm"
           />
           <button
             type="button"
             onClick={submit}
+            onMouseDown={(e) => e.preventDefault()}
             aria-label="Send reply"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-brand text-white hover:opacity-90"
+            className="flex size-10 shrink-0 md:size-8 cursor-pointer items-center justify-center rounded-md bg-brand text-white hover:opacity-90"
           >
             <SendIcon className="size-[15px]" />
           </button>

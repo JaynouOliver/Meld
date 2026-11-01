@@ -21,7 +21,21 @@ export const useRouter = create<{ path: string }>(() => ({
   path: fromHash(typeof window === "undefined" ? "" : window.location.hash),
 }));
 
+// In-preview history (the sandboxed frame can't rely on the browser's).
+const stack: string[] = [];
+
+export function back() {
+  const prev = stack.pop();
+  if (prev) setPath(prev);
+}
+
 export function navigate(path: string) {
+  const cur = useRouter.getState().path;
+  if (cur !== path) stack.push(cur);
+  setPath(path);
+}
+
+function setPath(path: string) {
   useRouter.setState({ path });
   try {
     history.replaceState(null, "", "#" + toHash(path));

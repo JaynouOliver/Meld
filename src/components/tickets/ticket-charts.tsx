@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useWeekActivity } from "@/hooks/use-tickets";
@@ -59,7 +59,7 @@ export function TicketCharts({ tickets }: { tickets: Ticket[] }) {
 
   return (
     // Phones: a swipeable row of cards. Larger screens: a wrapping grid.
-    <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] sm:overflow-visible sm:px-0 sm:pb-0">
+    <div className="-mx-4 flex items-start snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] sm:overflow-visible sm:px-0 sm:pb-0">
       <Card title="Open tickets by status">
         {byStatus.map((b) => (
           <HBar key={b.label} label={b.label} value={b.v} max={sMax} tip={`${b.label}: ${b.v} ticket${b.v === 1 ? "" : "s"}`} />
@@ -82,7 +82,11 @@ function WeekChart() {
   const { data: week } = useWeekActivity();
   // Client-only: the server prerender has no "today" (-1 highlights nothing).
   const today = useSyncExternalStore(noopSubscribe, todayIndex, () => -1);
+  // Tapping a day shows its numbers (hover tooltips don't exist on touch screens).
+  const [picked, setPicked] = useState<number | null>(null);
+  const sel = picked ?? (today >= 0 ? today : null);
   const days = week ?? [];
+  const selDay = sel !== null ? days[sel] : undefined;
   const max = Math.max(1, ...days.map((d) => Math.max(d.p, d.a)));
   const h = (v: number) => `${Math.max(3, Math.round((v / max) * 112))}px`;
 
@@ -103,8 +107,12 @@ function WeekChart() {
       }
     >
       <div className="grid h-[120px] grid-cols-7 items-end gap-1.5 border-b border-input px-0.5" aria-hidden>
-        {days.map((d) => (
-          <div key={d.d} className="flex h-full items-end justify-center gap-0.5">
+        {days.map((d, i) => (
+          <div
+            key={d.d}
+            onClick={() => setPicked(i)}
+            className={cn("flex h-full cursor-pointer items-end justify-center gap-0.5 rounded-t-sm", i === sel && "bg-selected")}
+          >
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="w-[40%] max-w-3.5 rounded-t bg-brand hover:opacity-80" style={{ height: h(d.p) }} />
@@ -127,6 +135,13 @@ function WeekChart() {
           </span>
         ))}
       </div>
+      <p aria-live="polite" className="min-h-5 text-xs text-ink-2">
+        {selDay && (
+          <>
+            <span className="font-semibold">{selDay.d}</span> · People {selDay.p} · Atlas {selDay.a} changes
+          </>
+        )}
+      </p>
       <table className="sr-only">
         <caption>Ticket changes this week</caption>
         <thead>

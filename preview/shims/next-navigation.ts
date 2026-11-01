@@ -1,7 +1,7 @@
-import { navigate, useRouter } from "../router";
+import { back, navigate, useRouter as useRouteStore } from "../router";
 
 export function usePathname() {
-  return useRouter((s) => s.path);
+  return useRouteStore((s) => s.path);
 }
 
 export function useParams<T extends Record<string, string | undefined>>(): T {
@@ -17,4 +17,8 @@ export function redirect(path: string): never {
 
 export function notFound(): never {
   throw new Error("notFound");
+}
+
+export function useRouter() {
+  return { back, push: navigate, replace: navigate, prefetch: () => {}, refresh: () => {} };
 }

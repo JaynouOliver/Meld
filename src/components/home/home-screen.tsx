@@ -28,8 +28,9 @@ export function HomeScreen() {
     <main className="flex min-w-0 flex-1 flex-col bg-background">
       <ScreenHeader
         actions={
-          <Link href="/me" aria-label="Your profile" className="md:hidden">
+          <Link href="/me" className="-mr-1.5 flex size-11 items-center justify-center md:hidden">
             <Avatar person={PEOPLE.me} size="lg" />
+            <span className="sr-only">Your profile</span>
           </Link>
         }
       >

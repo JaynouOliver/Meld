@@ -86,6 +86,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
     send.mutate({ chatId, text });
     setDraft("");
     setPop(null);
+    inputRef.current?.focus();
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -120,15 +121,15 @@ export function Composer({ chatId }: { chatId: ChatId }) {
   const isPeople = pop?.kind === "people";
 
   return (
-    <div className="relative px-3 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-5">
+    <div className="relative px-3 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-5 md:pt-0 md:pb-5">
       {options.length > 0 && (
         <div
           role="listbox"
           id="composer-pop"
           aria-label={isPeople ? "Mention" : "Tickets you can see"}
-          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[min(300px,45dvh)] w-[380px] max-w-[calc(100%-24px)] sm:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
+          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[min(300px,calc(100dvh-150px))] w-[380px] max-w-[calc(100%-24px)] md:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
         >
-          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{isPeople ? "Mention" : "Tickets you can see"}</div>
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground [@media(max-height:500px)]:hidden">{isPeople ? "Mention" : "Tickets you can see"}</div>
           {options.map((o, i) => (
             <button
               key={o.insert}
@@ -153,12 +154,12 @@ export function Composer({ chatId }: { chatId: ChatId }) {
               </span>
             </button>
           ))}
-          <div className="px-2 pt-1.5 pb-1 text-[11px] text-muted-foreground">
+          <div className="px-2 pt-1.5 pb-1 text-[11px] text-muted-foreground [@media(max-height:500px)]:hidden">
             {isPeople ? "Enter or Tab to insert" : "Only tickets your role can access are suggested"}
           </div>
         </div>
       )}
-      <div className="flex items-center gap-0.5 rounded-[10px] border border-input p-1 focus-within:border-[#8B95A5] sm:gap-1 sm:p-1.5">
+      <div className="flex items-center gap-0.5 rounded-[10px] border border-input p-1 focus-within:border-[#8B95A5] focus-within:ring-2 focus-within:ring-ring/25 sm:gap-1 sm:p-1.5">
         <ComposerIconButton label="Mention a person or the agent" onClick={() => startToken("@", "people")}>
           <AtSignIcon className="size-[18px]" />
         </ComposerIconButton>
@@ -185,16 +186,20 @@ export function Composer({ chatId }: { chatId: ChatId }) {
         <button
           type="button"
           onClick={submit}
+          onMouseDown={keepFocus}
           aria-label="Send message"
           className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-white transition-opacity hover:opacity-90"
         >
           <SendIcon className="size-[18px]" />
         </button>
       </div>
-      <div className="hidden px-0.5 pt-1.5 text-xs text-muted-foreground sm:block">{hint}</div>
+      <div className="hidden px-0.5 pt-1.5 text-xs text-muted-foreground md:block">{hint}</div>
     </div>
   );
 }
+
+/** Tapping a composer button must not blur the input (that closes the keyboard and the popover). */
+const keepFocus = (e: React.MouseEvent) => e.preventDefault();
 
 function ComposerIconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -202,7 +207,8 @@ function ComposerIconButton({ label, onClick, children }: { label: string; onCli
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent"
+      onMouseDown={keepFocus}
+      className="flex size-10 shrink-0 md:size-9 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent"
     >
       {children}
     </button>

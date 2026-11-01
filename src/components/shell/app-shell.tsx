@@ -1,6 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+
+import { useUiStore } from "@/stores/ui-store";
 import { TicketPanel } from "@/components/ticket-panel/ticket-panel";
+import { useSheetHistory } from "@/hooks/use-sheet-history";
 import { Sidebar } from "./sidebar";
 import { TabBar } from "./tab-bar";
 
@@ -11,8 +16,14 @@ import { TabBar } from "./tab-bar";
  * and thread/ticket panels as full-screen sheets.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  useSheetHistory();
+  const pathname = usePathname();
+  useEffect(() => {
+    useUiStore.setState((s) => ({ navDepth: s.navDepth + 1 }));
+  }, [pathname]);
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background md:min-h-[560px] md:flex-row">
+    // Side safe-area padding keeps content clear of the notch in landscape.
+    <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] md:flex-row">
       <aside className="hidden w-[248px] shrink-0 md:flex">
         <Sidebar />
       </aside>

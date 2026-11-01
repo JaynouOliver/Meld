@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleDotIcon, GitPullRequestIcon, ImageIcon, TicketIcon, Trash2Icon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
@@ -43,6 +43,15 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
   const [title, setTitle] = useState(t.title);
   const [desc, setDesc] = useState(t.description);
   const [linkNum, setLinkNum] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  // Title wraps and grows instead of being cut off on narrow screens.
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title]);
   const reporter = PEOPLE[t.reporter];
 
   const commitTitle = () => title !== t.title && update.mutate({ id: t.id, patch: { title } });
@@ -68,24 +77,30 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
         onClose={onClose}
         closeLabel="Close ticket"
         actions={
-          canDelete(role) && (
+          canDelete(role) &&
+          (confirming ? (
+            <Button variant="destructive" className="h-10" onClick={() => del.mutate(t.id)} onBlur={() => setConfirming(false)} autoFocus>
+              <Trash2Icon className="size-4" />
+              Delete?
+            </Button>
+          ) : (
             <Button
               variant="ghost"
               size="icon"
               aria-label="Delete ticket"
               title="Delete ticket (org owners only)"
               className="size-11 text-destructive hover:text-destructive sm:size-10"
-              onClick={() => del.mutate(t.id)}
+              onClick={() => setConfirming(true)}
             >
               <Trash2Icon className="size-[17px]" />
             </Button>
-          )
+          ))
         }
       >
         <TicketIcon aria-hidden className="hidden size-[18px] text-agent-foreground sm:block" />
         <h2 className="text-base font-bold whitespace-nowrap">{t.id}</h2>
         <StatusPill status={t.status} />
-        <span className="truncate text-xs text-muted-foreground">{teamName(t.team)}</span>
+        <span className="hidden truncate text-xs text-muted-foreground sm:inline">{teamName(t.team)}</span>
       </PanelHeader>
 
       <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 pt-4 pb-[max(24px,env(safe-area-inset-bottom))] sm:px-5">
@@ -93,14 +108,23 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
           <Label htmlFor="tk-title" className={sectionLabel}>
             Title
           </Label>
-          <input
+          <textarea
             id="tk-title"
+            ref={titleRef}
+            rows={1}
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            // New tickets start empty: put the cursor in the title.
+            autoFocus={!t.title}
+            onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))}
             onBlur={commitTitle}
-            onKeyDown={(e) => e.key === "Enter" && (e.currentTarget.blur())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
             placeholder="Add a title"
-            className="-mx-2 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xl font-bold text-foreground outline-none hover:border-border focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring"
+            className="-mx-2 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-2 py-1.5 text-xl leading-snug font-bold text-foreground outline-none hover:border-border focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring"
           />
         </div>
 
@@ -141,7 +165,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               <SelectContent>
                 {PERSON_ORDER.map((k) => (
                   <SelectItem key={k} value={k}>
-                    <Avatar person={PEOPLE[k]} size="xs" />
+                    <Avatar person={PEOPLE[k]} size="xs" className="mr-2 align-middle" />
                     {PEOPLE[k].name}
                     {PEOPLE[k].isAgent ? " (agent)" : ""}
                   </SelectItem>
@@ -178,7 +202,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             <span className={sectionLabel}>Images · {t.images.length}</span>
             <label
               htmlFor="tk-image"
-              className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 text-[13px] font-semibold text-foreground hover:bg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 md:min-h-9 text-[13px] font-semibold text-foreground hover:bg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring"
             >
               <ImageIcon className="size-[15px]" />
               Add image
@@ -195,7 +219,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
                     type="button"
                     aria-label="Remove image"
                     onClick={() => update.mutate({ id: t.id, removeImageId: im.id })}
-                    className="absolute top-1 right-1 flex size-7 cursor-pointer items-center justify-center rounded-md bg-[rgba(20,24,33,0.7)] text-white"
+                    className="absolute top-1 right-1 flex size-9 cursor-pointer md:size-7 items-center justify-center rounded-md bg-[rgba(20,24,33,0.7)] text-white"
                   >
                     <XIcon className="size-3.5" strokeWidth={2.4} />
                   </button>
@@ -225,7 +249,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-semibold text-[#166534]">Open</span>
               <Button
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 aria-label={`Unlink ${l.kind} #${l.num}`}
                 onClick={() => update.mutate({ id: t.id, removeLinkId: l.id })}
               >
@@ -258,7 +282,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               autoComplete="off"
               className="min-w-0 flex-1"
             />
-            <Button variant="outline" className="h-[38px]" onClick={addLink}>
+            <Button variant="outline" className="h-10 md:h-[38px]" onClick={addLink}>
               Link
             </Button>
           </div>
