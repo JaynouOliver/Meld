@@ -125,3 +125,21 @@
     color: var(--link-hover);
   }
 }
+
+/* Notch / home-indicator padding (needs viewport-fit=cover). */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer base {
+  /* No grey flash when tapping, and no double-tap zoom delay on controls. */
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}

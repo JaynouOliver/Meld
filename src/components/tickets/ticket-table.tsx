@@ -57,9 +57,9 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   });
 
   return (
-    <div className="overflow-x-auto rounded-[10px] border bg-white">
-      <div className="min-w-[860px]" role="table" aria-label="Tickets">
-        <div role="row" className={cn("grid border-b text-xs font-semibold text-muted-foreground", COLS)}>
+    <div className="-mx-4 border-y bg-white sm:mx-0 sm:rounded-[10px] sm:border md:overflow-x-auto">
+      <div className="md:min-w-[860px]" role="table" aria-label="Tickets">
+        <div role="row" className={cn("hidden border-b md:grid text-xs font-semibold text-muted-foreground", COLS)}>
           <span role="columnheader" className="px-3 py-2.5">
             <span className="sr-only">Row</span>
           </span>
@@ -82,7 +82,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                 type="button"
                 onClick={() => toggleCollapsed(ck)}
                 aria-expanded={open}
-                className="flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6]"
+                className="sticky top-0 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6] md:static"
               >
                 <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} strokeWidth={2.4} />
                 <span
@@ -97,6 +97,12 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
               </button>
               {open && (
                 <>
+                  <ul className="md:hidden">
+                    {g.items.map((t) => (
+                      <TicketCardRow key={t.id} t={t} selected={ticketId === t.id} onOpen={() => openTicket(t.id)} />
+                    ))}
+                  </ul>
+                  <div className="hidden md:block">
                   {g.items.map((t) => {
                     const a = PEOPLE[t.assignee];
                     const linked = t.links.length > 0;
@@ -139,11 +145,12 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                       </div>
                     );
                   })}
+                  </div>
                   {role !== "guest" && (
                     <button
                       type="button"
                       onClick={() => create.mutate(preset)}
-                      className="flex min-h-10 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-5 text-left text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-4 text-left md:min-h-10 md:pl-5 text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
                     >
                       <PlusIcon className="size-3.5" strokeWidth={2.2} />
                       Add item
@@ -160,5 +167,42 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
         )}
       </div>
     </div>
+  );
+}
+
+/** Phone layout for one ticket: a tappable card instead of a six-column row. */
+function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; onOpen: () => void }) {
+  const a = PEOPLE[t.assignee];
+  const link = t.links[0];
+  return (
+    <li className="border-t border-line-soft">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={cn("flex w-full cursor-pointer flex-col gap-1.5 px-4 py-3 text-left active:bg-muted", selected && "bg-selected")}
+      >
+        <span className="flex items-start gap-2">
+          {link ? (
+            <CircleDotIcon aria-label="Linked to GitHub" className="mt-0.5 size-4 shrink-0 text-[#1A7F37]" strokeWidth={2.2} />
+          ) : (
+            <CircleDashedIcon aria-label="Draft, no GitHub link" className="mt-0.5 size-4 shrink-0 text-subtle" />
+          )}
+          <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-foreground">{t.title || "Untitled ticket"}</span>
+        </span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-[13px] text-muted-foreground">
+          <StatusPill status={t.status} bordered className="py-px" />
+          <span className="font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
+            {t.priority}
+          </span>
+          <span aria-hidden>·</span>
+          <span>{t.id}</span>
+          {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}
+          <span className="ml-auto flex items-center gap-1.5">
+            <Avatar person={a} size="xs" />
+            <span className="max-w-[110px] truncate">{t.assignee === "me" ? "You" : a.first}</span>
+          </span>
+        </span>
+      </button>
+    </li>
   );
 }

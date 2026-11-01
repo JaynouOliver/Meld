@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { RootRedirect } from "@/components/root-redirect";
 
 export default function Home() {
-  redirect("/chat/design");
+  return <RootRedirect />;
 }

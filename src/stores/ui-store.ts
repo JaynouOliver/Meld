@@ -27,7 +27,6 @@ interface UiState {
   replyTo: string | null;
   expanded: Record<string, boolean>;
   ticketId: string | null;
-  mobileNavOpen: boolean;
 
   // live
   typing: Typing | null;
@@ -46,7 +45,6 @@ interface UiState {
   setExpanded: (id: string, open: boolean) => void;
   openTicket: (id: string) => void;
   closeTicket: () => void;
-  setMobileNavOpen: (open: boolean) => void;
 
   setTyping: (t: Typing | null) => void;
   markRead: (chat: ChatId) => void;
@@ -63,12 +61,11 @@ export const useUiStore = create<UiState>()(
       ticketQuery: DEFAULT_TICKET_QUERY,
       groupBy: "assignee",
 
-      // Opens on the design thread, matching the design's first frame.
-      threadId: "m2",
+      // Desktop opens on the design thread (see Providers); phones start clean.
+      threadId: null,
       replyTo: null,
       expanded: { r1: true, s2: true, s3: true },
       ticketId: null,
-      mobileNavOpen: false,
 
       typing: null,
       unread: SEED_UNREAD,
@@ -87,7 +84,6 @@ export const useUiStore = create<UiState>()(
       setExpanded: (id, open) => set((s) => ({ expanded: { ...s.expanded, [id]: open } })),
       openTicket: (ticketId) => set({ ticketId }),
       closeTicket: () => set({ ticketId: null }),
-      setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
 
       setTyping: (typing) => set({ typing }),
       markRead: (chat) => set((s) => ({ unread: { ...s.unread, [chat]: 0 } })),

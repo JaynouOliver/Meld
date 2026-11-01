@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 function Card({ title, children, legend }: { title: string; children: React.ReactNode; legend?: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-2.5 rounded-[10px] border bg-white px-4 py-3.5">
+    <section className="relative flex w-[85%] shrink-0 snap-start flex-col gap-2.5 rounded-[10px] border bg-white px-4 py-3.5 sm:w-auto">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-bold">{title}</h2>
         {legend}
@@ -58,7 +58,8 @@ export function TicketCharts({ tickets }: { tickets: Ticket[] }) {
   const aMax = Math.max(1, ...byAssignee.map((x) => x.v));
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
+    // Phones: a swipeable row of cards. Larger screens: a wrapping grid.
+    <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] sm:overflow-visible sm:px-0 sm:pb-0">
       <Card title="Open tickets by status">
         {byStatus.map((b) => (
           <HBar key={b.label} label={b.label} value={b.v} max={sMax} tip={`${b.label}: ${b.v} ticket${b.v === 1 ? "" : "s"}`} />

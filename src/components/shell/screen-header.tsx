@@ -1,26 +1,50 @@
 "use client";
 
-import { MenuIcon } from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
+import Link from "next/link";
 
+import { CHANNELS, DMS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
-/** 60px screen header with a nav-drawer button on small screens. */
-export function ScreenHeader({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
-  const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
+/**
+ * 60px screen header. On phones, `back` adds a back button (with the unread
+ * count, like a native nav bar); the sidebar replaces it on desktop.
+ */
+export function ScreenHeader({
+  children,
+  actions,
+  back,
+  className,
+}: {
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  back?: string;
+  className?: string;
+}) {
+  const unread = useUiStore((s) => [...CHANNELS, ...DMS].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-3 sm:px-5">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <button
-          type="button"
-          aria-label="Open navigation"
-          onClick={() => setMobileNavOpen(true)}
-          className="-ml-1 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent md:hidden"
-        >
-          <MenuIcon className="size-5" />
-        </button>
-        {children}
+    <header className={cn("shrink-0 border-b bg-background pt-safe", className)}>
+      <div className="flex h-14 items-center justify-between gap-3 px-3 md:h-[60px] md:px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {back && (
+            <Link
+              href={back}
+              aria-label="Back"
+              className="-ml-1.5 flex h-11 shrink-0 items-center gap-0.5 rounded-lg pr-1 text-brand no-underline hover:text-brand md:hidden"
+            >
+              <ChevronLeftIcon className="size-7" strokeWidth={2.2} />
+              {unread > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-bold text-white">
+                  {unread}
+                </span>
+              )}
+            </Link>
+          )}
+          {children}
+        </div>
+        {actions}
       </div>
-      {actions}
     </header>
   );
 }

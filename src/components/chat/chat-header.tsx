@@ -15,10 +15,10 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
     const p = PEOPLE[meta.who];
     const topic = meta.who === "atlas" ? `Agent · works on tickets with your permissions (${ROLE_LABEL[role]})` : meta.topic;
     return (
-      <ScreenHeader>
+      <ScreenHeader back="/home">
         <Avatar person={p} size="md" />
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="text-[17px] font-bold">{p.name}</h1>
+          <h1 className="truncate text-[17px] font-bold">{p.name}</h1>
           <span className="truncate text-[13px] text-muted-foreground">{topic}</span>
         </div>
       </ScreenHeader>
@@ -27,6 +27,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
 
   return (
     <ScreenHeader
+      back="/home"
       actions={
         <div title="Channel members" className="flex shrink-0 items-center gap-2 rounded-lg border py-1 pr-2.5 pl-1.5">
           <span aria-hidden className="flex pl-1">
@@ -39,7 +40,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       }
     >
       <div className="flex min-w-0 flex-col leading-[1.3]">
-        <h1 className="text-[17px] font-bold"># {meta.label}</h1>
+        <h1 className="truncate text-[17px] font-bold"># {meta.label}</h1>
         <span className="truncate text-[13px] text-muted-foreground">{meta.topic}</span>
       </div>
     </ScreenHeader>

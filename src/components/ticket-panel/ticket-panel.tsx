@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
-import { SidePanel } from "@/components/shell/side-panel";
+import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,33 +64,31 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
 
   return (
     <>
-      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b pr-3 pl-5">
-        <div className="flex min-w-0 items-center gap-2">
-          <TicketIcon aria-hidden className="size-[18px] text-agent-foreground" />
-          <h2 className="text-base font-bold">{t.id}</h2>
-          <StatusPill status={t.status} />
-          <span className="text-xs text-muted-foreground">{teamName(t.team)}</span>
-        </div>
-        <div className="flex gap-0.5">
-          {canDelete(role) && (
+      <PanelHeader
+        onClose={onClose}
+        closeLabel="Close ticket"
+        actions={
+          canDelete(role) && (
             <Button
               variant="ghost"
               size="icon"
               aria-label="Delete ticket"
               title="Delete ticket (org owners only)"
-              className="text-destructive hover:text-destructive"
+              className="size-11 text-destructive hover:text-destructive sm:size-10"
               onClick={() => del.mutate(t.id)}
             >
               <Trash2Icon className="size-[17px]" />
             </Button>
-          )}
-          <Button variant="ghost" size="icon" aria-label="Close ticket" onClick={onClose}>
-            <XIcon className="size-[18px]" />
-          </Button>
-        </div>
-      </header>
+          )
+        }
+      >
+        <TicketIcon aria-hidden className="hidden size-[18px] text-agent-foreground sm:block" />
+        <h2 className="text-base font-bold whitespace-nowrap">{t.id}</h2>
+        <StatusPill status={t.status} />
+        <span className="truncate text-xs text-muted-foreground">{teamName(t.team)}</span>
+      </PanelHeader>
 
-      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-5 pt-4 pb-6">
+      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 pt-4 pb-[max(24px,env(safe-area-inset-bottom))] sm:px-5">
         <div className="flex flex-col gap-1">
           <Label htmlFor="tk-title" className={sectionLabel}>
             Title
@@ -235,9 +233,9 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               </Button>
             </div>
           ))}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
             <Select value={linkKind} onValueChange={(v) => setLinkKind(v as "PR" | "Issue")}>
-              <SelectTrigger aria-label="Link type" className="w-[140px]">
+              <SelectTrigger aria-label="Link type" className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +256,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               placeholder="Number, e.g. 512"
               inputMode="numeric"
               autoComplete="off"
-              className="flex-1"
+              className="min-w-0 flex-1"
             />
             <Button variant="outline" className="h-[38px]" onClick={addLink}>
               Link

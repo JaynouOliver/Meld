@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
 const MAX_INDENT = 6;
-const indent = (depth: number) => 20 + Math.max(0, Math.min(depth, MAX_INDENT) - 1) * 22;
+// Phones get shallower indents so deep replies keep a readable width.
+const indent = (depth: number) => `calc(var(--thread-pad) + ${Math.max(0, Math.min(depth, MAX_INDENT) - 1)} * var(--thread-step))`;
 
 /** Recursive, collapsible reply tree with inline reply composers. */
 export function ThreadNodes({ chatId, rootId, nodes, depth }: { chatId: ChatId; rootId: string; nodes: ReplyNode[]; depth: number }) {
@@ -38,7 +39,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
 
   return (
     <>
-      <div className="hover:bg-muted" style={{ padding: `0 20px 0 ${indent(depth)}px` }}>
+      <div className="pr-4 hover:bg-muted sm:pr-5 [--thread-pad:16px] [--thread-step:14px] sm:[--thread-pad:20px] sm:[--thread-step:22px]" style={{ paddingLeft: indent(depth) }}>
         <div className={cn("flex gap-2.5 border-l-2 py-[7px]", nested ? "border-border pl-3" : "border-transparent pl-0")}>
           <Avatar person={p} size={nested ? "md" : "xl"} className={nested ? "" : "rounded-[7px]"} />
           <div className="min-w-0 flex-1">
@@ -96,7 +97,7 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
   };
 
   return (
-    <div style={{ padding: `0 20px 0 ${indent(depth)}px` }}>
+    <div style={{ paddingLeft: indent(depth) }}>
       <div className="border-l-2 border-border pt-1 pb-2.5 pl-3">
         <div className="flex items-center gap-1.5 rounded-lg border border-input bg-white py-[3px] pr-[3px] pl-2.5 focus-within:border-[#8B95A5]">
           <label htmlFor={inputId} className="sr-only">
@@ -117,7 +118,7 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
             }}
             placeholder={`Reply to ${name}…`}
             autoComplete="off"
-            className="min-w-0 flex-1 border-none bg-transparent py-[7px] text-sm outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 border-none bg-transparent py-[7px] text-base outline-none placeholder:text-muted-foreground sm:text-sm"
           />
           <button
             type="button"

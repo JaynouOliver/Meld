@@ -1,11 +1,11 @@
 "use client";
 
-import { SendIcon, XIcon } from "lucide-react";
+import { SendIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
-import { SidePanel } from "@/components/shell/side-panel";
+import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { useSendMessage } from "@/hooks/use-messages";
 import { CHAT_META, PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
@@ -37,23 +37,15 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
 
   return (
     <SidePanel label="Thread" width="thread" onClose={closeThread}>
-      <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b pr-3 pl-5">
+      <PanelHeader onClose={closeThread} closeLabel="Close thread">
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="text-[17px] font-bold">Thread</h2>
           <span className="truncate text-[13px] text-muted-foreground">{meta.kind === "channel" ? `# ${meta.label}` : PEOPLE[meta.who].name}</span>
         </div>
-        <button
-          type="button"
-          onClick={closeThread}
-          aria-label="Close thread"
-          className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent"
-        >
-          <XIcon className="size-[18px]" />
-        </button>
-      </header>
+      </PanelHeader>
 
       <div ref={listRef} className="flex-1 overflow-y-auto py-3">
-        <div className="flex gap-3 px-5 pt-1 pb-2">
+        <div className="flex gap-3 px-4 pt-1 pb-2 sm:px-5">
           <Avatar person={p} size="xl" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
@@ -73,7 +65,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
         {showTyping && <div className="px-5 pt-1.5 pl-[68px] text-[13px] text-muted-foreground italic">{typing.label}</div>}
       </div>
 
-      <div className="px-5 pb-5">
+      <div className="px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-5">
         <div className="flex items-center gap-2 rounded-[10px] border border-input py-1.5 pr-1.5 pl-3.5 focus-within:border-[#8B95A5]">
           <label htmlFor="thread-input" className="sr-only">
             Reply in thread
@@ -89,9 +81,9 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
                 submit();
               }
             }}
-            placeholder="Reply… (@Atlas and NW- ticket IDs work here)"
+            placeholder="Reply… (@Atlas and NW- IDs work)"
             autoComplete="off"
-            className="min-w-0 flex-1 border-none bg-transparent py-[9px] text-[15px] outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 border-none bg-transparent py-[9px] text-base outline-none placeholder:text-muted-foreground md:text-[15px]"
           />
           <button
             type="button"

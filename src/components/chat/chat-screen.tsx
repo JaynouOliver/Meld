@@ -10,6 +10,9 @@ import { ChatHeader } from "./chat-header";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 
+// The design's first frame shows the invite thread open. Recreate that once, on desktop only.
+let seededThread = false;
+
 export function ChatScreen({ chatId }: { chatId: ChatId }) {
   const { data: messages } = useMessages(chatId);
   const threadId = useUiStore((s) => s.threadId);
@@ -17,6 +20,11 @@ export function ChatScreen({ chatId }: { chatId: ChatId }) {
   const markRead = useUiStore((s) => s.markRead);
 
   useEffect(() => markRead(chatId), [chatId, markRead]);
+  useEffect(() => {
+    if (seededThread) return;
+    seededThread = true;
+    if (chatId === "design" && window.matchMedia("(min-width: 1280px)").matches) useUiStore.getState().openThread("m2");
+  }, [chatId]);
 
   const root = messages?.find((m) => m.id === threadId) ?? null;
 

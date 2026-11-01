@@ -48,7 +48,7 @@ export function TicketCard({ id }: { id: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[13px] text-muted-foreground">{meta}</span>
         {t && (
-          <Button variant="outline" size="sm" onClick={() => openTicket(t.id)}>
+          <Button variant="outline" size="sm" className="h-10 sm:h-9" onClick={() => openTicket(t.id)}>
             Open ticket
           </Button>
         )}

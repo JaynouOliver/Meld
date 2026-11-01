@@ -6,16 +6,19 @@ import { create } from "zustand";
  *   /chat/design -> #chat-design, /tickets -> #tickets, /tickets/mine -> #tickets-mine
  */
 export const toHash = (path: string) => path.replace(/^\//, "").replace(/\//g, "-");
+const startPath = () =>
+  typeof window !== "undefined" && !window.matchMedia("(min-width: 768px)").matches ? "/home" : "/chat/design";
+
 export const fromHash = (hash: string) => {
   const h = hash.replace(/^#/, "");
-  if (h === "tickets") return "/tickets";
   if (h === "tickets-mine") return "/tickets/mine";
   if (h.startsWith("chat-")) return "/chat/" + h.slice(5);
-  return "/chat/design";
+  if (["tickets", "home", "me"].includes(h)) return "/" + h;
+  return startPath();
 };
 
 export const useRouter = create<{ path: string }>(() => ({
-  path: typeof window === "undefined" ? "/chat/design" : fromHash(window.location.hash),
+  path: fromHash(typeof window === "undefined" ? "" : window.location.hash),
 }));
 
 export function navigate(path: string) {

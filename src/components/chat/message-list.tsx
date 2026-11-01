@@ -24,14 +24,14 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
 
   return (
     <div ref={ref} className="flex-1 overflow-y-auto pt-2 pb-3">
-      <div className="flex items-center gap-3 px-5 pt-3 pb-2">
+      <div className="flex items-center gap-3 px-3 pt-3 pb-2 sm:px-5">
         <span className="h-px flex-1 bg-border" />
         <span className="rounded-full border px-3 py-[3px] text-xs font-semibold text-muted-foreground">Today</span>
         <span className="h-px flex-1 bg-border" />
       </div>
       {!messages && <MessageSkeleton />}
       {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
-      {showTyping && <div className="px-5 pt-1.5 pl-[68px] text-[13px] text-muted-foreground italic">{typing.label}</div>}
+      {showTyping && <div className="pt-1.5 pr-3 pl-[60px] text-[13px] sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typing.label}</div>}
     </div>
   );
 }
@@ -47,11 +47,20 @@ function MessageRow({ message: m }: { message: Message }) {
   });
   const pending = m.id.startsWith("pending-");
 
+  // Touch screens have no hover toolbar: tapping a message opens its thread,
+  // unless the tap was on a link, chip or button inside it.
+  const onTap = (e: React.MouseEvent) => {
+    if (pending || !window.matchMedia("(pointer: coarse)").matches) return;
+    if ((e.target as HTMLElement).closest("button, a, input")) return;
+    openThread(m.id);
+  };
+
   return (
     <div
+      onClick={onTap}
       className={cn(
         "group relative flex gap-3 px-3 py-2 sm:px-5",
-        threadId === m.id ? "bg-selected" : "hover:bg-muted",
+        threadId === m.id ? "bg-selected" : "hover:bg-muted pointer-coarse:hover:bg-transparent pointer-coarse:active:bg-muted",
         pending && "opacity-60",
       )}
     >
@@ -68,7 +77,7 @@ function MessageRow({ message: m }: { message: Message }) {
           <button
             type="button"
             onClick={() => openThread(m.id)}
-            className="mt-1.5 inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-[13px] transition-colors hover:border-input hover:bg-white"
+            className="mt-1.5 inline-flex min-h-10 max-w-full cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-[13px] sm:min-h-9 transition-colors hover:border-input hover:bg-white"
           >
             <span aria-hidden className="flex gap-0.5">
               {participants.map((pp) => (
@@ -76,12 +85,12 @@ function MessageRow({ message: m }: { message: Message }) {
               ))}
             </span>
             <span className="font-bold text-link">{n === 1 ? "1 reply" : `${n} replies`}</span>
-            <span className="text-muted-foreground">Last reply {m.replies[m.replies.length - 1].time}</span>
+            <span className="truncate text-muted-foreground">Last reply {m.replies[m.replies.length - 1].time}</span>
           </button>
         )}
       </div>
       {!pending && (
-        <div className="absolute -top-3.5 right-5 flex rounded-lg border bg-white p-0.5 opacity-0 shadow-[0_2px_6px_rgba(20,24,33,0.08)] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-lg border bg-white p-0.5 opacity-0 shadow-[0_2px_6px_rgba(20,24,33,0.08)] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={() => openThread(m.id)}

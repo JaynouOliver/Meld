@@ -120,13 +120,13 @@ export function Composer({ chatId }: { chatId: ChatId }) {
   const isPeople = pop?.kind === "people";
 
   return (
-    <div className="relative px-3 pb-3 sm:px-5 sm:pb-5">
+    <div className="relative px-3 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-5">
       {options.length > 0 && (
         <div
           role="listbox"
           id="composer-pop"
           aria-label={isPeople ? "Mention" : "Tickets you can see"}
-          className="absolute bottom-[calc(100%-12px)] left-3 z-10 max-h-[300px] w-[380px] max-w-[calc(100%-24px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
+          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[min(300px,45dvh)] w-[380px] max-w-[calc(100%-24px)] sm:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
         >
           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{isPeople ? "Mention" : "Tickets you can see"}</div>
           {options.map((o, i) => (
@@ -158,7 +158,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-1 rounded-[10px] border border-input p-1.5 focus-within:border-[#8B95A5]">
+      <div className="flex items-center gap-0.5 rounded-[10px] border border-input p-1 focus-within:border-[#8B95A5] sm:gap-1 sm:p-1.5">
         <ComposerIconButton label="Mention a person or the agent" onClick={() => startToken("@", "people")}>
           <AtSignIcon className="size-[18px]" />
         </ComposerIconButton>
@@ -180,7 +180,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           role="combobox"
           aria-expanded={options.length > 0}
           aria-controls="composer-pop"
-          className="min-w-0 flex-1 border-none bg-transparent px-1 py-[9px] text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 border-none bg-transparent px-1 py-[9px] text-base text-foreground md:text-[15px] outline-none placeholder:text-muted-foreground"
         />
         <button
           type="button"
