@@ -27,6 +27,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty("--brand", accent);
   }, [accent]);
 
+  // Light / dark / follow the OS.
+  const theme = useUiStore((s) => s.theme);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && mq.matches));
+    apply();
+    if (theme !== "system") return;
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [theme]);
+
   return (
     <QueryClientProvider client={client}>
       <TooltipProvider>{children}</TooltipProvider>

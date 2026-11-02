@@ -17,7 +17,7 @@ export function TicketFilterBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative flex flex-[1_1_100%] items-center sm:flex-[1_1_320px] gap-2 rounded-lg border border-input bg-white px-2.5 text-muted-foreground focus-within:border-[#8B95A5]">
+      <div className="relative flex flex-[1_1_100%] items-center sm:flex-[1_1_320px] gap-2 rounded-lg border border-input bg-card px-2.5 text-muted-foreground focus-within:border-subtle">
         <SearchIcon aria-hidden className="size-[15px]" />
         <label htmlFor="tq" className="sr-only">
           Filter tickets
@@ -42,11 +42,11 @@ export function TicketFilterBar() {
           </button>
         )}
       </div>
-      <label htmlFor="groupby" className="ml-auto text-[13px] font-semibold text-ink-2 sm:ml-0">
+      <label htmlFor="groupby" className="ml-auto text-meta font-semibold text-ink-2 sm:ml-0">
         Group by
       </label>
       <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-        <SelectTrigger id="groupby" className="w-[130px] bg-white">
+        <SelectTrigger id="groupby" className="w-[130px] bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

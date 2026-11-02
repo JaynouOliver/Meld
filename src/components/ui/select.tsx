@@ -48,7 +48,7 @@ function SelectContent({
         data-slot="select-content"
         position={position}
         className={cn(
-          "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto rounded-lg border bg-popover text-popover-foreground shadow-[0_8px_24px_rgba(20,24,33,0.14)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto rounded-lg border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           position === "popper" && "w-full min-w-(--radix-select-trigger-width) data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
         )}

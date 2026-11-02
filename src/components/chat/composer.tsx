@@ -130,7 +130,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           role="listbox"
           id="composer-pop"
           aria-label={isPeople ? "Mention" : "Tickets you can see"}
-          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[max(104px,min(300px,calc(100dvh-84px)))] w-[380px] max-w-[calc(100%-24px)] md:bottom-[calc(100%-12px)] overflow-y-auto rounded-[10px] border bg-white p-1.5 shadow-[0_8px_24px_rgba(20,24,33,0.14)] sm:left-5"
+          className="absolute bottom-[calc(100%-4px)] left-3 z-10 max-h-[max(104px,min(300px,calc(100dvh-84px)))] w-[380px] max-w-[calc(100%-24px)] md:bottom-[calc(100%-12px)] overflow-y-auto rounded-lg border bg-card p-1.5 shadow-lg sm:left-5"
         >
           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground [@media(max-height:500px)]:hidden">{isPeople ? "Mention" : "Tickets you can see"}</div>
           {options.map((o, i) => (
@@ -146,7 +146,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
               onMouseEnter={() => setSel(i)}
               className={cn("flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-left", i === sel && "bg-selected")}
             >
-              <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-[10px] font-bold" style={{ background: o.color, color: o.ink }}>
+              <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-2xs font-bold" style={{ background: o.color, color: o.ink }}>
                 {o.badge}
               </span>
               <span className="flex min-w-0 flex-col leading-[1.3]">
@@ -157,12 +157,12 @@ export function Composer({ chatId }: { chatId: ChatId }) {
               </span>
             </button>
           ))}
-          <div className="px-2 pt-1.5 pb-1 text-[11px] text-muted-foreground [@media(max-height:500px)]:hidden">
+          <div className="px-2 pt-1.5 pb-1 text-2xs text-muted-foreground [@media(max-height:500px)]:hidden">
             {isPeople ? "Enter or Tab to insert" : "Only tickets your role can access are suggested"}
           </div>
         </div>
       )}
-      <div className="flex items-center gap-0.5 rounded-[10px] border border-input p-1 focus-within:border-[#8B95A5] focus-within:ring-2 focus-within:ring-ring/25 sm:gap-1 sm:p-1.5">
+      <div className="flex items-center gap-0.5 rounded-lg border border-input p-1 focus-within:border-subtle focus-within:ring-2 focus-within:ring-ring/25 sm:gap-1 sm:p-1.5">
         <ComposerIconButton label="Mention a person or the agent" onClick={() => startToken("@", "people")}>
           <AtSignIcon className="size-[18px]" />
         </ComposerIconButton>
@@ -184,7 +184,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           role="combobox"
           aria-expanded={options.length > 0}
           aria-controls="composer-pop"
-          className="min-w-0 flex-1 border-none bg-transparent px-1 py-[9px] text-base text-foreground md:text-[15px] outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 border-none bg-transparent px-1 py-[9px] text-base text-foreground md:text-body outline-none placeholder:text-muted-foreground"
         />
         <button
           type="button"

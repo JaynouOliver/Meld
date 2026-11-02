@@ -18,8 +18,8 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       <ScreenHeader back="/home">
         <Avatar person={p} size="md" />
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="truncate text-[17px] font-bold">{p.name}</h1>
-          <span className="truncate text-[13px] text-muted-foreground">{topic}</span>
+          <h1 className="truncate text-base font-bold">{p.name}</h1>
+          <span className="truncate text-meta text-muted-foreground">{topic}</span>
         </div>
       </ScreenHeader>
     );
@@ -35,13 +35,13 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
               <Avatar key={k} person={PEOPLE[k]} size="sm" className="-ml-1 rounded-md border-2 border-white" />
             ))}
           </span>
-          <span className="text-[13px] font-semibold text-ink-2">{meta.members.length}</span>
+          <span className="text-meta font-semibold text-ink-2">{meta.members.length}</span>
         </div>
       }
     >
       <div className="flex min-w-0 flex-col leading-[1.3]">
-        <h1 className="truncate text-[17px] font-bold"># {meta.label}</h1>
-        <span className="truncate text-[13px] text-muted-foreground">{meta.topic}</span>
+        <h1 className="truncate text-base font-bold"># {meta.label}</h1>
+        <span className="truncate text-meta text-muted-foreground">{meta.topic}</span>
       </div>
     </ScreenHeader>
   );

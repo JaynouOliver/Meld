@@ -12,13 +12,14 @@ import type { TicketScope } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { TicketCharts } from "./ticket-charts";
 import { TicketFilterBar } from "./ticket-filter-bar";
-import { TicketStats } from "./ticket-stats";
 import { TicketTable } from "./ticket-table";
+import { TicketViews } from "./ticket-views";
 
 export function TicketsScreen({ scope }: { scope: TicketScope }) {
   const role = useUiStore((s) => s.role);
   const { visible, isPending } = useVisibleTickets();
   const create = useCreateTicket();
+  const showInsights = useUiStore((s) => s.showInsights);
   const scoped = useMemo(() => visible.filter((t) => scope === "all" || t.assignee === "me"), [visible, scope]);
 
   return (
@@ -34,21 +35,19 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         }
       >
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="text-[22px] font-bold tracking-[-0.01em] md:text-[17px] md:tracking-normal">
+          <h1 className="text-2xl font-bold tracking-[-0.01em] md:text-base md:tracking-normal">
             <span className="md:hidden">Tickets</span>
             <span className="hidden md:inline">{scope === "mine" ? "Assigned to me" : "All tickets"}</span>
           </h1>
-          <span className="hidden truncate text-[13px] text-muted-foreground md:block">{ROLE_SCOPE[role]}</span>
+          <span className="hidden truncate text-meta text-muted-foreground md:block">{ROLE_SCOPE[role]}</span>
         </div>
       </ScreenHeader>
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas *:shrink-0 px-4 pt-3 pb-6 sm:gap-4 sm:px-5 sm:pt-4 sm:pb-7">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas *:shrink-0 px-4 pt-3 pb-6 sm:px-5 sm:pt-4 sm:pb-7">
         <ScopeTabs scope={scope} />
-        <p className="-mt-1 text-[13px] text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
-        <TicketStats tickets={scoped} />
-        {/* Phones, landscape and tablets lead with the list; charts move to the end until there's room. */}
-        <div className="order-last lg:order-none">
-          <TicketCharts tickets={scoped} />
-        </div>
+        <p className="-mt-1 text-meta text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
+        {/* List first: views and filter sit directly above it, charts are opt-in. */}
+        <TicketViews tickets={scoped} scope={scope} />
+        {showInsights && <TicketCharts tickets={scoped} />}
         <TicketFilterBar />
         <div className="@container">
           <TicketTable tickets={scoped} loading={isPending} />
@@ -74,7 +73,7 @@ function ScopeTabs({ scope }: { scope: TicketScope }) {
           aria-selected={scope === t.value}
           className={
             "flex h-10 items-center justify-center rounded-md text-sm font-semibold no-underline " +
-            (scope === t.value ? "bg-white text-foreground shadow-sm hover:text-foreground" : "text-muted-foreground hover:text-muted-foreground")
+            (scope === t.value ? "bg-card text-foreground shadow-xs hover:text-foreground" : "text-muted-foreground hover:text-muted-foreground")
           }
         >
           {t.label}

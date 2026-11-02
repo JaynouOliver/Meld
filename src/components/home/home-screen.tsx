@@ -34,7 +34,7 @@ export function HomeScreen() {
           </Link>
         }
       >
-        <h1 className="text-[22px] font-bold tracking-[-0.01em] md:text-[17px]">{WORKSPACE_NAME}</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.01em] md:text-base">{WORKSPACE_NAME}</h1>
       </ScreenHeader>
 
       <div className="flex-1 overflow-y-auto">
@@ -124,7 +124,7 @@ function AtlasCard({ last }: { last: Message | undefined }) {
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2 text-base font-bold">
             Ask Atlas
-            <SparklesIcon className="size-4 text-[#D8CCFF]" />
+            <SparklesIcon className="size-4 text-sidebar-agent" />
             {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-unread px-1.5 text-xs font-bold">{n}</span>}
           </span>
           <span className="truncate text-sm text-sidebar-foreground">{last ? preview(last) : "Create, update and look up tickets"}</span>

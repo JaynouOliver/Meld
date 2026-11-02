@@ -45,7 +45,7 @@ export function RichText({ text, className }: { text: string; className?: string
             title={`Open ${ticket.id}`}
             className={cn(
               HIT,
-              "mx-px inline-flex max-w-full cursor-pointer items-center gap-[5px] rounded-md border border-[#D5D9E0] bg-muted px-1.5 align-baseline text-[13px] leading-[1.6] font-semibold text-foreground transition-colors hover:border-[#9DB6F0] hover:bg-selected",
+              "mx-px inline-flex max-w-full cursor-pointer items-center gap-[5px] rounded-md border border-input bg-muted px-1.5 align-baseline text-meta leading-[1.6] font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-selected",
             )}
           >
             <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: STATUS_COLORS[ticket.status][3] }} />
@@ -89,7 +89,7 @@ function LockedChip({ id }: { id: string }) {
           data-chip
           className={cn(
             HIT,
-            "mx-px inline-flex cursor-help items-center gap-1 rounded-md border border-dashed border-[#B8BEC8] bg-white px-1.5 align-baseline text-[13px] leading-[1.6] font-semibold text-muted-foreground",
+            "mx-px inline-flex cursor-help items-center gap-1 rounded-md border border-dashed border-subtle bg-card px-1.5 align-baseline text-meta leading-[1.6] font-semibold text-muted-foreground",
           )}
         >
           <LockIcon className="size-3" strokeWidth={2.4} />

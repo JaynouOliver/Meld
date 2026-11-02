@@ -55,10 +55,10 @@ function NavLink({
         onNavigate?.();
       }}
       className={cn(
-        "flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-[5px] text-[15px] no-underline transition-colors",
+        "flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-[5px] text-body no-underline transition-colors",
         active
           ? "bg-brand font-bold text-white hover:text-white"
-          : cn("hover:bg-white/[0.08]", bold ? "font-bold text-white hover:text-white" : "text-sidebar-foreground hover:text-sidebar-foreground"),
+          : cn("hover:bg-sidebar-hover", bold ? "font-bold text-white hover:text-white" : "text-sidebar-foreground hover:text-sidebar-foreground"),
       )}
     >
       {children}
@@ -96,7 +96,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Workspace" className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-[17px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {WORKSPACE_NAME}
             <ChevronDownIcon className="size-3.5" strokeWidth={2.2} />
           </DropdownMenuTrigger>
@@ -117,7 +117,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           aria-label="New message"
-          className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-sidebar-foreground hover:bg-white/[0.08]"
+          className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-hover"
         >
           <SquarePenIcon className="size-[18px]" />
         </button>
@@ -146,10 +146,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           const n = unread[id] ?? 0;
           return (
             <NavLink key={id} href={`/chat/${id}`} active={active} bold={n > 0} onNavigate={onNavigate} onClick={() => enterChat(id)}>
-              <Avatar person={p} size="xs" presence className="size-5 rounded-[5px] text-[10px]" ringClassName={active ? "border-brand" : "border-sidebar"} />
+              <Avatar person={p} size="xs" presence className="size-5 rounded-[5px] text-2xs" ringClassName={active ? "border-brand" : "border-sidebar"} />
               <span className="flex-1 truncate">{p.name}</span>
               {p.isAgent && (
-                <span className="rounded border border-[#6D5BB0] px-[5px] py-px text-[10px] font-bold tracking-[0.05em] text-[#D8CCFF]">AGENT</span>
+                <span className="rounded border border-sidebar-agent-border px-[5px] py-px text-2xs font-bold tracking-[0.05em] text-sidebar-agent">AGENT</span>
               )}
               {n > 0 && !active && <UnreadBadge n={n} />}
             </NavLink>
@@ -177,11 +177,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <span className="text-xs text-sidebar-muted">{ROLE_LABEL[role]}</span>
           </div>
         </div>
-        <label htmlFor="role-select" className="text-[11px] font-semibold tracking-[0.04em] text-sidebar-muted uppercase">
+        <label htmlFor="role-select" className="text-2xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase">
           View as role (RBAC demo)
         </label>
         <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-          <SelectTrigger id="role-select" className="h-9 border-sidebar-input-border bg-sidebar-input text-[13px] text-white [&_svg]:text-white">
+          <SelectTrigger id="role-select" className="h-9 border-sidebar-input-border bg-sidebar-input text-meta text-white [&_svg]:text-white">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

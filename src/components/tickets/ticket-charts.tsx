@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 function Card({ title, children, legend }: { title: string; children: React.ReactNode; legend?: React.ReactNode }) {
   return (
-    <section className="relative flex w-[85%] shrink-0 snap-start flex-col gap-2.5 rounded-[10px] border bg-white px-4 py-3.5 sm:w-auto">
+    <section className="relative flex w-[85%] shrink-0 snap-start flex-col gap-2.5 rounded-lg border bg-card px-4 py-3.5 sm:w-auto">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-bold">{title}</h2>
         {legend}
@@ -33,14 +33,14 @@ function HBar({ label, value, max, tip }: { label: string; value: number; max: n
     <Tooltip>
       <TooltipTrigger asChild>
         <div tabIndex={0} className="group grid grid-cols-[92px_minmax(0,1fr)_24px] items-center gap-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="truncate text-[13px] text-ink-2">{label}</span>
-          <span className="h-3.5 rounded-r bg-[#F1F3F6]">
+          <span className="truncate text-meta text-ink-2">{label}</span>
+          <span className="h-3.5 rounded-r bg-accent">
             <span
               className="block h-3.5 rounded-r bg-brand transition-opacity group-hover:opacity-80"
               style={{ width: `${Math.round((value / max) * 100)}%` }}
             />
           </span>
-          <span className="text-right text-[13px] font-semibold">{value}</span>
+          <span className="text-right text-meta font-semibold">{value}</span>
         </div>
       </TooltipTrigger>
       <TooltipContent side="top">{tip}</TooltipContent>
@@ -69,7 +69,7 @@ export function TicketCharts({ tickets }: { tickets: Ticket[] }) {
         {byAssignee.map((b) => (
           <HBar key={b.label} label={b.label} value={b.v} max={aMax} tip={`${b.label}: ${b.v} open`} />
         ))}
-        {byAssignee.length === 0 && <span className="text-[13px] text-muted-foreground">Nothing open in this view.</span>}
+        {byAssignee.length === 0 && <span className="text-meta text-muted-foreground">Nothing open in this view.</span>}
       </Card>
       <WeekChart />
     </div>
@@ -130,7 +130,7 @@ function WeekChart() {
       </div>
       <div className="grid grid-cols-7 gap-1.5 px-0.5" aria-hidden>
         {days.map((d, i) => (
-          <span key={d.d} className={cn("text-center text-[11px]", i === today ? "font-bold text-foreground" : "text-muted-foreground")}>
+          <span key={d.d} className={cn("text-center text-2xs", i === today ? "font-bold text-foreground" : "text-muted-foreground")}>
             {d.d}
           </span>
         ))}

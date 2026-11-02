@@ -10,7 +10,7 @@ export const PEOPLE: Record<PersonId, Person> = {
   ravi: { id: "ravi", name: "Ravi Menon", first: "Ravi", initials: "RM", color: "#0F766E", team: "payments" },
   lena: { id: "lena", name: "Lena Park", first: "Lena", initials: "LP", color: "#BE185D", team: "payments" },
   diego: { id: "diego", name: "Diego Alvarez", first: "Diego", initials: "DA", color: "#4D7C0F", team: "platform" },
-  atlas: { id: "atlas", name: "Atlas", first: "Atlas", initials: "A", color: "#5B21B6", team: null, isAgent: true },
+  atlas: { id: "atlas", name: "Atlas", first: "Atlas", initials: "A", color: "var(--atlas)", team: null, isAgent: true },
 };
 
 export const PERSON_ORDER: PersonId[] = ["me", "aiko", "ravi", "lena", "diego", "atlas"];
@@ -43,21 +43,37 @@ export const STATUS_ORDER: TicketStatus[] = ["To do", "In progress", "In review"
 export const OPEN_STATUSES: TicketStatus[] = ["To do", "In progress", "In review"];
 export const PRIORITIES: Priority[] = ["Low", "Medium", "High"];
 
-/** [background, text, border, dot] for each status. */
+/**
+ * [background, text, border, dot] for each status, as CSS variables (see globals.css).
+ * Violet is never used here: it belongs to Atlas.
+ */
+const statusVars = (k: string): [string, string, string, string] => [
+  `var(--status-${k}-bg)`,
+  `var(--status-${k}-fg)`,
+  `var(--status-${k}-line)`,
+  `var(--status-${k}-dot)`,
+];
 export const STATUS_COLORS: Record<TicketStatus, [string, string, string, string]> = {
-  "To do": ["#EEF0F3", "#3D4451", "#CDD2DA", "#8B95A5"],
-  "In progress": ["#FFF4E0", "#8A5A00", "#F0C77A", "#D97706"],
-  "In review": ["#F3E8FF", "#6B21A8", "#D8B4FE", "#8B5CF6"],
-  Done: ["#DCFCE7", "#166534", "#86EFAC", "#16A34A"],
-  Backburner: ["#F1F2F4", "#5B6472", "#D5D9E0", "#B8BEC8"],
+  "To do": statusVars("todo"),
+  "In progress": statusVars("progress"),
+  "In review": statusVars("review"),
+  Done: statusVars("done"),
+  Backburner: statusVars("later"),
 };
 
-export const PRIORITY_COLOR: Record<Priority, string> = { High: "#B42318", Medium: "#8A5A00", Low: "#5B6472" };
+export const PRIORITY_COLOR: Record<Priority, string> = {
+  High: "var(--priority-high)",
+  Medium: "var(--priority-medium)",
+  Low: "var(--priority-low)",
+};
 
+export const DEFAULT_ACCENT = "#2952E3";
+
+/** Workspace accents. All pass 4.5:1 with white text. Violet is reserved for Atlas. */
 export const ACCENTS = [
-  { value: "#2F6FEB", label: "Blue" },
+  { value: DEFAULT_ACCENT, label: "Cobalt" },
   { value: "#0F766E", label: "Teal" },
-  { value: "#7C3AED", label: "Violet" },
+  { value: "#374154", label: "Graphite" },
   { value: "#C2410C", label: "Orange" },
 ] as const;
 
