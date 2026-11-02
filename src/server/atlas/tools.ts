@@ -188,8 +188,10 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: stamp() }],
       };
       await store.insertTicket(t);
-      await store.bumpWeek("a");
-      await store.logEvent({ kind: "ticket.created", actor: "atlas", chatId: ctx.where, ticketId: id, payload: { askedBy: "me" } });
+      await Promise.all([
+        store.bumpWeek("a"),
+        store.logEvent({ kind: "ticket.created", actor: "atlas", chatId: ctx.where, ticketId: id, payload: { askedBy: "me" } }),
+      ]);
       effects.created.push(id);
       return { ok: true, created: ticketLine(t) };
     }
@@ -232,9 +234,11 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if (!changes.length) return { ok: true, unchanged: true, ticket: ticketLine(t) };
       t.updated = "Just now";
       t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: stamp() });
-      await store.saveTicket(t);
-      await store.bumpWeek("a");
-      await store.logEvent({ kind: "ticket.updated", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { changes, askedBy: "me" } });
+      await Promise.all([
+        store.saveTicket(t),
+        store.bumpWeek("a"),
+        store.logEvent({ kind: "ticket.updated", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { changes, askedBy: "me" } }),
+      ]);
       effects.updated.set(t.id, [...(effects.updated.get(t.id) ?? []), ...changes]);
       return { ok: true, changes, ticket: ticketLine(t) };
     }
@@ -242,9 +246,11 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if (!canDelete(role)) return err("Only org owners can delete tickets. Moving it to Backburner is an alternative.");
       const t = await findVisible(store, args.id, role);
       if ("ok" in t) return t;
-      await store.deleteTicket(t.id);
-      await store.bumpWeek("a");
-      await store.logEvent({ kind: "ticket.deleted", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { askedBy: "me" } });
+      await Promise.all([
+        store.deleteTicket(t.id),
+        store.bumpWeek("a"),
+        store.logEvent({ kind: "ticket.deleted", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { askedBy: "me" } }),
+      ]);
       effects.deleted.push(t.id);
       return { ok: true, deleted: `${t.id} "${t.title}"` };
     }

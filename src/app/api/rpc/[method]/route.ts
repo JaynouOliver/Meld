@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import * as api from "@/lib/api/service";
 import type { ChatId } from "@/lib/types";
 import { runAtlasAgent } from "@/server/atlas/run";
@@ -66,7 +68,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ method:
   try {
     const result = await fn(...(args as never[]));
     const changed = changes(method, args, result);
-    await pingChanges({ ...changed, origin: req.headers.get("x-meld-client") });
+    // Tell other browsers after the response is sent, so the caller isn't kept waiting.
+    const origin = req.headers.get("x-meld-client");
+    after(() => pingChanges({ ...changed, origin }));
     return Response.json({ result: result ?? null });
   } catch (e) {
     const status = e instanceof api.ApiError ? e.status : 500;

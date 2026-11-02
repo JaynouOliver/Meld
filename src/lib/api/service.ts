@@ -50,8 +50,10 @@ export async function postMessage(input: PostMessageInput): Promise<Message | Re
   await wait(60);
   const store = await getStore();
   const msg = { id: uid(), who: "me" as PersonId, time: stamp(), text: input.text };
-  const saved = await store.appendMessage(input.chatId, msg, input.threadId, input.parentId);
-  await store.logEvent({ kind: "message.posted", actor: "me", chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId, parentId: input.parentId } });
+  const [saved] = await Promise.all([
+    store.appendMessage(input.chatId, msg, input.threadId, input.parentId),
+    store.logEvent({ kind: "message.posted", actor: "me", chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId, parentId: input.parentId } }),
+  ]);
   return saved;
 }
 
@@ -133,8 +135,7 @@ export async function createTicket(preset: Partial<Ticket>, role: Role): Promise
   t.id = id;
   if (role === "member") t.team = "design";
   await store.insertTicket(t);
-  await store.bumpWeek("p");
-  await store.logEvent({ kind: "ticket.created", actor: "me", ticketId: id });
+  await Promise.all([store.bumpWeek("p"), store.logEvent({ kind: "ticket.created", actor: "me", ticketId: id })]);
   return t;
 }
 
@@ -202,16 +203,14 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   }
   t.updated = "Just now";
   if (note) t.activity.push({ who: PEOPLE.me.name, text: note, time: stamp() });
-  await store.saveTicket(t);
-  if (note) {
-    await store.bumpWeek("p");
-    await store.logEvent({ kind: "ticket.updated", actor: "me", ticketId: t.id, payload: { note } });
-  }
+  const writes: Promise<unknown>[] = [store.saveTicket(t)];
+  if (note) writes.push(store.bumpWeek("p"), store.logEvent({ kind: "ticket.updated", actor: "me", ticketId: t.id, payload: { note } }));
   let broadcastChat: ChatId | null = null;
   if (announce && t.watch) {
-    await store.appendMessage(t.watch.chat, { id: uid(), who: "atlas", time: stamp(), text: `Update on ${t.id}: Suvra Das ${announce}.` }, t.watch.thread);
+    writes.push(store.appendMessage(t.watch.chat, { id: uid(), who: "atlas", time: stamp(), text: `Update on ${t.id}: Suvra Das ${announce}.` }, t.watch.thread));
     broadcastChat = t.watch.chat;
   }
+  await Promise.all(writes);
   return { ticket: t, broadcastChat };
 }
 
@@ -220,9 +219,7 @@ export async function deleteTicket(id: string, role: Role): Promise<void> {
   if (!canDelete(role)) throw new ApiError("Only org owners can delete tickets", 403);
   await requireTicket(id, role);
   const store = await getStore();
-  await store.deleteTicket(id);
-  await store.bumpWeek("p");
-  await store.logEvent({ kind: "ticket.deleted", actor: "me", ticketId: id });
+  await Promise.all([store.deleteTicket(id), store.bumpWeek("p"), store.logEvent({ kind: "ticket.deleted", actor: "me", ticketId: id })]);
 }
 
 /** Demo: put the workspace back to its seed state. */

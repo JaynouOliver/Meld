@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "@/lib/api";
 import { PEOPLE, CHAT_META } from "@/lib/constants";
+import { clock, displayTime } from "@/lib/format";
 import { mentionsAgent } from "@/lib/text";
-import type { ChatId, Message, Ticket } from "@/lib/types";
+import type { ChatId, Message, ReplyNode, Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
@@ -63,21 +64,45 @@ export function useSendMessage() {
 
   return useMutation({
     mutationFn: api.postMessage,
+    // Show the message instantly (top-level or in a thread); the server's copy replaces it.
     onMutate: async (input) => {
-      // Optimistically show top-level messages immediately.
-      if (input.threadId) return;
       const key = queryKeys.messages(input.chatId);
       await qc.cancelQueries({ queryKey: key });
-      qc.setQueryData<Message[]>(key, (old) => [
-        ...(old ?? []),
-        { id: `pending-${Date.now()}`, who: "me", time: "Sending…", text: input.text, replies: [] },
-      ]);
+      const pendingId = `pending-${Date.now()}`;
+      const node = { id: pendingId, who: "me" as const, time: clock(), text: input.text };
+      qc.setQueryData<Message[]>(key, (old) => insertMessage(old ?? [], node, input.threadId, input.parentId));
+      return { pendingId };
     },
-    onSettled: (_d, _e, input) => qc.invalidateQueries({ queryKey: queryKeys.messages(input.chatId) }),
-    onSuccess: (_d, input) => {
+    onSuccess: (saved, input, ctx) => {
+      const real = { ...saved, time: displayTime(saved.time) };
+      qc.setQueryData<Message[]>(queryKeys.messages(input.chatId), (old) => replaceMessage(old ?? [], ctx.pendingId, real));
       const role = useUiStore.getState().role;
       if (mentionsAgent(input.text, input.chatId)) agent.mutate({ ...input, role });
       else if (input.chatId === "aiko" || input.chatId === "ravi") teammate.mutate(input.chatId);
     },
+    // On failure, drop the optimistic copy by reloading the chat from the server.
+    onError: (_e, input) => qc.invalidateQueries({ queryKey: queryKeys.messages(input.chatId) }),
   });
+}
+
+type Draft = { id: string; who: Message["who"]; time: string; text: string; ticket?: string | null };
+
+/** Add a message to the cached tree: top-level, or as a reply in a thread (under a parent reply). */
+function insertMessage(list: Message[], node: Draft, threadId?: string | null, parentId?: string | null): Message[] {
+  if (!threadId) return [...list, { ...node, replies: [] }];
+  const reply: ReplyNode = { ...node, kids: [] };
+  return list.map((m) => {
+    if (m.id !== threadId) return m;
+    if (!parentId) return { ...m, replies: [...m.replies, reply] };
+    const add = (nodes: ReplyNode[]): ReplyNode[] =>
+      nodes.map((n) => (n.id === parentId ? { ...n, kids: [...n.kids, reply] } : { ...n, kids: add(n.kids) }));
+    return { ...m, replies: add(m.replies) };
+  });
+}
+
+/** Swap the optimistic copy for the server's saved message, keeping its place. */
+function replaceMessage(list: Message[], pendingId: string, saved: Message | ReplyNode): Message[] {
+  const swapNodes = (nodes: ReplyNode[]): ReplyNode[] =>
+    nodes.map((n) => (n.id === pendingId ? { ...n, id: saved.id, time: saved.time } : { ...n, kids: swapNodes(n.kids) }));
+  return list.map((m) => (m.id === pendingId ? { ...m, id: saved.id, time: saved.time } : { ...m, replies: swapNodes(m.replies) }));
 }

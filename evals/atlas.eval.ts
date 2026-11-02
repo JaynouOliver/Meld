@@ -41,6 +41,15 @@ const cases: Case[] = [
     },
   },
   {
+    name: "create: team follows the assignee, not the channel",
+    where: "design",
+    text: "create a ticket for flaky checkout tests, assign Ravi, high priority @Atlas",
+    check: ({ before }) => {
+      const n = newTickets(before);
+      return n.length === 1 && n[0].team === "payments" && n[0].assignee === "ravi" ? true : `got ${n.map((t) => `${t.team}/${t.assignee}`).join(",") || "none"}`;
+    },
+  },
+  {
     name: "create: defaults to the requester in a DM",
     where: "atlas",
     text: "Make a ticket to write the Q4 design review agenda",

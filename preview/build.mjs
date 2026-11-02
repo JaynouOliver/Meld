@@ -20,10 +20,18 @@ const js = await build({
   jsx: "automatic",
   tsconfig: resolve(root, "tsconfig.json"),
   // The preview has no server: run the API and the rule-based Atlas in the browser.
-  define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_DATA_MODE": '"local"' },
+  define: {
+    "process.env.NODE_ENV": '"production"',
+    "process.env.NEXT_PUBLIC_DATA_MODE": '"local"',
+    // No server-side config in the browser; every other process.env read is empty.
+    "process.env.NEXT_PUBLIC_SUPABASE_URL": '""',
+    "process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY": '""',
+    "process.env": "{}",
+  },
   alias: {
     "next/link": resolve(root, "preview/shims/next-link.tsx"),
     "next/navigation": resolve(root, "preview/shims/next-navigation.ts"),
+    "@supabase/supabase-js": resolve(root, "preview/shims/supabase.ts"),
   },
   logLevel: "error",
 });

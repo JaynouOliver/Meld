@@ -93,27 +93,17 @@ export const supabaseStore: Store = {
     return toTree(rows);
   },
   async appendMessage(chatId, msg, threadId, parentId) {
-    let thread: string | null = null;
-    let parent: string | null = null;
-    if (threadId) {
-      // Fall back to a top-level message if the thread no longer exists (same as memory).
-      const root = check(await sb().from("messages").select("id").eq("id", threadId).maybeSingle(), "find thread");
-      if (root) {
-        thread = threadId;
-        if (parentId) {
-          const p = check(await sb().from("messages").select("id").eq("id", parentId).eq("thread_id", threadId).maybeSingle(), "find parent");
-          parent = p ? parentId : null;
-        }
-      }
-    }
-    check(
-      await sb().from("messages").insert({
-        id: msg.id, chat_id: chatId, thread_id: thread, parent_id: parent, who: msg.who, text: msg.text,
-        ticket_id: msg.ticket ?? null, time_label: msg.time,
-      }),
-      "append message",
-    );
-    return thread ? { ...msg, kids: [] } : { ...msg, replies: [] };
+    const row = {
+      id: msg.id, chat_id: chatId, thread_id: threadId ?? null, parent_id: threadId ? (parentId ?? null) : null,
+      who: msg.who, text: msg.text, ticket_id: msg.ticket ?? null, time_label: msg.time,
+    };
+    // One round trip: the foreign keys reject a reply to a thread/parent that no longer
+    // exists, and only then do we fall back (same behaviour as the memory store).
+    let res = await sb().from("messages").insert(row);
+    if (res.error?.code === "23503" && row.parent_id) res = await sb().from("messages").insert({ ...row, parent_id: null });
+    if (res.error?.code === "23503" && row.thread_id) res = await sb().from("messages").insert({ ...row, thread_id: null, parent_id: null });
+    check(res, "append message");
+    return row.thread_id ? { ...msg, kids: [] } : { ...msg, replies: [] };
   },
   async searchMessages(terms, limit) {
     const q = terms.map((t) => t.replace(/[^\p{L}\p{N}-]/gu, "")).filter(Boolean).join(" or ");

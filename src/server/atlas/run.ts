@@ -40,11 +40,12 @@ export async function runAtlasAgent(input: AskAtlasInput): Promise<AskAtlasResul
     usage: { prompt: 0, cached: 0, completion: 0, reasoning: 0 }, ms: 0, reply: "",
   };
 
+  const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where)]);
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
-      content: `${buildContext({ where, role: input.role, tickets: await store.listTickets(), chat: await store.listMessages(where), threadId: input.threadId })}
+      content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}
 
 Request from ${PEOPLE.me.name}: ${input.text}`,
     },
