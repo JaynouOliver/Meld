@@ -19,7 +19,8 @@ const js = await build({
   target: "es2020",
   jsx: "automatic",
   tsconfig: resolve(root, "tsconfig.json"),
-  define: { "process.env.NODE_ENV": '"production"' },
+  // The preview has no server: run the API and the rule-based Atlas in the browser.
+  define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_DATA_MODE": '"local"' },
   alias: {
     "next/link": resolve(root, "preview/shims/next-link.tsx"),
     "next/navigation": resolve(root, "preview/shims/next-navigation.ts"),

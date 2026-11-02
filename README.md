@@ -12,10 +12,12 @@ are meant to reuse the domain layer in `src/lib`.
 
 ```bash
 npm install
+cp .env.example .env.local   # add your Meta Model API key (MODEL_API_KEY)
 npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run lint && npm run typecheck
 npm run preview:build  # single-file preview: dist-preview/index.html
+npm run eval:atlas     # Atlas evals against the real model (costs ~$0.05)
 ```
 
 ## Stack
@@ -76,11 +78,21 @@ src/
     rbac.ts, query-language.ts, constants.ts, types.ts
 ```
 
+### Agents
+
+Atlas runs server-side on Meta's Model API (`muse-spark-1.3` by default) with tools
+for ticket CRUD and chat search; see `src/server/atlas` and
+[docs/agent-roadmap.md](docs/agent-roadmap.md) for the architecture, models, memory
+plan and the feature list we're working through. Without `MODEL_API_KEY`, Atlas falls
+back to the rule-based agent in `src/lib/agent/atlas.ts`.
+
 ### Data flow
 
 Components never touch data directly. They call hooks in `src/hooks`, which use
-React Query over the functions in `src/lib/api`. Those functions currently read
-and write an in-memory mock db (`src/lib/mock`), so a page reload resets the data.
+React Query over the functions in `src/lib/api`. Those call the server
+(`/api/rpc/<method>`), which runs them against an in-memory db (`src/lib/mock`):
+restarting the server resets the data. The single-file preview sets
+`NEXT_PUBLIC_DATA_MODE=local` and runs the same functions in the browser.
 
 **To connect a real backend**, replace the bodies in `src/lib/api/index.ts` with
 `fetch` calls and keep the signatures. Nothing in the UI needs to change. RBAC

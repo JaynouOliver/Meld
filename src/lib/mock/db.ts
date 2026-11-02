@@ -3,8 +3,9 @@ import { todayIndex } from "../format";
 import { SEED_CHATS, SEED_NEXT_NUM, SEED_TICKETS, SEED_WEEK } from "./seed";
 
 /**
- * In-memory database for the hackathon build. Lives in the browser for the
- * session; reload resets it. Only src/lib/api talks to this module.
+ * In-memory database for the hackathon build. Runs in the Next.js server process
+ * (or in the browser for the single-file preview). Restarting resets it.
+ * Only src/lib/api and src/server talk to this module.
  */
 export interface Db {
   tickets: Ticket[];
@@ -13,12 +14,23 @@ export interface Db {
   nextNum: number;
 }
 
-export const db: Db = {
-  tickets: structuredClone(SEED_TICKETS),
-  chats: structuredClone(SEED_CHATS),
-  week: structuredClone(SEED_WEEK),
-  nextNum: SEED_NEXT_NUM,
-};
+function seed(): Db {
+  return {
+    tickets: structuredClone(SEED_TICKETS),
+    chats: structuredClone(SEED_CHATS),
+    week: structuredClone(SEED_WEEK),
+    nextNum: SEED_NEXT_NUM,
+  };
+}
+
+// One instance per process: Next may load this module in several route bundles.
+const g = globalThis as typeof globalThis & { __meldDb?: Db };
+export const db: Db = (g.__meldDb ??= seed());
+
+/** Back to seed data (used by evals and the demo reset). */
+export function resetDb() {
+  Object.assign(db, seed());
+}
 
 export function bumpWeek(kind: "p" | "a") {
   db.week[todayIndex()][kind] += 1;

@@ -42,3 +42,4 @@ next-env.d.ts
 
 # single-file preview build
 /dist-preview/
+!.env.example
