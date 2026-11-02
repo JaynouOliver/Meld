@@ -47,7 +47,7 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         <p className="-mt-1 text-meta text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
         {/* List first: views and filter sit directly above it, charts are opt-in. */}
         <TicketViews tickets={scoped} scope={scope} />
-        {showInsights && <TicketCharts tickets={scoped} />}
+        {showInsights && <TicketCharts tickets={scoped} scope={scope} />}
         <TicketFilterBar />
         <div className="@container">
           <TicketTable tickets={scoped} loading={isPending} />

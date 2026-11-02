@@ -3,9 +3,10 @@
 import { ChevronDownIcon, CircleDashedIcon, CircleDotIcon, PlusIcon } from "lucide-react";
 
 import { Avatar } from "@/components/common/avatar";
+import { PriorityLabel } from "@/components/common/priority-label";
 import { StatusPill } from "@/components/common/status-pill";
 import { useCreateTicket } from "@/hooks/use-tickets";
-import { PEOPLE, PERSON_ORDER, PRIORITY_COLOR, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
+import { PEOPLE, PERSON_ORDER, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
 import { matchQuery } from "@/lib/query-language";
 import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -137,8 +138,8 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                           <StatusPill status={t.status} bordered className="py-px" />
                         </span>
                         <span className="flex h-full items-center border-l border-line-soft px-3 text-meta text-ink-2">{teamName(t.team)}</span>
-                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
-                          {t.priority}
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta">
+                          <PriorityLabel priority={t.priority} />
                         </span>
                       </div>
                     );
@@ -189,9 +190,7 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
         </span>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-meta text-muted-foreground">
           <StatusPill status={t.status} bordered className="py-px" />
-          <span className="font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
-            {t.priority}
-          </span>
+          <PriorityLabel priority={t.priority} />
           <span aria-hidden>·</span>
           <span>{t.id}</span>
           {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}
