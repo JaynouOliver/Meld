@@ -35,6 +35,8 @@ interface UiState {
   linkKind: "PR" | "Issue";
   /** In-app page views this session; >1 means history.back() stays inside the app. */
   navDepth: number;
+  /** Chat on screen, for realtime unread counts (set by useRealtimeSync). */
+  activeChatForUnread: ChatId | null;
   /** Bumped when the user sends from the main composer, to scroll to their message. */
   sentTick: number;
 
@@ -77,6 +79,7 @@ export const useUiStore = create<UiState>()(
       linkKind: "PR",
       navDepth: 0,
       sentTick: 0,
+      activeChatForUnread: null,
 
       setRole: (role) => set({ role }),
       setAccent: (accent) => set({ accent }),

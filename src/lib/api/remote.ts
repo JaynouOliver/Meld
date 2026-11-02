@@ -2,12 +2,17 @@
  * Remote implementation of the app API: every call is an RPC to /api/rpc/<method>,
  * which runs the same function server-side (see src/app/api/rpc/[method]/route.ts).
  */
-import type * as Local from "./local";
+import { displayTime } from "../format";
+import type { Message, ReplyNode, Ticket } from "../types";
+import type * as Local from "./service";
+
+/** Identifies this browser tab, so realtime pings it caused can be ignored. */
+export const CLIENT_ID = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Math.random());
 
 async function rpc<T>(method: string, args: unknown[]): Promise<T> {
   const res = await fetch(`/api/rpc/${method}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-meld-client": CLIENT_ID },
     body: JSON.stringify({ args }),
   });
   const body = await res.json().catch(() => ({}));
@@ -20,12 +25,25 @@ const call =
   <K extends keyof typeof Local>(name: K): Fn<K> =>
   ((...args: unknown[]) => rpc(name as string, args)) as Fn<K>;
 
-export const getMessages = call("getMessages");
-export const getTickets = call("getTickets");
+// The server stores ISO times; show them in the viewer's local time.
+const localReply = (n: ReplyNode): ReplyNode => ({ ...n, time: displayTime(n.time), kids: n.kids.map(localReply) });
+const localMessage = (m: Message): Message => ({ ...m, time: displayTime(m.time), replies: m.replies.map(localReply) });
+const localTicket = (t: Ticket): Ticket => ({ ...t, activity: t.activity.map((a) => ({ ...a, time: displayTime(a.time) })) });
+
+const getMessagesRaw = call("getMessages");
+const getTicketsRaw = call("getTickets");
+export const getMessages: typeof getMessagesRaw = async (...a) => (await getMessagesRaw(...a)).map(localMessage);
+export const getTickets: typeof getTicketsRaw = async () => (await getTicketsRaw()).map(localTicket);
 export const getWeekActivity = call("getWeekActivity");
 export const postMessage = call("postMessage");
 export const askAtlas = call("askAtlas");
 export const teammateReply = call("teammateReply");
-export const createTicket = call("createTicket");
-export const updateTicket = call("updateTicket");
+const createTicketRaw = call("createTicket");
+export const createTicket: typeof createTicketRaw = async (...a) => localTicket(await createTicketRaw(...a));
+const updateTicketRaw = call("updateTicket");
+export const updateTicket: typeof updateTicketRaw = async (...a) => {
+  const r = await updateTicketRaw(...a);
+  return { ...r, ticket: localTicket(r.ticket) };
+};
 export const deleteTicket = call("deleteTicket");
+export const resetWorkspace = call("resetWorkspace");

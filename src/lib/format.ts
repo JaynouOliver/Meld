@@ -20,3 +20,16 @@ export function todayIndex(d?: Date) {
 export function plural(n: number, one: string, many = one + "s") {
   return `${n} ${n === 1 ? one : many}`;
 }
+
+/**
+ * Timestamp to store on new messages and activity. The server stores ISO time
+ * (its clock is UTC); the browser preview stores a display time directly.
+ */
+export function stamp() {
+  return typeof window === "undefined" ? new Date().toISOString() : clock();
+}
+
+/** Display form of a stored time: ISO becomes the viewer's local clock; labels pass through. */
+export function displayTime(t: string) {
+  return /^\d{4}-\d{2}-\d{2}T/.test(t) ? clock(new Date(t)) : t;
+}

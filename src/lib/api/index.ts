@@ -5,7 +5,7 @@
  * - Default: calls the Next.js server (/api/rpc), where data lives and Atlas runs on Meta's Model API.
  * - NEXT_PUBLIC_DATA_MODE=local: runs entirely in the browser (used by the single-file preview).
  */
-import * as local from "./local";
+import * as local from "./service";
 import * as remote from "./remote";
 
 const impl = process.env.NEXT_PUBLIC_DATA_MODE === "local" ? local : remote;
@@ -19,6 +19,7 @@ export const teammateReply = impl.teammateReply;
 export const createTicket = impl.createTicket;
 export const updateTicket = impl.updateTicket;
 export const deleteTicket = impl.deleteTicket;
+export const resetWorkspace = impl.resetWorkspace;
 
 export type {
   AskAtlasInput,
@@ -27,5 +28,5 @@ export type {
   TicketPatch,
   UpdateTicketInput,
   UpdateTicketResult,
-} from "./local";
-export { ApiError } from "./local";
+} from "./service";
+export { ApiError } from "./service";

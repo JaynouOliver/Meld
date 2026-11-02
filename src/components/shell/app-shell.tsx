@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { useUiStore } from "@/stores/ui-store";
 import { TicketPanel } from "@/components/ticket-panel/ticket-panel";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useSheetHistory } from "@/hooks/use-sheet-history";
 import { Sidebar } from "./sidebar";
 import { TabBar } from "./tab-bar";
@@ -17,6 +18,7 @@ import { TabBar } from "./tab-bar";
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   useSheetHistory();
+  useRealtimeSync();
   const pathname = usePathname();
   useEffect(() => {
     useUiStore.setState((s) => ({ navDepth: s.navDepth + 1 }));

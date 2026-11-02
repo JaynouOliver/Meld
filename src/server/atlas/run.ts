@@ -3,9 +3,9 @@ import "server-only";
 import type OpenAI from "openai";
 
 import { CHAT_META, PEOPLE } from "@/lib/constants";
-import { clock, uid } from "@/lib/format";
-import { appendMessage, db } from "@/lib/mock/db";
-import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/local";
+import { stamp, uid } from "@/lib/format";
+import { getStore } from "@/lib/store";
+import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
 import type { ChatId } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
 import { buildContext, SYSTEM_PROMPT } from "./prompt";
@@ -33,6 +33,7 @@ export async function runAtlasAgent(input: AskAtlasInput): Promise<AskAtlasResul
   if (!client) throw new Error("MODEL_API_KEY is not set");
   const started = Date.now();
   const where = input.chatId;
+  const store = await getStore();
   const effects: Effects = { created: [], updated: new Map(), deleted: [], read: [] };
   const trace: AtlasTrace = {
     model: ATLAS_MODEL, effort: String(ATLAS_EFFORT), steps: 0, tools: [],
@@ -43,7 +44,7 @@ export async function runAtlasAgent(input: AskAtlasInput): Promise<AskAtlasResul
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
-      content: `${buildContext({ where, role: input.role, tickets: db.tickets, chat: db.chats[where], threadId: input.threadId })}
+      content: `${buildContext({ where, role: input.role, tickets: await store.listTickets(), chat: await store.listMessages(where), threadId: input.threadId })}
 
 Request from ${PEOPLE.me.name}: ${input.text}`,
     },
@@ -81,7 +82,7 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
         let result: unknown;
         try {
           args = JSON.parse(call.function.arguments || "{}");
-          result = runTool(call.function.name, args, { role: input.role, where, effects });
+          result = await runTool(call.function.name, args, { role: input.role, where, effects, store });
         } catch (e) {
           result = { ok: false, error: `Invalid arguments: ${(e as Error).message}` };
         }
@@ -100,15 +101,15 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
   const single = <T,>(xs: T[]) => (xs.length === 1 ? xs[0] : null);
   const card =
     single(effects.created) ?? (effects.created.length ? null : single([...effects.updated.keys()]) ?? single([...new Set(effects.read)]));
-  appendMessage(where, { id: uid(), who: "atlas", time: clock(), text: reply, ticket: card }, input.threadId, input.parentId);
+  await store.appendMessage(where, { id: uid(), who: "atlas", time: stamp(), text: reply, ticket: card }, input.threadId, input.parentId);
 
   // Tell the channels that follow changed tickets, when that's not where we are.
   const touched = new Set<ChatId>([where]);
   for (const [id, changes] of effects.updated) {
-    const t = db.tickets.find((x) => x.id === id);
+    const t = await store.getTicket(id);
     if (!t?.watch || t.watch.chat === where) continue;
-    appendMessage(t.watch.chat, {
-      id: uid(), who: "atlas", time: clock(),
+    await store.appendMessage(t.watch.chat, {
+      id: uid(), who: "atlas", time: stamp(),
       text: `Update on ${id}: ${changes.join(", ")} (via Atlas, asked by ${PEOPLE.me.name}).`,
     }, t.watch.thread);
     touched.add(t.watch.chat);

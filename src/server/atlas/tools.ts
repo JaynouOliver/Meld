@@ -1,8 +1,8 @@
 import type OpenAI from "openai";
 
 import { CHAT_META, DEFAULT_REPO, PEOPLE, STATUSES, PRIORITIES, TEAMS, teamName } from "@/lib/constants";
-import { clock, uid } from "@/lib/format";
-import { bumpWeek, db } from "@/lib/mock/db";
+import { stamp, uid } from "@/lib/format";
+import type { Store } from "@/lib/store";
 import { matchQuery } from "@/lib/query-language";
 import { canDelete, canSee } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
@@ -126,15 +126,16 @@ export interface ToolCtx {
   role: Role;
   where: ChatId;
   effects: Effects;
+  store: Store;
 }
 
 type Args = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 const err = (message: string) => ({ ok: false as const, error: message });
 
-function findVisible(id: unknown, role: Role): Ticket | { ok: false; error: string } {
+async function findVisible(store: Store, id: unknown, role: Role): Promise<Ticket | { ok: false; error: string }> {
   const key = String(id ?? "").toUpperCase().trim();
-  const t = db.tickets.find((x) => x.id === key);
+  const t = key ? await store.getTicket(key) : null;
   // Same answer for missing and hidden tickets, so Atlas can't leak that a hidden one exists.
   if (!t || !canSee(role, t)) return err(`${key || "That ticket"} doesn't exist or the requester can't see it.`);
   return t;
@@ -145,16 +146,16 @@ function srcLabel(where: ChatId) {
   return m.kind === "channel" ? `#${m.label}` : "a DM with Atlas";
 }
 
-export function runTool(name: string, args: Args, ctx: ToolCtx): unknown {
-  const { role, effects } = ctx;
+export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<unknown> {
+  const { role, effects, store } = ctx;
   switch (name) {
     case "list_tickets": {
       const q = str(args.query) ?? "";
-      const rows = db.tickets.filter((t) => canSee(role, t) && matchQuery(t, q));
+      const rows = (await store.listTickets()).filter((t) => canSee(role, t) && matchQuery(t, q));
       return { ok: true, count: rows.length, tickets: rows.slice(0, 40).map(ticketLine) };
     }
     case "get_ticket": {
-      const t = findVisible(args.id, role);
+      const t = await findVisible(store, args.id, role);
       if ("ok" in t) return t;
       effects.read.push(t.id);
       return {
@@ -174,7 +175,7 @@ export function runTool(name: string, args: Args, ctx: ToolCtx): unknown {
       if (!title) return err("A title is required.");
       const assignee = (PERSON_IDS as readonly string[]).includes(String(args.assignee)) ? (args.assignee as PersonId) : "me";
       const priority = PRIORITIES.includes(args.priority as Priority) ? (args.priority as Priority) : "Medium";
-      const id = `NW-${db.nextNum++}`;
+      const id = await store.nextTicketId();
       const meta = CHAT_META[ctx.where];
       const pr = str(args.pr_number)?.replace(/\D/g, "");
       const t: Ticket = {
@@ -184,15 +185,16 @@ export function runTool(name: string, args: Args, ctx: ToolCtx): unknown {
         images: [], updated: "Just now",
         // Atlas posts later updates about this ticket where it was asked for.
         watch: meta.kind === "channel" ? { chat: ctx.where, thread: null } : null,
-        activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: clock() }],
+        activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: stamp() }],
       };
-      db.tickets.push(t);
-      bumpWeek("a");
+      await store.insertTicket(t);
+      await store.bumpWeek("a");
+      await store.logEvent({ kind: "ticket.created", actor: "atlas", chatId: ctx.where, ticketId: id, payload: { askedBy: "me" } });
       effects.created.push(id);
       return { ok: true, created: ticketLine(t) };
     }
     case "update_ticket": {
-      const t = findVisible(args.id, role);
+      const t = await findVisible(store, args.id, role);
       if ("ok" in t) return t;
       const changes: string[] = [];
       const status = args.status as TicketStatus | undefined;
@@ -229,41 +231,32 @@ export function runTool(name: string, args: Args, ctx: ToolCtx): unknown {
       }
       if (!changes.length) return { ok: true, unchanged: true, ticket: ticketLine(t) };
       t.updated = "Just now";
-      t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: clock() });
-      bumpWeek("a");
+      t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: stamp() });
+      await store.saveTicket(t);
+      await store.bumpWeek("a");
+      await store.logEvent({ kind: "ticket.updated", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { changes, askedBy: "me" } });
       effects.updated.set(t.id, [...(effects.updated.get(t.id) ?? []), ...changes]);
       return { ok: true, changes, ticket: ticketLine(t) };
     }
     case "delete_ticket": {
       if (!canDelete(role)) return err("Only org owners can delete tickets. Moving it to Backburner is an alternative.");
-      const t = findVisible(args.id, role);
+      const t = await findVisible(store, args.id, role);
       if ("ok" in t) return t;
-      db.tickets = db.tickets.filter((x) => x.id !== t.id);
-      bumpWeek("a");
+      await store.deleteTicket(t.id);
+      await store.bumpWeek("a");
+      await store.logEvent({ kind: "ticket.deleted", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { askedBy: "me" } });
       effects.deleted.push(t.id);
       return { ok: true, deleted: `${t.id} "${t.title}"` };
     }
     case "search_messages": {
       const terms = (str(args.query) ?? "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
       if (!terms.length) return err("Give a few keywords to search for.");
-      const hits: { score: number; line: string }[] = [];
-      for (const [chatId, msgs] of Object.entries(db.chats) as [ChatId, typeof db.chats.general][]) {
-        const label = srcLabel(chatId).replace("a DM with Atlas", "DM: Atlas");
-        const visit = (id: string, who: PersonId, time: string, text: string) => {
-          const lower = text.toLowerCase();
-          const score = terms.filter((w) => lower.includes(w)).length;
-          if (score) hits.push({ score, line: `${label} [${id} ${time}] ${PEOPLE[who].name}: ${text.slice(0, 280)}` });
-        };
-        const walk = (nodes: typeof msgs[number]["replies"]) =>
-          nodes.forEach((n) => {
-            visit(n.id, n.who, n.time, n.text);
-            walk(n.kids);
-          });
-        msgs.forEach((m) => {
-          visit(m.id, m.who, m.time, m.text);
-          walk(m.replies);
-        });
-      }
+      const found = await store.searchMessages(terms, 8);
+      const hits = found.map((m) => {
+        const lower = m.text.toLowerCase();
+        const label = srcLabel(m.chatId).replace("a DM with Atlas", "DM: Atlas");
+        return { score: terms.filter((w) => lower.includes(w)).length, line: `${label} [${m.id} ${m.time}] ${PEOPLE[m.who].name}: ${m.text.slice(0, 280)}` };
+      });
       hits.sort((a, b) => b.score - a.score);
       return { ok: true, results: hits.slice(0, 8).map((h) => h.line) };
     }
