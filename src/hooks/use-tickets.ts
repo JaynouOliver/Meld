@@ -7,11 +7,17 @@ import * as api from "@/lib/api";
 import { canSee } from "@/lib/rbac";
 import type { Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
 
 export function useTickets() {
-  return useQuery({ queryKey: queryKeys.tickets, queryFn: api.getTickets });
+  return hydrationSafe(useQuery({ queryKey: queryKeys.tickets, queryFn: api.getTickets }), useHydrated());
+}
+
+/** Until hydration finishes, report "loading" so the HTML matches the server's. */
+function hydrationSafe<T extends { data: unknown; isPending: boolean }>(q: T, hydrated: boolean): T {
+  return hydrated ? q : { ...q, data: undefined, isPending: true };
 }
 
 /** Tickets the current role can see, plus a lookup that knows about restricted ones. */
@@ -32,7 +38,7 @@ export function useVisibleTickets() {
 }
 
 export function useWeekActivity() {
-  return useQuery({ queryKey: queryKeys.week, queryFn: api.getWeekActivity });
+  return hydrationSafe(useQuery({ queryKey: queryKeys.week, queryFn: api.getWeekActivity }), useHydrated());
 }
 
 export function useCreateTicket() {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/common/avatar";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { queryKeys } from "@/hooks/query-keys";
+import { useHydrated } from "@/hooks/use-hydrated";
 import * as api from "@/lib/api";
 import { CHANNELS, CHAT_META, DMS, PEOPLE, WORKSPACE_NAME } from "@/lib/constants";
 import type { ChatId, Message } from "@/lib/types";
@@ -19,7 +20,9 @@ export function HomeScreen() {
   const results = useQueries({
     queries: [...ids, "atlas" as const].map((id) => ({ queryKey: queryKeys.messages(id), queryFn: () => api.getMessages(id) })),
   });
+  const hydrated = useHydrated(); // match the server HTML during hydration; see use-hydrated.ts
   const last = (id: ChatId) => {
+    if (!hydrated) return undefined;
     const list = results[[...ids, "atlas"].indexOf(id)]?.data;
     return list?.[list.length - 1];
   };

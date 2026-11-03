@@ -8,15 +8,19 @@ import { clock, displayTime } from "@/lib/format";
 import { mentionsAgent } from "@/lib/text";
 import type { ChatId, Message, ReplyNode, Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
 
 export function useMessages(chatId: ChatId | null) {
-  return useQuery({
+  const hydrated = useHydrated();
+  const q = useQuery({
     queryKey: chatId ? queryKeys.messages(chatId) : ["messages", "none"],
     queryFn: () => api.getMessages(chatId as ChatId),
     enabled: !!chatId,
   });
+  // Until hydration finishes, match the server's HTML (no messages yet); see use-hydrated.ts.
+  return hydrated ? q : { ...q, data: undefined, isPending: true as const };
 }
 
 /**
