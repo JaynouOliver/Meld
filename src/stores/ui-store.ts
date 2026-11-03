@@ -71,7 +71,7 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       role: "owner",
       accent: DEFAULT_ACCENT,
-      theme: "light",
+      theme: "system",
       ticketQuery: DEFAULT_TICKET_QUERY,
       groupBy: "assignee",
       showInsights: false,
@@ -116,10 +116,12 @@ export const useUiStore = create<UiState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ role: s.role, accent: s.accent, theme: s.theme, ticketQuery: s.ticketQuery, groupBy: s.groupBy, showInsights: s.showInsights }),
       // v1: Cobalt replaced the old blue, and violet became Atlas-only.
-      version: 1,
+      // v2: theme defaults to following the system (v1 saved "light" without a way to change it).
+      version: 2,
       migrate: (persisted, version) => {
         const s = (persisted ?? {}) as Partial<UiState>;
         if (version < 1 && (!s.accent || ["#2F6FEB", "#7C3AED"].includes(s.accent.toUpperCase()))) s.accent = DEFAULT_ACCENT;
+        if (version < 2) s.theme = "system";
         return s as UiState;
       },
       // Rehydrated in <Providers> after mount to avoid SSR hydration mismatches.

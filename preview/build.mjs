@@ -40,6 +40,8 @@ const cssFile = resolve(out, "app.css");
 execFileSync("npx", ["@tailwindcss/cli", "-i", "src/app/globals.css", "-o", cssFile, "--minify"], { cwd: root, stdio: "ignore" });
 const css = readFileSync(cssFile, "utf8");
 
+// Same no-flash theme script the Next.js layout puts in <head> (src/lib/theme.ts).
+const bootScript = readFileSync(resolve(root, "src/lib/theme.ts"), "utf8").match(/THEME_BOOT_SCRIPT = `([^`]+)`/)[1];
 const code = js.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -48,6 +50,7 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#1C2230">
 <title>Meld preview</title>
+<script>${bootScript}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>:root{--font-inter:"Inter"}${css}</style>

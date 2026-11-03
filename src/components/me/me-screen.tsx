@@ -1,20 +1,25 @@
 "use client";
 
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 
 import { Avatar } from "@/components/common/avatar";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { ACCENTS, PEOPLE, WORKSPACE_NAME } from "@/lib/constants";
+import { THEME_OPTIONS } from "@/lib/theme";
 import { ROLE_LABEL, ROLE_SCOPE } from "@/lib/rbac";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
+
+const THEME_ICON = { system: MonitorIcon, light: SunIcon, dark: MoonIcon } as const;
 
 /** Profile and workspace preferences. On phones this replaces the sidebar footer. */
 export function MeScreen() {
   const role = useUiStore((s) => s.role);
   const setRole = useUiStore((s) => s.setRole);
   const accent = useUiStore((s) => s.accent);
+  const theme = useUiStore((s) => s.theme);
+  const setTheme = useUiStore((s) => s.setTheme);
   const setAccent = useUiStore((s) => s.setAccent);
   const me = PEOPLE.me;
 
@@ -54,6 +59,26 @@ export function MeScreen() {
                 </label>
               ))}
             </div>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">Appearance</legend>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-accent p-1">
+              {THEME_OPTIONS.map((o) => {
+                const Icon = THEME_ICON[o.value];
+                return (
+                  <label
+                    key={o.value}
+                    className="flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-sm font-semibold text-muted-foreground has-[:checked]:bg-card has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring"
+                  >
+                    <input type="radio" name="theme" value={o.value} checked={theme === o.value} onChange={() => setTheme(o.value)} className="sr-only" />
+                    <Icon className="size-5" />
+                    {o.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-meta text-muted-foreground">{THEME_OPTIONS.find((o) => o.value === theme)?.hint}</p>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">

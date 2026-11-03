@@ -40,7 +40,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   if (groupBy === "status") {
     defs = STATUS_ORDER.map((k) => ({ key: k, label: k, badge: "", color: STATUS_COLORS[k][3], round: true, test: (t) => t.status === k, preset: { status: k } }));
   } else if (groupBy === "team") {
-    defs = TEAMS.map((k) => ({ key: k, label: teamName(k), badge: teamName(k).charAt(0), color: "#3D4451", round: false, test: (t) => t.team === k, preset: { team: k } }));
+    defs = TEAMS.map((k) => ({ key: k, label: teamName(k), badge: teamName(k).charAt(0), color: "var(--status-todo-dot)", round: false, test: (t) => t.team === k, preset: { team: k } }));
   } else {
     defs = PERSON_ORDER.map((k) => ({
       key: k, label: k === "me" ? "Suvra Das (you)" : PEOPLE[k].name, badge: PEOPLE[k].initials, color: PEOPLE[k].color, round: true,

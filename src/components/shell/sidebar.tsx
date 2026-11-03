@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, HashIcon, SquarePenIcon, TicketIcon } from "lucide-react";
+import { ChevronDownIcon, HashIcon, MonitorIcon, MoonIcon, SquarePenIcon, SunIcon, TicketIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -18,10 +18,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useActiveChat } from "@/hooks/use-active-chat";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { ACCENTS, CHANNELS, CHAT_META, DMS, PEOPLE, WORKSPACE_NAME } from "@/lib/constants";
+import { THEME_OPTIONS } from "@/lib/theme";
 import { ROLE_LABEL, ROLE_OPTION_LABEL } from "@/lib/rbac";
 import type { ChatId, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useUiStore } from "@/stores/ui-store";
+import { type ThemePref, useUiStore } from "@/stores/ui-store";
+
+const THEME_ICON = { system: MonitorIcon, light: SunIcon, dark: MoonIcon } as const;
 
 function SectionLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
   return (
@@ -82,6 +85,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const role = useUiStore((s) => s.role);
   const setRole = useUiStore((s) => s.setRole);
   const accent = useUiStore((s) => s.accent);
+  const theme = useUiStore((s) => s.theme);
+  const setTheme = useUiStore((s) => s.setTheme);
   const setAccent = useUiStore((s) => s.setAccent);
   const { visible } = useVisibleTickets();
 
@@ -101,6 +106,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <ChevronDownIcon className="size-3.5" strokeWidth={2.2} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as ThemePref)}>
+              {THEME_OPTIONS.map((o) => {
+                const Icon = THEME_ICON[o.value];
+                return (
+                  <DropdownMenuRadioItem key={o.value} value={o.value}>
+                    <Icon className="size-4 text-muted-foreground" />
+                    {o.label}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuLabel>Workspace accent</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={accent} onValueChange={setAccent}>
               {ACCENTS.map((a) => (
