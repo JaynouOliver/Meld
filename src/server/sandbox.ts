@@ -59,12 +59,15 @@ export async function createSandbox(me: { id: string; first: string }) {
   const wsId = `ws${uid()}`;
   const ws = { id: wsId, name: "Orbit Labs", slug: `orbit-${wsId.slice(2, 12).toLowerCase()}`, ticketPrefix: "ORB", repo: "orbit-labs/app", teams: TEAMS };
   await reg.createWorkspace(ws, me.id);
-  await reg.updateMember(wsId, me.id, { team: "product", title: "Founder & CEO" });
-  for (const p of PEOPLE) {
-    await reg.upsertProfile({ id: p.id, name: p.name, email: null, avatarUrl: null });
-    await reg.addMember(wsId, p.id, "member");
-    await reg.updateMember(wsId, p.id, { team: p.team, title: p.title });
-  }
+  // Independent writes run in parallel: the visitor is waiting.
+  await Promise.all([
+    reg.updateMember(wsId, me.id, { team: "product", title: "Founder & CEO" }),
+    ...PEOPLE.map(async (p) => {
+      await reg.upsertProfile({ id: p.id, name: p.name, email: null, avatarUrl: null });
+      await reg.addMember(wsId, p.id, "member");
+      await reg.updateMember(wsId, p.id, { team: p.team, title: p.title });
+    }),
+  ]);
   const [maya, jonas, priya, tom, sofia] = PEOPLE.map((p) => p.id);
   const at = (i: number) => new Date(Date.now() - 4000 * 60_000 + i * 1000).toISOString();
 
@@ -78,31 +81,32 @@ export async function createSandbox(me: { id: string; first: string }) {
     ["growth", "Launches, campaigns and funnel", "growth"],
     ["random", "Anything goes", null],
   ] as const;
-  for (const [i, [name, topic, team]] of channels.entries()) {
-    ch[name] = `ch${uid()}`;
-    await reg.createChannel({ id: ch[name], workspaceId: wsId, kind: "channel", name, topic, team, members: null, createdBy: me.id, createdAt: at(i) });
-  }
-  const dm: Record<string, string> = {};
-  for (const [i, who] of [maya, jonas].entries()) {
-    dm[who] = `dm${uid()}`;
-    await reg.createChannel({ id: dm[who], workspaceId: wsId, kind: "dm", name: null, topic: "", team: null, members: [me.id, who], createdBy: who, createdAt: at(10 + i) });
-  }
+  for (const [name] of channels) ch[name] = `ch${uid()}`;
+  const dm: Record<string, string> = { [maya]: `dm${uid()}`, [jonas]: `dm${uid()}` };
+  await Promise.all([
+    ...channels.map(([name, topic, team], i) =>
+      reg.createChannel({ id: ch[name], workspaceId: wsId, kind: "channel", name, topic, team, members: null, createdBy: me.id, createdAt: at(i) }),
+    ),
+    ...[maya, jonas].map((who, i) =>
+      reg.createChannel({ id: dm[who], workspaceId: wsId, kind: "dm", name: null, topic: "", team: null, members: [me.id, who], createdBy: who, createdAt: at(10 + i) }),
+    ),
+  ]);
 
   // Agents, already at work in their channels.
   const ag: Record<string, string> = {};
-  for (const a of AGENTS) {
-    ag[a.key] = `ag${uid()}`;
-    await reg.createAgent({
-      id: ag[a.key], workspaceId: wsId, handle: a.key, name: a.name, description: a.description, instructions: a.instructions,
-      tools: a.tools, kind: "custom", color: a.color, tokenHash: null, createdBy: me.id, createdAt: at(20),
-    });
-  }
-  for (const [chat, key, mode] of [
-    ["engineering", "triage", "lurk"], ["product", "triage", "mention"], ["engineering", "reviewer", "mention"],
-    ["product", "reviewer", "mention"], ["general", "standup", "mention"], ["product", "standup", "mention"],
-  ] as const) {
-    await reg.setChannelAgent(wsId, ch[chat], ag[key], mode, me.id);
-  }
+  for (const a of AGENTS) ag[a.key] = `ag${uid()}`;
+  await Promise.all([
+    ...AGENTS.map((a, i) =>
+      reg.createAgent({
+        id: ag[a.key], workspaceId: wsId, handle: a.key, name: a.name, description: a.description, instructions: a.instructions,
+        tools: a.tools, kind: "custom", color: a.color, tokenHash: null, createdBy: me.id, createdAt: at(20 + i),
+      }),
+    ),
+    ...([
+      ["engineering", "triage", "lurk"], ["product", "triage", "mention"], ["engineering", "reviewer", "mention"],
+      ["product", "reviewer", "mention"], ["general", "standup", "mention"], ["product", "standup", "mention"],
+    ] as const).map(([chat, key, mode]) => reg.setChannelAgent(wsId, ch[chat], ag[key], mode, me.id)),
+  ]);
 
   // Tickets ORB-1..12, some blocking others.
   const store = await storeFor(ws);
@@ -123,9 +127,9 @@ export async function createSandbox(me: { id: string; first: string }) {
   ];
   const ids: string[] = [];
   const nameOf = (id: string) => (id === me.id ? "Alex Rivera" : id === ATLAS_ID ? "Atlas" : (PEOPLE.find((p) => p.id === id)?.name ?? "Someone"));
-  for (const [team, title, status, priority, assignee, reporter, x = {}] of tickets) {
-    const id = await store.nextTicketId();
-    ids.push(id);
+  for (let i = 0; i < tickets.length; i++) ids.push(await store.nextTicketId());
+  await Promise.all(tickets.map(async ([team, title, status, priority, assignee, reporter, x = {}], i) => {
+    const id = ids[i];
     const t: Ticket = {
       id, team, title, status, priority, assignee, reporter, description: x.desc ?? "", images: [], updated: "Today",
       links: [
@@ -137,7 +141,7 @@ export async function createSandbox(me: { id: string; first: string }) {
       activity: [{ who: nameOf(reporter), text: "created this ticket", time: ago(3100) }],
     };
     await store.insertTicket(t);
-  }
+  }));
 
   const you = `@${me.first}`;
   const conversations: [string, Msg[]][] = [
@@ -191,14 +195,17 @@ export async function createSandbox(me: { id: string; first: string }) {
       { k: "r2", who: jonas, min: 690, text: "In." },
     ]],
   ];
-  for (const [channel, msgs] of conversations) {
-    for (const m of msgs) {
-      const root = await store.appendMessage(ch[channel], { id: uid(), who: m.who, time: ago(m.min), text: m.text, ticket: m.ticket ?? null });
-      for (const r of m.replies ?? []) await store.appendMessage(ch[channel], { id: uid(), who: r.who, time: ago(r.min), text: r.text }, root.id);
-    }
-  }
-  await store.appendMessage(dm[maya], { id: uid(), who: maya, time: ago(70), text: "Hey! Could you look at the pricing page mocks before Wednesday? Tom's emails (ORB-6) are waiting on them." });
-  await store.appendMessage(dm[jonas], { id: uid(), who: jonas, time: ago(30), text: "Stripe test-mode keys expire on Friday and I don't have dashboard access. Can you rotate them?" });
+  // Channels fill in parallel; each one in order (so threads follow their roots).
+  await Promise.all([
+    ...conversations.map(async ([channel, msgs]) => {
+      for (const m of msgs) {
+        const root = await store.appendMessage(ch[channel], { id: uid(), who: m.who, time: ago(m.min), text: m.text, ticket: m.ticket ?? null });
+        for (const r of m.replies ?? []) await store.appendMessage(ch[channel], { id: uid(), who: r.who, time: ago(r.min), text: r.text }, root.id);
+      }
+    }),
+    store.appendMessage(dm[maya], { id: uid(), who: maya, time: ago(70), text: "Hey! Could you look at the pricing page mocks before Wednesday? Tom's emails (ORB-6) are waiting on them." }),
+    store.appendMessage(dm[jonas], { id: uid(), who: jonas, time: ago(30), text: "Stripe test-mode keys expire on Friday and I don't have dashboard access. Can you rotate them?" }),
+  ]);
 
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }
