@@ -187,6 +187,20 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               </SelectContent>
             </Select>
           </Field>
+          <Field id="tk-team" label="Team">
+            <Select value={t.team} onValueChange={(v) => update.mutate({ id: t.id, patch: { team: v } })}>
+              <SelectTrigger id="tk-team">
+                <SelectValue placeholder={teamName(dir, t.team)} />
+              </SelectTrigger>
+              <SelectContent>
+                {dir.teams.map((x) => (
+                  <SelectItem key={x.id} value={x.id}>
+                    {x.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-muted-foreground">Reporter</span>
             <span className="flex min-h-[38px] items-center gap-2 text-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -24,6 +24,7 @@ import { switchWorkspace } from "@/lib/api/remote";
 import { signOut } from "@/lib/auth/browser";
 import { CreateChannelDialog, NewMessageDialog } from "@/components/workspace/channel-dialogs";
 import { PeopleDialog } from "@/components/workspace/people-dialog";
+import { SettingsDialog } from "@/components/workspace/settings-dialog";
 import { ACCENTS } from "@/lib/constants";
 import { personOf } from "@/lib/directory";
 import { THEME_OPTIONS } from "@/lib/theme";
@@ -114,6 +115,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const openWorkspace = async (id: string) => {
     if (id === dir.workspace.id) return;
     await switchWorkspace(id);
@@ -129,6 +131,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <PeopleDialog open={peopleOpen} onOpenChange={setPeopleOpen} />
       <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
       <NewMessageDialog open={dmOpen} onOpenChange={setDmOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -140,6 +143,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <UsersIcon className="size-4 text-muted-foreground" />
               {canManage(dir.role) ? "Invite people" : "People"}
             </DropdownMenuItem>
+            {canManage(dir.role) && (
+              <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+                <SettingsIcon className="size-4 text-muted-foreground" />
+                Workspace settings
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={dir.workspace.id} onValueChange={(id) => void openWorkspace(id)}>

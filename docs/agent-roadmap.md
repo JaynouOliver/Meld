@@ -32,7 +32,8 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | Async Atlas on a job queue (`agent_runs`): post returns at once, reply arrives over realtime, "Atlas is working…" for everyone | ✅ Done: see architecture.md §4 "As built" |
 | Streaming replies (token by token) | To do |
 | Trace viewer (context, tool calls, tokens per Atlas run) | To do: traces are logged today |
-| Real auth (role from the session, not the request) | To do |
+| Real auth (role from the session, not the request) | ✅ Done: GitHub/Google sign-in (Supabase Auth); roles from workspace membership |
+| Multi-tenant workspaces: onboarding, invites, members, channels, DMs | ✅ Done |
 | Deploy (Vercel preview per branch) | To do: needs your Vercel account |
 
 ## How Atlas works now

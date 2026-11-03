@@ -182,7 +182,7 @@ export async function createTicket(preset: Partial<Ticket>, role: Role): Promise
   return t;
 }
 
-export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee">>;
+export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team">>;
 
 export interface UpdateTicketInput {
   id: string;
@@ -220,6 +220,13 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   if (p.priority && p.priority !== t.priority) {
     t.priority = p.priority;
     note = `set priority to ${p.priority}`;
+  }
+  if (p.team && p.team !== t.team) {
+    const team = currentDir().teams.find((x) => x.id === p.team);
+    if (!team) throw new ApiError("Unknown team");
+    if (!canCreateIn(viewer(input.role), team.id)) throw new ApiError("Your role can't move tickets to that team", 403);
+    t.team = team.id;
+    note = `moved it to ${team.name}`;
   }
   if (p.assignee && p.assignee !== t.assignee) {
     if (!currentDir().people[p.assignee]) throw new ApiError("Assignee isn't in this workspace");
