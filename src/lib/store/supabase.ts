@@ -61,6 +61,9 @@ function toTree(rows: MessageRow[]): Message[] {
   return roots;
 }
 
+interface HitRow { id: string; chat_id: ChatId; thread_id: string | null; who: PersonId; text: string; time_label: string }
+const toHit = (r: HitRow) => ({ chatId: r.chat_id, id: r.id, threadId: r.thread_id, who: r.who, time: r.time_label, text: r.text });
+
 const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export const supabaseStore: Store = {
@@ -111,13 +114,29 @@ export const supabaseStore: Store = {
     const rows = check(
       await sb()
         .from("messages")
-        .select("id,chat_id,who,text,time_label")
+        .select("id,chat_id,thread_id,who,text,time_label")
         .textSearch("text", q, { type: "websearch", config: "english" })
         .order("seq", { ascending: false })
         .limit(limit * 3),
       "search messages",
-    ) as { id: string; chat_id: ChatId; who: PersonId; text: string; time_label: string }[];
-    return rows.map((r) => ({ chatId: r.chat_id, id: r.id, who: r.who, time: r.time_label, text: r.text }));
+    ) as HitRow[];
+    return rows.map(toHit);
+  },
+  async messagesMentioning(ticketId, limit) {
+    const key = ticketId.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+    if (!key) return [];
+    const rows = check(
+      await sb().from("messages").select("id,chat_id,thread_id,who,text,time_label").ilike("text", `%${key}%`).order("seq", { ascending: false }).limit(limit),
+      "messages mentioning",
+    ) as HitRow[];
+    return rows.map(toHit);
+  },
+  async getMessageRefs(ids) {
+    if (!ids.length) return {};
+    const rows = check(await sb().from("messages").select("id,chat_id,thread_id").in("id", ids), "message refs") as {
+      id: string; chat_id: ChatId; thread_id: string | null;
+    }[];
+    return Object.fromEntries(rows.map((r) => [r.id, { chatId: r.chat_id, threadId: r.thread_id }]));
   },
   async week() {
     const rows = check(await sb().from("week_activity").select("day,people,atlas").order("day"), "week") as { day: number; people: number; atlas: number }[];

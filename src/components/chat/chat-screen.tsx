@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import { ThreadPanel } from "@/components/thread/thread-panel";
 import { useMessages } from "@/hooks/use-messages";
-import type { ChatId } from "@/lib/types";
+import type { ChatId, ReplyNode } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { ChatHeader } from "./chat-header";
 import { Composer } from "./composer";
@@ -20,6 +20,29 @@ export function ChatScreen({ chatId }: { chatId: ChatId }) {
   const markRead = useUiStore((s) => s.markRead);
 
   useEffect(() => markRead(chatId), [chatId, markRead]);
+  // Jump to a cited message once this chat's messages are loaded.
+  const focus = useUiStore((s) => s.focus);
+  const loaded = !!messages;
+  useEffect(() => {
+    if (!focus || focus.chatId !== chatId || !loaded) return;
+    const ui = useUiStore.getState();
+    if (focus.threadId) {
+      ui.openThread(focus.threadId);
+      // Expand every reply on the path to the cited one, so it's visible.
+      const root = messages?.find((m) => m.id === focus.threadId);
+      const path = (nodes: ReplyNode[], trail: string[]): string[] | null => {
+        for (const n of nodes) {
+          if (n.id === focus.id) return trail;
+          const found = path(n.kids, [...trail, n.id]);
+          if (found) return found;
+        }
+        return null;
+      };
+      for (const id of path(root?.replies ?? [], []) ?? []) ui.setExpanded(id, true);
+    }
+    useUiStore.setState({ focus: null, flashId: focus.id });
+  }, [focus, chatId, loaded, messages]);
+
   // Leaving the chat closes its thread, so it doesn't reappear on return.
   useEffect(() => () => useUiStore.getState().closeThread(), [chatId]);
   useEffect(() => {

@@ -8,7 +8,7 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | # | Feature | Status |
 |---|---|---|
 | 1 | **Ticket CRUD by tagging Atlas** (create, update, bulk, delete, ask-when-ambiguous, role-aware) | ✅ Done: Muse Spark 1.3 + tools, 14/14 evals |
-| 2 | **Status answers with sources**: "where's the Apple Pay launch?" from tickets, PRs and threads, with links | Partly: tools exist (`get_ticket`, `search_messages`); needs citation UI |
+| 2 | **Status answers with sources**: "where's the Apple Pay launch?" from tickets, PRs and threads, with links | ✅ Done: `ticket_discussion` tool, server-verified citations, jump-to-message chips; 18/18 evals |
 | 3 | **Blocker propagation**: "X blocks Y" or a blocked ticket notifies downstream owners once | To do: needs ticket dependencies + a watcher |
 | 4 | **Thread → tickets**: "@Atlas make tickets from this" with a preview card before creating | To do |
 | 5 | **Quiet action-item capture**: private "make this a ticket?" suggestion to the author | To do: needs the memory pipeline |

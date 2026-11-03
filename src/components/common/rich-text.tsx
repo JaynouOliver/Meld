@@ -1,10 +1,11 @@
 "use client";
 
-import { LockIcon } from "lucide-react";
+import { CornerDownRightIcon, LockIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
 
 import { useVisibleTickets } from "@/hooks/use-tickets";
-import { STATUS_COLORS } from "@/lib/constants";
+import { CHAT_META, isChatId, PEOPLE, STATUS_COLORS } from "@/lib/constants";
 import { splitText, type TextPart } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -25,6 +26,10 @@ export function RichText({ text, className }: { text: string; className?: string
   const out: React.ReactNode[] = [];
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
+    if (part.kind === "cite") {
+      out.push(<CiteChip key={i} chatId={part.chatId} threadId={part.threadId} id={part.id} />);
+      continue;
+    }
     if (part.kind === "mention") {
       out.push(
         <span key={i} className="rounded bg-mention px-[3px] font-semibold text-mention-foreground">
@@ -110,5 +115,34 @@ function LockedChip({ id }: { id: string }) {
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+/** A verified source Atlas cited. Tapping jumps to the message (opening its thread). */
+function CiteChip({ chatId, threadId, id }: { chatId: string; threadId: string | null; id: string }) {
+  const router = useRouter();
+  if (!isChatId(chatId)) return null;
+  const meta = CHAT_META[chatId];
+  const label = meta.kind === "channel" ? `#${meta.label}` : PEOPLE[meta.who].first;
+  return (
+    <button
+      type="button"
+      data-chip
+      title="Jump to the message"
+      onClick={(e) => {
+        e.stopPropagation();
+        useUiStore.setState({ focus: { chatId, threadId, id }, ticketId: null });
+        router.push(`/chat/${chatId}`);
+      }}
+      className={cn(
+        HIT,
+        "mx-px inline-flex cursor-pointer items-center gap-0.5 rounded-md border border-border bg-muted px-1 align-baseline text-[11px] leading-[1.6] font-semibold text-muted-foreground transition-colors hover:border-input hover:text-foreground",
+      )}
+    >
+      <CornerDownRightIcon aria-hidden className="size-3" />
+      {label}
+      {threadId && <span className="font-normal">· thread</span>}
+      <span className="sr-only"> (source message)</span>
+    </button>
   );
 }

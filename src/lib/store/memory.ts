@@ -1,8 +1,25 @@
 import { appendMessage, bumpWeek, db, resetDb } from "../mock/db";
 import type { ChatId, Message, ReplyNode } from "../types";
-import type { Store } from "./types";
+import type { MessageHit, Store } from "./types";
 
 const clone = <T,>(x: T): T => structuredClone(x);
+
+/** Every message in conversation order, flattened, with its thread root. */
+function allMessages(): MessageHit[] {
+  const out: MessageHit[] = [];
+  for (const [chatId, msgs] of Object.entries(db.chats) as [ChatId, Message[]][]) {
+    for (const m of msgs) {
+      out.push({ chatId, id: m.id, threadId: null, who: m.who, time: m.time, text: m.text });
+      const walk = (nodes: ReplyNode[]) =>
+        nodes.forEach((n) => {
+          out.push({ chatId, id: n.id, threadId: m.id, who: n.who, time: n.time, text: n.text });
+          walk(n.kids);
+        });
+      walk(m.replies);
+    }
+  }
+  return out;
+}
 
 export const memoryStore: Store = {
   kind: "memory",
@@ -33,14 +50,22 @@ export const memoryStore: Store = {
     return clone(appendMessage(chatId, msg, threadId, parentId));
   },
   async searchMessages(terms, limit) {
-    const out: Awaited<ReturnType<Store["searchMessages"]>> = [];
-    const visit = (chatId: ChatId, m: Message | ReplyNode) => {
-      const lower = m.text.toLowerCase();
-      if (terms.some((w) => lower.includes(w))) out.push({ chatId, id: m.id, who: m.who, time: m.time, text: m.text });
-      ("replies" in m ? m.replies : m.kids).forEach((r) => visit(chatId, r));
-    };
-    for (const [chatId, msgs] of Object.entries(db.chats) as [ChatId, Message[]][]) msgs.forEach((m) => visit(chatId, m));
-    return out.slice(-limit * 3);
+    return allMessages()
+      .filter((m) => terms.some((w) => m.text.toLowerCase().includes(w)))
+      .slice(-limit * 3);
+  },
+  async messagesMentioning(ticketId, limit) {
+    const key = ticketId.toUpperCase();
+    return allMessages()
+      .filter((m) => m.text.toUpperCase().includes(key))
+      .slice(-limit)
+      .reverse();
+  },
+  async getMessageRefs(ids) {
+    const want = new Set(ids);
+    const out: Record<string, { chatId: ChatId; threadId: string | null }> = {};
+    for (const m of allMessages()) if (want.has(m.id)) out[m.id] = { chatId: m.chatId, threadId: m.threadId };
+    return out;
   },
   async week() {
     return clone(db.week);

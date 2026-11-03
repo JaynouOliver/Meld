@@ -105,6 +105,39 @@ const cases: Case[] = [
     check: ({ reply }) => (/NW-125/.test(reply) && /NW-143/.test(reply) ? true : `reply: ${reply}`),
   },
   {
+    name: "status: answers from tickets + chat with a real citation",
+    where: "payments",
+    text: "@Atlas where are we on the Apple Pay launch?",
+    check: ({ reply, trace, before }) => {
+      const u = unchanged(before);
+      if (u !== true) return u;
+      if (!/NW-130/.test(reply) || !/review/i.test(reply)) return `missing NW-130 / In review: ${reply}`;
+      if (trace.citations.invalid.length) return `made-up citations: ${trace.citations.invalid.join(",")}`;
+      return trace.citations.kept.length ? true : `no citations: ${reply}`;
+    },
+  },
+  {
+    name: "status: names the blocker and cites who raised it",
+    where: "payments",
+    text: "@Atlas what's blocking the Apple Pay rollout?",
+    check: ({ reply, trace }) => {
+      if (!/NW-131/.test(reply)) return `missing NW-131: ${reply}`;
+      if (trace.citations.invalid.length) return `made-up citations: ${trace.citations.invalid.join(",")}`;
+      return trace.citations.kept.includes("p4") ? true : `expected to cite Ravi's message p4, cited ${trace.citations.kept.join(",") || "nothing"}`;
+    },
+  },
+  {
+    name: "status: decision from a thread, cited to the thread",
+    where: "general",
+    text: "@Atlas what did the design team decide about where the invite step goes in onboarding?",
+    check: ({ reply, trace }) => {
+      const threadIds = ["r1", "s1", "s2", "s3", "s4", "r2", "r3"];
+      if (trace.citations.invalid.length) return `made-up citations: ${trace.citations.invalid.join(",")}`;
+      if (!trace.citations.kept.some((id) => threadIds.includes(id))) return `no thread citation (cited ${trace.citations.kept.join(",") || "nothing"}): ${reply}`;
+      return /two-step|light|stronger|second project|NW-122/i.test(reply) ? true : `reply misses the decision: ${reply}`;
+    },
+  },
+  {
     name: "ambiguous: asks instead of guessing",
     where: "design",
     text: "@Atlas close the invite ticket",
@@ -171,7 +204,7 @@ async function main() {
     // Muse Spark 1.3 standard pricing: $1.25 in, $0.15 cached in, $4.25 out per 1M tokens.
     cost += ((trace.usage.prompt - trace.usage.cached) * 1.25 + trace.usage.cached * 0.15 + trace.usage.completion * 4.25) / 1e6;
     console.log(`${ok ? "PASS" : "FAIL"}  ${c.name}  (${trace.ms}ms, tools: ${trace.tools.map((t) => t.name).join(",") || "-"})`);
-    if (!ok) console.log(`      ${verdict}\n      reply: ${trace.reply}`);
+    if (!ok) console.log(`      ${verdict}\n      reply: ${trace.reply}\n      raw:   ${JSON.stringify(trace.rawReply)}\n      citations: ${JSON.stringify(trace.citations)}`);
   }
   console.log(`\n${pass}/${run.length} passed · est. cost $${cost.toFixed(4)}`);
   process.exit(pass === run.length ? 0 : 1);

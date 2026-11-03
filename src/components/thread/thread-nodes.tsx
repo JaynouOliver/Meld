@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
+import { useFlash } from "@/hooks/use-flash";
 import { useSendMessage } from "@/hooks/use-messages";
 import { PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
@@ -38,10 +39,11 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
   const p = PEOPLE[node.who];
   const nested = depth > 0;
   const k = countReplies(node.kids);
+  const { ref, flashing } = useFlash<HTMLDivElement>(node.id);
 
   return (
     <>
-      <div className={cn(ROW, "hover:bg-muted")} style={{ paddingLeft: indent(depth) }}>
+      <div ref={ref} className={cn(ROW, "transition-colors duration-700 hover:bg-muted", flashing && "bg-mention")} style={{ paddingLeft: indent(depth) }}>
         <div className={cn("flex gap-2.5 border-l-2 py-[7px]", nested ? "border-border pl-3" : "border-transparent pl-0")}>
           <Avatar person={p} size={nested ? "md" : "xl"} className={nested ? "" : "rounded-[7px]"} />
           <div className="min-w-0 flex-1">

@@ -40,6 +40,10 @@ interface UiState {
   linkKind: "PR" | "Issue";
   /** In-app page views this session; >1 means history.back() stays inside the app. */
   navDepth: number;
+  /** A message to jump to (from a citation); consumed by the chat screen. */
+  focus: { chatId: ChatId; threadId: string | null; id: string } | null;
+  /** Message briefly highlighted after a jump. */
+  flashId: string | null;
   /** Chat on screen, for realtime unread counts (set by useRealtimeSync). */
   activeChatForUnread: ChatId | null;
   /** Bumped when the user sends from the main composer, to scroll to their message. */
@@ -89,6 +93,8 @@ export const useUiStore = create<UiState>()(
       navDepth: 0,
       sentTick: 0,
       activeChatForUnread: null,
+      focus: null,
+      flashId: null,
 
       setRole: (role) => set({ role }),
       setAccent: (accent) => set({ accent }),

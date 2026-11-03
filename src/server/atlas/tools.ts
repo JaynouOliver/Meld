@@ -1,8 +1,9 @@
 import type OpenAI from "openai";
 
 import { CHAT_META, DEFAULT_REPO, PEOPLE, STATUSES, PRIORITIES, TEAMS, teamName } from "@/lib/constants";
-import { stamp, uid } from "@/lib/format";
+import { displayTime, stamp, uid } from "@/lib/format";
 import type { Store } from "@/lib/store";
+import type { MessageHit } from "@/lib/store/types";
 import { matchQuery } from "@/lib/query-language";
 import { canDelete, canSee } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
@@ -102,6 +103,20 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "ticket_discussion",
+      description:
+        "Recent chat messages that mention a ticket (by ID), across channels, DMs and threads. Use it to find decisions, blockers and context behind a ticket's status.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string", description: "Ticket ID, e.g. NW-130" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "search_messages",
       description: "Search chat history across channels and DMs for a topic. Returns matching messages with where and when.",
       parameters: {
@@ -144,6 +159,12 @@ async function findVisible(store: Store, id: unknown, role: Role): Promise<Ticke
 function srcLabel(where: ChatId) {
   const m = CHAT_META[where];
   return m.kind === "channel" ? `#${m.label}` : "a DM with Atlas";
+}
+
+/** One search hit for the model: where, message id (for citations), when, who, what. */
+function hitLine(m: MessageHit) {
+  const where = srcLabel(m.chatId).replace("a DM with Atlas", "DM with Atlas");
+  return `${where}${m.threadId ? " (thread reply)" : ""} [${m.id} ${displayTime(m.time)}] ${PEOPLE[m.who].name}: ${m.text.slice(0, 280)}`;
 }
 
 export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<unknown> {
@@ -260,11 +281,16 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       const found = await store.searchMessages(terms, 8);
       const hits = found.map((m) => {
         const lower = m.text.toLowerCase();
-        const label = srcLabel(m.chatId).replace("a DM with Atlas", "DM: Atlas");
-        return { score: terms.filter((w) => lower.includes(w)).length, line: `${label} [${m.id} ${m.time}] ${PEOPLE[m.who].name}: ${m.text.slice(0, 280)}` };
+        return { score: terms.filter((w) => lower.includes(w)).length, line: hitLine(m) };
       });
       hits.sort((a, b) => b.score - a.score);
       return { ok: true, results: hits.slice(0, 8).map((h) => h.line) };
+    }
+    case "ticket_discussion": {
+      const t = await findVisible(store, args.id, role);
+      if ("ok" in t) return t;
+      const found = await store.messagesMentioning(t.id, 12);
+      return { ok: true, ticket: ticketLine(t), messages: found.reverse().map(hitLine) };
     }
     default:
       return err(`Unknown tool ${name}.`);

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
 import { useEffect } from "react";
 
+import { useFlash } from "@/hooks/use-flash";
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
 import { PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
@@ -51,6 +52,7 @@ function MessageRow({ message: m }: { message: Message }) {
     if (!participants.some((x) => x.id === r.who)) participants.push(PEOPLE[r.who]);
   });
   const pending = m.id.startsWith("pending-");
+  const { ref, flashing } = useFlash<HTMLDivElement>(m.id);
 
   // Touch screens have no hover toolbar: tapping a message opens its thread,
   // unless the tap was on a link, chip or button inside it.
@@ -62,10 +64,12 @@ function MessageRow({ message: m }: { message: Message }) {
 
   return (
     <div
+      ref={ref}
       onClick={onTap}
       className={cn(
-        "group relative flex gap-3 px-3 py-2 sm:px-5",
+        "group relative flex gap-3 px-3 py-2 transition-colors duration-700 sm:px-5",
         threadId === m.id ? "bg-selected" : "hover:bg-muted pointer-coarse:hover:bg-transparent pointer-coarse:active:bg-muted",
+        flashing && "bg-mention",
         pending && "opacity-60",
       )}
     >

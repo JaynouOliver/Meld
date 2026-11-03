@@ -4,7 +4,7 @@ import type OpenAI from "openai";
 
 import { CHAT_META, PEOPLE } from "@/lib/constants";
 import { stamp, uid } from "@/lib/format";
-import { getStore } from "@/lib/store";
+import { getStore, type Store } from "@/lib/store";
 import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
 import type { ChatId } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
@@ -22,6 +22,10 @@ export interface AtlasTrace {
   ms: number;
   reply: string;
   error?: string;
+  /** kept: shown; invalid: no such message (made up); overLimit: real but past the cap. */
+  citations: { kept: string[]; invalid: string[]; overLimit: string[] };
+  /** The model's reply before citations were verified. */
+  rawReply?: string;
 }
 
 /**
@@ -38,6 +42,7 @@ export async function runAtlasAgent(input: AskAtlasInput): Promise<AskAtlasResul
   const trace: AtlasTrace = {
     model: ATLAS_MODEL, effort: String(ATLAS_EFFORT), steps: 0, tools: [],
     usage: { prompt: 0, cached: 0, completion: 0, reasoning: 0 }, ms: 0, reply: "",
+    citations: { kept: [], invalid: [], overLimit: [] },
   };
 
   const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where)]);
@@ -98,6 +103,10 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
     reply = `Sorry, I couldn't reach my model just now. ${did ? `Before that I ${did}` : "Please try again in a moment."}`;
   }
 
+  // Only real messages can be cited: verify every [[id]] and drop the rest.
+  trace.rawReply = reply;
+  reply = await resolveCitations(reply, store, trace.citations);
+
   // Reply in the conversation, with a ticket card when the run centred on one ticket.
   const single = <T,>(xs: T[]) => (xs.length === 1 ? xs[0] : null);
   const card =
@@ -129,6 +138,29 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
     deleted: effects.deleted,
     trace,
   };
+}
+
+const MAX_CITATIONS = 3;
+
+/**
+ * The model cites messages as [[id]]. Keep the ones that exist (up to 3), rewritten
+ * as [[cite:<chat>:<thread or ->:<id>]] so the UI can link straight to them; remove
+ * the rest, so a made-up citation never reaches the chat.
+ */
+async function resolveCitations(text: string, store: Store, log: AtlasTrace["citations"]) {
+  const ids = [...new Set([...text.matchAll(/\[\[([A-Za-z0-9_-]{1,40})\]\]/g)].map((m) => m[1]))];
+  if (!ids.length) return text;
+  const refs = await store.getMessageRefs(ids);
+  const kept = new Set(ids.filter((id) => refs[id]).slice(0, MAX_CITATIONS));
+  for (const id of ids) (kept.has(id) ? log.kept : refs[id] ? log.overLimit : log.invalid).push(id);
+  return text
+    .replace(/\s*\[\[([A-Za-z0-9_-]{1,40})\]\]/g, (_m, id: string) => {
+      if (!kept.has(id)) return "";
+      const r = refs[id];
+      return ` [[cite:${r.chatId}:${r.threadId ?? "-"}:${id}]]`;
+    })
+    .replace(/ +([.,;:!?])/g, "$1")
+    .trim();
 }
 
 function summarize(e: Effects) {
