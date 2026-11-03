@@ -28,7 +28,7 @@ export function TicketFilterBar() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative flex flex-[1_1_100%] items-center sm:flex-[1_1_320px] gap-2 rounded-lg border border-input bg-card px-2.5 text-muted-foreground focus-within:border-subtle">
+      <div className="relative flex flex-[1_1_100%] items-center sm:flex-[1_1_320px] gap-2 rounded-md border border-input bg-card px-2.5 text-muted-foreground focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
         <SearchIcon aria-hidden className="size-[15px]" />
         <label htmlFor="tq" className="sr-only">
           Filter tickets
@@ -40,20 +40,20 @@ export function TicketFilterBar() {
           placeholder={wide ? `Filter: ${example}` : "e.g. status:review"}
           autoComplete="off"
           spellCheck={false}
-          className="min-w-0 flex-1 border-none bg-transparent py-[9px] font-mono text-base text-foreground md:text-sm outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 border-none bg-transparent py-[7px] font-mono text-base text-foreground md:text-sm outline-none placeholder:text-muted-foreground"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery("")}
             aria-label="Clear filter"
-            className="flex size-10 cursor-pointer md:size-[30px] items-center justify-center rounded-md hover:bg-accent"
+            className="flex size-10 cursor-pointer md:size-6 items-center justify-center rounded-md hover:bg-accent"
           >
             <XIcon className="size-3.5" strokeWidth={2.2} />
           </button>
         )}
       </div>
-      <label htmlFor="groupby" className="ml-auto text-meta font-semibold text-ink-2 sm:ml-0">
+      <label htmlFor="groupby" className="ml-auto text-meta font-medium text-muted-foreground sm:ml-0">
         Group by
       </label>
       <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>

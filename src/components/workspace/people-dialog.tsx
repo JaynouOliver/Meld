@@ -22,12 +22,12 @@ export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       <DialogContent title={`People in ${dir.workspace.name}`} description={owner ? "Invite your team and manage roles." : "Who's here, and your team."}>
         {owner && (
           <section className="mb-6">
-            <h3 className="text-meta font-bold">Invite people</h3>
+            <h3 className="text-meta font-semibold">Invite people</h3>
             <InviteLink />
           </section>
         )}
         <section>
-          <h3 className="text-meta font-bold">Members · {dir.personOrder.filter((id) => id !== ATLAS_ID).length}</h3>
+          <h3 className="text-meta font-semibold">Members · {dir.personOrder.filter((id) => id !== ATLAS_ID).length}</h3>
           <ul className="mt-2 divide-y">
             {dir.personOrder.filter((id) => id !== ATLAS_ID).map((id) => (
               <MemberRow key={id} id={id} />
@@ -106,7 +106,7 @@ function MemberRow({ id }: { id: string }) {
           onClick={() => {
             if (window.confirm(`Remove ${p.name} from ${dir.workspace.name}?`)) void save(() => remote.removeMember(id));
           }}
-          className="h-8 cursor-pointer rounded-md px-2 text-meta font-semibold text-destructive hover:bg-danger-soft"
+          className="h-8 cursor-pointer rounded-md px-2 text-meta font-medium text-destructive hover:bg-danger-soft"
         >
           Remove
         </button>

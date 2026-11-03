@@ -43,26 +43,27 @@ function LiveBubble({ run, className }: { run: RunView; className?: string }) {
 
   return (
     <div data-testid="atlas-live" data-agent={agent.id} className={cn("flex gap-3 py-1.5", className)} aria-live="polite">
-      <Avatar person={agent} size="xl" className="rounded-[7px]" />
+      <Avatar person={agent} size="xl" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-body font-bold">{agent.name}</span>
+          <span className="text-body font-semibold">{agent.name}</span>
           <AgentBadge />
           {run.trigger === "delegation" && <span className="text-xs text-muted-foreground">picked up a hand-off</span>}
         </div>
-        {progress?.note && !draft && <p className="mt-0.5 text-body leading-[1.55]">{clean(progress.note)}</p>}
+        {progress?.note && !draft && <p className="mt-0.5 text-body">{clean(progress.note)}</p>}
         {draft ? (
-          <div className="mt-0.5 text-body leading-[1.55]">
+          <div className="mt-0.5 text-body">
             <RichText text={draft} className="inline" />
-            <span aria-hidden className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[3px] animate-pulse bg-atlas" />
+            <span aria-hidden className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[3px] animate-pulse bg-foreground/60" />
           </div>
         ) : (
-          <div className={cn("mt-0.5 flex items-center gap-2 text-muted-foreground", progress?.note ? "text-meta" : "text-body")}>
-            {!progress?.note && <span className="atlas-shimmer font-medium">On it</span>}
-            <span className={cn("text-meta", progress?.note && "atlas-shimmer font-medium")}>
-              {progress?.note ? step : `· ${step}`}
-            </span>
-            <Dots />
+          <div className="mt-1 flex max-w-sm flex-col gap-1.5">
+            <div className="flex items-center gap-2 text-meta text-muted-foreground">
+              <Spinner />
+              {!progress?.note && <span className="font-medium text-ink-2">On it</span>}
+              <span className="truncate">{progress?.note ? step : `· ${step}`}</span>
+            </div>
+            <div aria-hidden className="agent-progress w-full" />
           </div>
         )}
       </div>
@@ -70,14 +71,9 @@ function LiveBubble({ run, className }: { run: RunView; className?: string }) {
   );
 }
 
-function Dots() {
-  return (
-    <span aria-hidden className="flex gap-1">
-      {[0, 150, 300].map((d) => (
-        <span key={d} className="size-1.5 animate-bounce rounded-full bg-atlas/70" style={{ animationDelay: `${d}ms` }} />
-      ))}
-    </span>
-  );
+/** A small neutral ring spinner: the agent is working. */
+function Spinner() {
+  return <span aria-hidden className="size-3 shrink-0 animate-spin rounded-full border-[1.5px] border-border border-t-muted-foreground" />;
 }
 
 /** Citations ([[id]]) are resolved when the reply is saved; hide them while streaming. */

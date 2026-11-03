@@ -30,15 +30,15 @@ function ThreadReply({ node }: { node: ReplyNode }) {
   const { ref, flashing } = useFlash<HTMLDivElement>(node.id);
   return (
     <div ref={ref} className={cn("px-4 transition-colors duration-700 hover:bg-muted sm:px-5", flashing && "bg-mention")}>
-      <div className="flex gap-2.5 py-[7px]">
-        <Avatar person={p} size="xl" className="rounded-[7px]" />
+      <div className="flex gap-2.5 py-1.5">
+        <Avatar person={p} size="xl" />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-body font-bold">{p.name}</span>
+            <span className="text-body font-semibold">{p.name}</span>
             {p.isAgent && <AgentBadge />}
             <span className="text-xs text-muted-foreground">{node.time}</span>
           </div>
-          <RichText text={node.text} className="mt-0.5 text-body leading-[1.55]" />
+          <RichText text={node.text} className="text-body" />
           {node.action && <ActionCard action={node.action} />}
           <Reactions reactions={node.reactions} />
         </div>

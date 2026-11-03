@@ -67,16 +67,16 @@ export function CreateChannelDialog({ open, onOpenChange }: Open) {
       <DialogContent title="Create a channel" description="Channels are where your team talks about a topic. Everyone in the workspace can join.">
         <form onSubmit={submit}>
           <label htmlFor="ch-name" className="text-meta font-semibold">Name</label>
-          <div className="mt-1.5 flex h-10 items-center rounded-md border bg-background px-3 focus-within:border-subtle">
+          <div className="mt-1.5 flex h-9 items-center rounded-md border border-input bg-background px-2.5 focus-within:border-ring">
             <span className="text-muted-foreground">#</span>
             <input id="ch-name" autoFocus value={name} onChange={(e) => setName(asChannelName(e.target.value))} placeholder="e.g. launch-plan" className="min-w-0 flex-1 bg-transparent pl-1 text-sm outline-none" />
           </div>
           <label htmlFor="ch-topic" className="mt-4 block text-meta font-semibold">Topic <span className="font-normal text-muted-foreground">(optional)</span></label>
-          <input id="ch-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="What's this channel about?" maxLength={120} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle" />
+          <input id="ch-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="What's this channel about?" maxLength={120} className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:border-ring" />
           {dir.teams.length > 0 && (
             <>
               <label htmlFor="ch-team" className="mt-4 block text-meta font-semibold">Team <span className="font-normal text-muted-foreground">(Atlas files tickets here to this team)</span></label>
-              <select id="ch-team" value={team} onChange={(e) => setTeam(e.target.value)} className="mt-1.5 h-10 w-full rounded-md border bg-background px-2 text-sm">
+              <select id="ch-team" value={team} onChange={(e) => setTeam(e.target.value)} className="mt-1.5 h-9 w-full rounded-md border bg-background px-2 text-sm">
                 <option value="">No team</option>
                 {dir.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
@@ -84,8 +84,8 @@ export function CreateChannelDialog({ open, onOpenChange }: Open) {
           )}
           {error && <p role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-meta text-destructive">{error}</p>}
           <div className="mt-6 flex justify-end gap-2">
-            <button type="button" onClick={() => onOpenChange(false)} className="h-10 cursor-pointer rounded-md px-4 text-sm font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
-            <button type="submit" disabled={busy || !name.replace(/-/g, "")} className="flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+            <button type="button" onClick={() => onOpenChange(false)} className="h-9 cursor-pointer rounded-md px-4 text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={busy || !name.replace(/-/g, "")} className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
               {busy && <LoaderCircleIcon className="size-4 animate-spin" />} Create
             </button>
           </div>
@@ -117,7 +117,7 @@ export function NewMessageDialog({ open, onOpenChange }: Open) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title="New message" description="Send a direct message to someone in the workspace.">
-        <div className="flex h-10 items-center gap-2 rounded-md border bg-background px-3 focus-within:border-subtle">
+        <div className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 focus-within:border-ring">
           <SearchIcon className="size-4 text-muted-foreground" />
           <input autoFocus aria-label="Find a person" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
         </div>
@@ -129,7 +129,7 @@ export function NewMessageDialog({ open, onOpenChange }: Open) {
                 <button type="button" disabled={busy} onClick={() => pick(id)} className="flex w-full cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted">
                   <Avatar person={p} size="md" />
                   <span className="flex-1 text-sm font-semibold">{p.name}</span>
-                  {p.isAgent && <span className="text-2xs font-bold text-agent-foreground">AGENT</span>}
+                  {p.isAgent && <span className="rounded-sm border border-agent-border bg-agent px-1 text-2xs leading-4 font-medium text-agent-foreground">Agent</span>}
                 </button>
               </li>
             );
@@ -174,22 +174,22 @@ export function ChannelSettingsDialog({ chatId, open, onOpenChange }: Open & { c
       <DialogContent title={`#${meta.label} settings`}>
         <form onSubmit={save}>
           <label htmlFor="cs-name" className="text-meta font-semibold">Name</label>
-          <div className="mt-1.5 flex h-10 items-center rounded-md border bg-background px-3 focus-within:border-subtle">
+          <div className="mt-1.5 flex h-9 items-center rounded-md border border-input bg-background px-2.5 focus-within:border-ring">
             <span className="text-muted-foreground">#</span>
             <input id="cs-name" value={name} onChange={(e) => setName(asChannelName(e.target.value))} className="min-w-0 flex-1 bg-transparent pl-1 text-sm outline-none" />
           </div>
           <label htmlFor="cs-topic" className="mt-4 block text-meta font-semibold">Topic</label>
-          <input id="cs-topic" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={120} className="mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle" />
+          <input id="cs-topic" value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={120} className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:border-ring" />
           {error && <p role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-meta text-destructive">{error}</p>}
           <div className="mt-6 flex items-center justify-between gap-2">
             {isHome ? (
               <span className="text-meta text-muted-foreground">The default channel can&apos;t be deleted.</span>
             ) : (
-              <button type="button" disabled={busy} onClick={remove} className="h-10 cursor-pointer rounded-md px-3 text-sm font-semibold text-destructive hover:bg-danger-soft">
+              <button type="button" disabled={busy} onClick={remove} className="h-9 cursor-pointer rounded-md px-3 text-sm font-medium text-destructive hover:bg-danger-soft">
                 Delete channel
               </button>
             )}
-            <button type="submit" disabled={busy} className="flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+            <button type="submit" disabled={busy} className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
               {busy && <LoaderCircleIcon className="size-4 animate-spin" />} Save
             </button>
           </div>

@@ -60,9 +60,9 @@ export function EmailForm({ mode, next }: { mode: "signin" | "signup"; next: str
     );
   }
 
-  const input = "h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle";
+  const input = "h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring";
   return (
-    <form onSubmit={submit} className="grid gap-2.5">
+    <form onSubmit={submit} className="grid gap-2">
       {signup && (
         <input aria-label="Your name" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className={input} />
       )}
@@ -78,7 +78,7 @@ export function EmailForm({ mode, next }: { mode: "signin" | "signup"; next: str
         autoComplete={signup ? "new-password" : "current-password"}
         className={input}
       />
-      <button type="submit" disabled={busy} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-foreground text-sm font-semibold text-background hover:opacity-90 disabled:opacity-60">
+      <button type="submit" disabled={busy} className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand text-sm font-medium text-white hover:opacity-90 disabled:opacity-60">
         {busy && <LoaderCircleIcon className="size-4 animate-spin" />}
         {signup ? "Sign up with email" : "Sign in with email"}
       </button>

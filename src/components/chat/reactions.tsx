@@ -18,7 +18,7 @@ export function Reactions({ reactions }: { reactions?: Record<string, PersonId[]
         const names = who.map((id) => personOf(dir, id).name);
         const label = emoji === "👀" ? `${names.join(", ")} ${who.length === 1 ? "is" : "are"} looking at this` : names.join(", ");
         return (
-          <span key={emoji} title={label} className="inline-flex items-center gap-1.5 rounded-full border bg-muted px-2 py-0.5 text-meta">
+          <span key={emoji} title={label} className="inline-flex items-center gap-1.5 rounded-sm border bg-muted px-1.5 py-px text-xs">
             <span aria-hidden>{emoji}</span>
             <span className="text-ink-2">{emoji === "👀" ? names.join(", ") : who.length}</span>
             <span className="sr-only">{label}</span>

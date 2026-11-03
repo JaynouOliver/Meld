@@ -21,7 +21,7 @@ export function ActionCard({ action }: { action: ActionView }) {
     return (
       <div
         className={cn(
-          "mt-2 flex max-w-[460px] flex-col gap-2 rounded-[10px] border bg-card px-3.5 py-3",
+          "mt-2 flex max-w-[460px] flex-col gap-2 rounded-md border bg-card px-3 py-2.5",
           action.destructive ? "border-destructive/40" : "border-border",
         )}
       >
@@ -42,12 +42,12 @@ export function ActionCard({ action }: { action: ActionView }) {
             variant={action.destructive ? "destructive" : "default"}
             disabled={busy}
             onClick={() => decide.mutate({ id: action.id, decision: "confirm" })}
-            className="h-10 md:h-9"
+            className="h-9 md:h-8"
           >
             <CheckIcon />
             {action.destructive ? (action.summary.length > 1 ? "Confirm" : "Delete") : "Confirm"}
           </Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => decide.mutate({ id: action.id, decision: "cancel" })} className="h-10 md:h-9">
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => decide.mutate({ id: action.id, decision: "cancel" })} className="h-9 md:h-8">
             <XIcon />
             Cancel
           </Button>

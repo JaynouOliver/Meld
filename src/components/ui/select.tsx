@@ -23,7 +23,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "flex h-10 w-full cursor-pointer items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground md:h-[38px] *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate",
+        "flex h-10 w-full cursor-pointer items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground md:h-9 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate",
         className,
       )}
       {...props}
@@ -48,7 +48,7 @@ function SelectContent({
         data-slot="select-content"
         position={position}
         className={cn(
-          "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto rounded-lg border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           position === "popper" && "w-full min-w-(--radix-select-trigger-width) data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
         )}
@@ -69,7 +69,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md py-2 pr-8 pl-2 text-sm md:min-h-0 outline-none select-none focus:bg-selected data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm md:min-h-0 outline-none select-none focus:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}

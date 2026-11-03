@@ -146,23 +146,23 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
     router.push(`/chat/${dm}`);
   };
 
-  const input = "mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle disabled:opacity-70";
+  const input = "mt-1 h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm font-normal text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-70";
   return (
     <form onSubmit={save}>
       {existing && (
         <div className="mb-5 flex items-center gap-3">
-          <Avatar person={personOf(dir, existing.id)} size="xl" className="rounded-[9px]" />
+          <Avatar person={personOf(dir, existing.id)} size="xl" />
           <p className="min-w-0 flex-1 text-meta text-muted-foreground">{existing.description}</p>
-          <button type="button" onClick={openDm} className="h-9 shrink-0 cursor-pointer rounded-md border px-3 text-meta font-semibold hover:bg-muted">
+          <button type="button" onClick={openDm} className="h-8 shrink-0 cursor-pointer rounded-md border border-input px-2.5 text-meta font-medium hover:bg-muted">
             Message
           </button>
         </div>
       )}
       {!existing && (
         <div className="mb-4 flex flex-wrap gap-2">
-          <span className="w-full text-meta text-muted-foreground">Start from a template</span>
+          <span className="w-full text-xs font-medium text-muted-foreground">Start from a template</span>
           {TEMPLATES.map((t) => (
-            <button key={t.handle} type="button" onClick={() => apply(t)} className="h-8 cursor-pointer rounded-full border px-3 text-meta font-semibold hover:bg-muted">
+            <button key={t.handle} type="button" onClick={() => apply(t)} className="h-7 cursor-pointer rounded-md border border-input px-2.5 text-meta font-medium hover:bg-muted">
               {t.name}
             </button>
           ))}
@@ -170,7 +170,7 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
       )}
 
       {kind === "external" && (
-        <div className="mb-4 rounded-lg border border-agent-border bg-agent/40 px-3 py-2.5 text-meta">
+        <div className="mb-4 rounded-md border bg-muted px-3 py-2.5 text-meta">
           <strong>Connects over MCP.</strong> Claude Code, Codex or your own agent joins as @{handle || "coder"}: it gets an inbox for mentions, DMs and
           hand-offs, reads the channels you add it to, replies, and updates tickets. You&apos;ll get a token and a one-line command.
           {existing && editable && (
@@ -183,24 +183,24 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
       {!builtin && (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-meta font-semibold">
+            <label className="text-xs font-medium text-ink-2">
               Name
               <input value={name} onChange={(e) => setName(e.target.value)} disabled={!editable} required maxLength={40} placeholder="Triage" className={input} />
             </label>
-            <label className="text-meta font-semibold">
+            <label className="text-xs font-medium text-ink-2">
               Handle
-              <div className="mt-1.5 flex h-10 items-center rounded-md border bg-background px-3 focus-within:border-subtle">
+              <div className="mt-1 flex h-9 items-center rounded-md border border-input bg-background px-2.5 text-sm font-normal text-foreground focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
                 <span className="text-muted-foreground">@</span>
                 <input value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))} disabled={!editable} placeholder="triage" className="min-w-0 flex-1 bg-transparent pl-0.5 text-sm outline-none" />
               </div>
             </label>
           </div>
-          <label className="mt-3 block text-meta font-semibold">
+          <label className="mt-3 block text-xs font-medium text-ink-2">
             Role
             <input value={description} onChange={(e) => setDescription(e.target.value)} disabled={!editable} maxLength={200} placeholder="What it's for, in one line" className={input} />
           </label>
           {kind !== "external" && (
-          <label className="mt-3 block text-meta font-semibold">
+          <label className="mt-3 block text-xs font-medium text-ink-2">
             Instructions
             <textarea
               value={instructions}
@@ -209,12 +209,12 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
               rows={4}
               maxLength={4000}
               placeholder="How it should work: what to do, what to avoid, who to hand off to."
-              className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-subtle disabled:opacity-70"
+              className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm font-normal text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-70"
             />
           </label>
           )}
           <fieldset className="mt-3">
-            <legend className="text-meta font-semibold">Can</legend>
+            <legend className="text-xs font-medium text-ink-2">Can</legend>
             <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
               {([["read", "Read tickets and chat"], ["write", "Create & update tickets"], ["delete", "Delete tickets (needs Confirm)"]] as [AgentTool, string][]).map(([t, label]) => (
                 <label key={t} className="flex items-center gap-2">
@@ -235,20 +235,20 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
 
       {canJoin && dir.channels.length > 0 && (
         <fieldset className="mt-5">
-          <legend className="text-meta font-semibold">Channels</legend>
+          <legend className="text-xs font-medium text-ink-2">Channels</legend>
           <p className="text-meta text-muted-foreground">It can only read channels it&apos;s in. Everyone sees it in the channel&apos;s agent list.</p>
-          <ul className="mt-2 divide-y rounded-lg border">
+          <ul className="mt-2 divide-y rounded-md border">
             {dir.channels.map((c) => {
               const meta = dir.chats[c];
               if (meta?.kind !== "channel") return null;
               return (
-                <li key={c} className="flex items-center justify-between gap-3 px-3 py-2">
+                <li key={c} className="flex items-center justify-between gap-3 px-3 py-1.5">
                   <span className="truncate text-sm"># {meta.label}</span>
                   <select
                     aria-label={`Mode in #${meta.label}`}
                     value={modes[c]}
                     onChange={(e) => setModes((m) => ({ ...m, [c]: e.target.value as AgentMode | "off" }))}
-                    className="h-8 rounded-md border bg-background px-2 text-meta"
+                    className="h-7 rounded-[4px] border border-input bg-background px-1.5 text-meta"
                   >
                     {MODE_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value} title={o.hint}>
@@ -264,15 +264,15 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
       )}
 
       {error && <p role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-meta text-destructive">{error}</p>}
-      <div className="mt-6 flex items-center justify-between gap-2">
+      <div className="mt-5 flex items-center justify-between gap-2 border-t pt-4">
         {existing && editable && !builtin ? (
-          <button type="button" onClick={remove} disabled={busy} className="h-10 cursor-pointer rounded-md px-3 text-sm font-semibold text-destructive hover:bg-danger-soft">
+          <button type="button" onClick={remove} disabled={busy} className="h-9 cursor-pointer rounded-md px-3 text-sm font-medium text-destructive hover:bg-danger-soft">
             Remove agent
           </button>
         ) : (
           <span />
         )}
-        <button type="submit" disabled={busy || (!builtin && !name.trim())} className="flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+        <button type="submit" disabled={busy || (!builtin && !name.trim())} className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-brand px-3.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
           {busy && <LoaderCircleIcon className="size-4 animate-spin" />} {existing ? "Save" : "Add agent"}
         </button>
       </div>
@@ -296,12 +296,12 @@ function Connect({ token, handle, onDone }: { token: string; handle: string; onD
         @{handle} is a member now. Connect your agent with this command (Claude Code shown; any MCP client works with the same URL and header). Copy the
         token now: it isn&apos;t shown again.
       </p>
-      <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted p-3 font-mono text-meta whitespace-pre-wrap break-all" data-testid="mcp-command">{command}</pre>
+      <pre className="mt-3 overflow-x-auto rounded-md border bg-muted p-3 font-mono text-meta whitespace-pre-wrap break-all" data-testid="mcp-command">{command}</pre>
       <div className="mt-2 flex gap-2">
-        <button type="button" onClick={() => copy("cmd", command)} className="h-9 cursor-pointer rounded-md bg-foreground px-3 text-meta font-semibold text-background">
+        <button type="button" onClick={() => copy("cmd", command)} className="h-8 cursor-pointer rounded-md bg-foreground px-3 text-meta font-medium text-background">
           {copied === "cmd" ? "Copied" : "Copy command"}
         </button>
-        <button type="button" onClick={() => copy("tok", token)} className="h-9 cursor-pointer rounded-md border px-3 text-meta font-semibold hover:bg-muted">
+        <button type="button" onClick={() => copy("tok", token)} className="h-8 cursor-pointer rounded-md border border-input px-3 text-meta font-medium hover:bg-muted">
           {copied === "tok" ? "Copied" : "Copy token"}
         </button>
       </div>
@@ -309,7 +309,7 @@ function Connect({ token, handle, onDone }: { token: string; handle: string; onD
         Then ask it something like: &ldquo;Check your Meld inbox and handle what&apos;s there.&rdquo; Tag @{handle} in a channel it&apos;s in to give it work.
       </p>
       <div className="mt-5 flex justify-end">
-        <button type="button" onClick={onDone} className="h-10 cursor-pointer rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90">
+        <button type="button" onClick={onDone} className="h-9 cursor-pointer rounded-md bg-brand px-3.5 text-sm font-medium text-white hover:opacity-90">
           Done
         </button>
       </div>

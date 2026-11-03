@@ -32,14 +32,14 @@ export function MeScreen() {
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-canvas">
       <ScreenHeader>
-        <h1 className="text-2xl font-bold tracking-[-0.01em] md:text-base">You</h1>
+        <h1 className="text-xl font-semibold md:text-[15px]">You</h1>
       </ScreenHeader>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-5">
           <div className="flex items-center gap-3.5">
-            <Avatar person={me} presence ringClassName="border-canvas" className="size-14 rounded-2xl text-lg" />
+            <Avatar person={me} presence ringClassName="border-canvas" className="size-12 rounded-md text-base" />
             <div className="flex flex-col">
-              <span className="text-lg font-bold">{me.name}</span>
+              <span className="text-base font-semibold">{me.name}</span>
               <span className="text-sm text-muted-foreground">
                 {roleLabel(dir, role)} · {dir.workspace.name}
               </span>
@@ -48,10 +48,10 @@ export function MeScreen() {
 
           {viewAs.length > 1 && (
             <fieldset className="flex flex-col gap-2">
-              <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">View as role (RBAC demo)</legend>
-              <div className="relative overflow-hidden rounded-xl border bg-card">
+              <legend className="pb-2 text-xs font-medium text-muted-foreground">View as role (RBAC demo)</legend>
+              <div className="relative overflow-hidden rounded-md border bg-card">
                 {viewAs.map((r) => (
-                  <label key={r} className="flex min-h-14 cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0 active:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-ring">
+                  <label key={r} className="flex min-h-12 cursor-pointer items-center gap-3 border-b px-3.5 py-2.5 last:border-b-0 active:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-ring">
                     <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="text-body font-semibold">{roleLabel(dir, r)}</span>
@@ -59,7 +59,7 @@ export function MeScreen() {
                     </span>
                     <span
                       aria-hidden
-                      className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2", role === r ? "border-brand bg-brand text-white" : "border-input")}
+                      className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border-2", role === r ? "border-brand bg-brand text-white" : "border-input")}
                     >
                       {role === r && <CheckIcon className="size-3.5" strokeWidth={3} />}
                     </span>
@@ -70,17 +70,17 @@ export function MeScreen() {
           )}
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">Appearance</legend>
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-accent p-1">
+            <legend className="pb-2 text-xs font-medium text-muted-foreground">Appearance</legend>
+            <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted p-0.5">
               {THEME_OPTIONS.map((o) => {
                 const Icon = THEME_ICON[o.value];
                 return (
                   <label
                     key={o.value}
-                    className="flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-sm font-semibold text-muted-foreground has-[:checked]:bg-card has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring"
+                    className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-[4px] text-sm font-medium text-muted-foreground has-[:checked]:bg-card has-[:checked]:text-foreground has-[:checked]:ring-1 has-[:checked]:ring-border has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring"
                   >
                     <input type="radio" name="theme" value={o.value} checked={theme === o.value} onChange={() => setTheme(o.value)} className="sr-only" />
-                    <Icon className="size-5" />
+                    <Icon className="size-4" />
                     {o.label}
                   </label>
                 );
@@ -90,13 +90,13 @@ export function MeScreen() {
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">Workspace accent</legend>
+            <legend className="pb-2 text-xs font-medium text-muted-foreground">Workspace accent</legend>
             <div className="flex gap-3">
               {ACCENTS.map((a) => (
                 <label key={a.value} className="flex cursor-pointer flex-col items-center gap-1.5 text-xs font-medium text-ink-2">
                   <input type="radio" name="accent" value={a.value} checked={accent === a.value} onChange={() => setAccent(a.value)} className="peer sr-only" />
                   <span
-                    className="flex size-12 items-center justify-center rounded-full text-white ring-offset-2 ring-offset-canvas peer-checked:ring-2 peer-checked:ring-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+                    className="flex size-10 items-center justify-center rounded-md text-white ring-offset-2 ring-offset-canvas peer-checked:ring-2 peer-checked:ring-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
                     style={{ background: a.value }}
                   >
                     {accent === a.value && <CheckIcon className="size-5" strokeWidth={3} />}

@@ -63,7 +63,7 @@ export function SidePanel({
 
   return (
     <>
-      <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 hidden bg-black/30 sm:block xl:hidden" />
+      <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 hidden bg-black/40 sm:block xl:hidden" />
       <div
         ref={ref}
         aria-label={label}
@@ -98,13 +98,13 @@ export function PanelHeader({
 }) {
   return (
     <header className="shrink-0 border-b pt-safe">
-      <div className="flex h-14 items-center justify-between gap-2 pr-2 pl-1.5 sm:h-[60px] sm:pr-3 sm:pl-5">
+      <div className="flex h-14 items-center justify-between gap-2 pr-2 pl-1.5 sm:pr-3 sm:pl-5">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-brand sm:hidden"
+            className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-brand sm:hidden"
           >
             <ChevronLeftIcon className="size-7" strokeWidth={2.2} />
           </button>
@@ -116,9 +116,9 @@ export function PanelHeader({
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="hidden size-10 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-accent sm:flex"
+            className="hidden size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:flex"
           >
-            <XIcon className="size-[18px]" />
+            <XIcon className="size-4" />
           </button>
         </div>
       </div>

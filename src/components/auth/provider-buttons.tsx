@@ -69,7 +69,7 @@ export function ProviderButtons({ verb, next }: { verb: string; next: string }) 
           type="button"
           onClick={() => go(id)}
           disabled={!!busy}
-          className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border bg-background text-sm font-semibold hover:bg-muted disabled:cursor-default disabled:opacity-60"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2.5 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted disabled:cursor-default disabled:opacity-60"
         >
           {busy === id && <LoaderCircleIcon className="size-[18px] animate-spin" />}
           <Icon className="size-[18px]" /> {verb} with {label}

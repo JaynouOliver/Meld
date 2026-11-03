@@ -10,7 +10,7 @@ import { blockersOf } from "@/lib/agent/blockers";
 import type { Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 
-const sectionLabel = "text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase";
+const sectionLabel = "text-xs font-medium text-muted-foreground";
 
 /** What blocks this ticket (editable) and what it blocks. Owners hear about changes from Atlas. */
 export function Dependencies({ ticket: t }: { ticket: Ticket }) {
@@ -35,7 +35,7 @@ export function Dependencies({ ticket: t }: { ticket: Ticket }) {
       {blockers.map((id) => {
         const { ticket: b, locked } = lookup(id);
         return (
-          <div key={id} className="flex items-center gap-2.5 rounded-lg border py-1.5 pr-1.5 pl-3">
+          <div key={id} className="flex items-center gap-2.5 rounded-md border py-1 pr-1 pl-2.5">
             {b ? (
               <button type="button" onClick={() => open(b.id)} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left">
                 <span className="text-sm font-semibold">{b.id}</span>
@@ -58,7 +58,7 @@ export function Dependencies({ ticket: t }: { ticket: Ticket }) {
         aria-label="Add a blocker"
         value={pick}
         onChange={(e) => add(e.target.value)}
-        className="h-10 rounded-md border bg-background px-2 text-sm text-muted-foreground md:h-[38px]"
+        className="h-10 rounded-md border bg-background px-2 text-sm text-muted-foreground md:h-9"
       >
         <option value="">{blockers.length ? "Add another blocker…" : "Add a ticket this is waiting on…"}</option>
         {candidates.map((c) => (

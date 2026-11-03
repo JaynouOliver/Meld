@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Logo } from "@/components/marketing/logo";
 import { InviteLink } from "@/components/workspace/invite-link";
 import { useDirectoryQuery } from "@/hooks/use-directory";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { queryKeys } from "@/hooks/query-keys";
 import { signOut } from "@/lib/auth/browser";
 import * as remote from "@/lib/api/remote";
@@ -24,13 +25,15 @@ function prefixFor(name: string) {
 
 /** Two steps: set up the company's workspace, then invite the team. */
 export function Onboarding() {
-  const { data: existing } = useDirectoryQuery();
+  const { data: cached } = useDirectoryQuery();
+  // The directory can come from the persisted cache, which the server doesn't have.
+  const existing = useHydrated() ? cached : undefined;
   const [created, setCreated] = useState<{ home: string; name: string } | null>(null);
 
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
-      <header className="flex items-center justify-between px-5 py-4 sm:px-10">
-        <Logo className="text-lg text-foreground" />
+      <header className="flex h-14 items-center justify-between border-b bg-background px-5 sm:px-8">
+        <Logo />
         <div className="flex items-center gap-3 text-meta">
           {existing && !created && (
             <Link href="/app" className="font-semibold">
@@ -43,7 +46,7 @@ export function Onboarding() {
         </div>
       </header>
       <main className="flex flex-1 items-center justify-center px-4 pb-16">
-        <div className="w-full max-w-md rounded-2xl border bg-card p-7 shadow-sm">
+        <div className="w-full max-w-md rounded-lg border bg-card p-6">
           <Steps step={created ? 2 : 1} />
           {created ? <InviteStep {...created} /> : <CompanyStep onCreated={setCreated} />}
         </div>
@@ -54,7 +57,7 @@ export function Onboarding() {
 
 function Steps({ step }: { step: 1 | 2 }) {
   return (
-    <ol className="mb-5 flex items-center gap-2 text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
+    <ol className="mb-5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
       <li className={step === 1 ? "text-brand" : ""}>1 · Company</li>
       <li aria-hidden>—</li>
       <li className={step === 2 ? "text-brand" : ""}>2 · Invite your team</li>
@@ -89,7 +92,7 @@ function CompanyStep({ onCreated }: { onCreated: (c: { home: string; name: strin
 
   return (
     <form onSubmit={submit}>
-      <h1 className="text-xl font-bold">Set up your company</h1>
+      <h1 className="text-lg font-semibold">Set up your company</h1>
       <p className="mt-1.5 text-meta text-muted-foreground">You can change all of this later.</p>
 
       <Field label="Company name" htmlFor="ws-name">
@@ -123,7 +126,7 @@ function InviteStep({ home, name }: { home: string; name: string }) {
   const router = useRouter();
   return (
     <div>
-      <h1 className="text-xl font-bold">Invite your team to {name}</h1>
+      <h1 className="text-lg font-semibold">Invite your team to {name}</h1>
       <p className="mt-1.5 text-meta text-muted-foreground">
         Share this link. Anyone who opens it can sign in with GitHub or Google and join. Links expire in 14 days.
       </p>
@@ -136,14 +139,14 @@ function InviteStep({ home, name }: { home: string; name: string }) {
   );
 }
 
-const INPUT = "mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle";
+const INPUT = "mt-1 h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring";
 const PRIMARY =
-  "mt-6 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60";
+  "mt-6 flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand text-sm font-medium text-white hover:opacity-90 disabled:opacity-60";
 
 function Field(props: { label: string; htmlFor: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="mt-4">
-      <label htmlFor={props.htmlFor} className="text-meta font-semibold">
+      <label htmlFor={props.htmlFor} className="text-xs font-medium text-ink-2">
         {props.label}
       </label>
       {props.children}

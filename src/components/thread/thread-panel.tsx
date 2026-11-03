@@ -42,7 +42,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
     <SidePanel label="Thread" width="thread" onClose={closeThread}>
       <PanelHeader onClose={closeThread} closeLabel="Close thread">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="text-base font-bold">Thread</h2>
+          <h2 className="text-[15px] font-semibold">Thread</h2>
           <span className="truncate text-meta text-muted-foreground">{!meta ? "" : meta.kind === "channel" ? `# ${meta.label}` : personOf(dir, meta.who).name}</span>
         </div>
       </PanelHeader>
@@ -53,10 +53,10 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
           <Avatar person={p} size="xl" />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-body font-bold">{p.name}</span>
+              <span className="text-body font-semibold">{p.name}</span>
               <span className="text-xs text-muted-foreground">{root.time}</span>
             </div>
-            <RichText text={root.text} className="mt-0.5 text-body leading-[1.6]" />
+            <RichText text={root.text} className="text-body" />
           </div>
         </div>
         <div className="flex items-center gap-3 px-5 py-2">
@@ -71,8 +71,8 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
         </div>
       </div>
 
-      <div className="px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-5">
-        <div className="flex items-center gap-2 rounded-lg border border-input py-1.5 pr-1.5 pl-3.5 focus-within:border-subtle">
+      <div className="px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-5 sm:pt-0 sm:pb-4">
+        <div className="flex items-center gap-2 rounded-md border border-input bg-background p-1 pl-3 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
           <label htmlFor="thread-input" className="sr-only">
             Reply in thread
           </label>
@@ -90,16 +90,16 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
             }}
             placeholder={`Reply… (@Atlas and ${dir.workspace.ticketPrefix}- IDs work)`}
             autoComplete="off"
-            className="min-w-0 flex-1 border-none bg-transparent py-[9px] text-base outline-none placeholder:text-muted-foreground md:text-body"
+            className="min-w-0 flex-1 border-none bg-transparent py-[7px] text-base outline-none placeholder:text-muted-foreground md:text-body"
           />
           <button
             type="button"
             onClick={submit}
             onMouseDown={(e) => e.preventDefault()}
             aria-label="Send reply"
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-white hover:opacity-90"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[5px] bg-brand text-white hover:opacity-90 md:size-8"
           >
-            <SendIcon className="size-[18px]" />
+            <SendIcon className="size-4" />
           </button>
         </div>
       </div>

@@ -50,7 +50,7 @@ export function InviteLink() {
             role="radio"
             aria-checked={role === r}
             onClick={() => setRole(r)}
-            className={`h-9 cursor-pointer rounded-md border px-3 text-meta font-semibold capitalize ${role === r ? "border-brand bg-brand/10 text-brand" : "text-muted-foreground hover:bg-muted"}`}
+            className={`h-9 cursor-pointer rounded-md border px-3 text-meta font-medium capitalize ${role === r ? "border-brand bg-selected text-link" : "text-muted-foreground hover:bg-muted"}`}
           >
             {r}
           </button>
@@ -58,14 +58,14 @@ export function InviteLink() {
       </div>
       <p className="mt-2 text-meta text-muted-foreground">{ROLE_HINT[role]}</p>
       {url ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border bg-background py-1 pr-1 pl-3">
+        <div className="mt-3 flex items-center gap-2 rounded-md border bg-background py-1 pr-1 pl-3">
           <code className="min-w-0 flex-1 truncate text-meta" data-testid="invite-url">{url}</code>
-          <button type="button" onClick={copy} className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-foreground px-3 text-meta font-semibold text-background">
+          <button type="button" onClick={copy} className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-foreground px-3 text-meta font-medium text-background">
             {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />} {copied ? "Copied" : "Copy"}
           </button>
         </div>
       ) : (
-        <button type="button" onClick={make} disabled={busy} className="mt-3 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border text-sm font-semibold hover:bg-muted">
+        <button type="button" onClick={make} disabled={busy} className="mt-3 flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border text-sm font-semibold hover:bg-muted">
           {busy && <LoaderCircleIcon className="size-4 animate-spin" />} Create {role} invite link
         </button>
       )}

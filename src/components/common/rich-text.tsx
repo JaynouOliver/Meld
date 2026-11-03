@@ -35,7 +35,7 @@ export function RichText({ text, className }: { text: string; className?: string
     }
     if (part.kind === "mention") {
       out.push(
-        <span key={i} className="rounded bg-mention px-[3px] font-semibold text-mention-foreground">
+        <span key={i} className="rounded-sm bg-mention px-[3px] font-medium text-mention-foreground">
           {part.text}
         </span>,
       );
@@ -53,10 +53,10 @@ export function RichText({ text, className }: { text: string; className?: string
             title={`Open ${ticket.id}`}
             className={cn(
               HIT,
-              "mx-px inline-flex max-w-full cursor-pointer items-center gap-[5px] rounded-md border border-input bg-muted px-1.5 align-baseline text-meta leading-[1.6] font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-selected",
+              "mx-px inline-flex max-w-full cursor-pointer items-center gap-[5px] rounded-sm border border-border bg-muted px-1.5 align-baseline text-[13px] leading-[1.6] font-medium text-foreground transition-colors hover:border-input hover:bg-accent",
             )}
           >
-            <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: STATUS_COLORS[ticket.status][3] }} />
+            <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: STATUS_COLORS[ticket.status][3] }} />
             <span className="shrink-0 whitespace-nowrap">{ticket.id}</span>
             <span className="max-w-[260px] min-w-0 truncate font-normal text-ink-2">{ticket.title || "Untitled ticket"}</span>
           </button>
@@ -97,7 +97,7 @@ function LockedChip({ id }: { id: string }) {
           data-chip
           className={cn(
             HIT,
-            "mx-px inline-flex cursor-help items-center gap-1 rounded-md border border-dashed border-subtle bg-card px-1.5 align-baseline text-meta leading-[1.6] font-semibold text-muted-foreground",
+            "mx-px inline-flex cursor-help items-center gap-1 rounded-sm border border-dashed border-subtle bg-card px-1.5 align-baseline text-[13px] leading-[1.6] font-medium text-muted-foreground",
           )}
         >
           <LockIcon className="size-3" strokeWidth={2.4} />
@@ -111,7 +111,7 @@ function LockedChip({ id }: { id: string }) {
           collisionPadding={8}
           // Portaled content still bubbles React events to the message row; don't open the thread.
           onClick={(e) => e.stopPropagation()}
-          className="z-50 max-w-64 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background shadow-md animate-in fade-in-0 zoom-in-95"
+          className="z-50 max-w-64 rounded-sm bg-foreground px-2 py-1 text-xs font-medium text-background shadow-md animate-in fade-in-0 zoom-in-95"
         >
           Your role can’t see this ticket. Ask an org owner or someone on its team.
           <Popover.Arrow className="fill-foreground" />
@@ -140,7 +140,7 @@ function CiteChip({ chatId, threadId, id }: { chatId: string; threadId: string |
       }}
       className={cn(
         HIT,
-        "mx-px inline-flex cursor-pointer items-center gap-0.5 rounded-md border border-border bg-muted px-1 align-baseline text-[11px] leading-[1.6] font-semibold text-muted-foreground transition-colors hover:border-input hover:text-foreground",
+        "mx-px inline-flex cursor-pointer items-center gap-0.5 rounded-sm border border-border bg-muted px-1 align-baseline text-[11px] leading-[1.6] font-medium text-muted-foreground transition-colors hover:border-input hover:text-foreground",
       )}
     >
       <CornerDownRightIcon aria-hidden className="size-3" />

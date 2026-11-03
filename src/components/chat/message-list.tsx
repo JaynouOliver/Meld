@@ -35,7 +35,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
       <div ref={contentRef}>
       <div className="flex items-center gap-3 px-3 pt-3 pb-2 sm:px-5">
         <span className="h-px flex-1 bg-border" />
-        <span className="rounded-full border px-3 py-[3px] text-xs font-semibold text-muted-foreground">Today</span>
+        <span className="text-xs font-medium text-muted-foreground">Today</span>
         <span className="h-px flex-1 bg-border" />
       </div>
       {!messages && <MessageSkeleton />}
@@ -73,7 +73,7 @@ function MessageRow({ message: m }: { message: Message }) {
       ref={ref}
       onClick={onTap}
       className={cn(
-        "group relative flex gap-3 px-3 py-2 transition-colors duration-700 sm:px-5",
+        "group relative flex gap-3 px-3 py-1.5 transition-colors duration-700 sm:px-5",
         threadId === m.id ? "bg-selected" : "hover:bg-muted pointer-coarse:hover:bg-transparent pointer-coarse:active:bg-muted",
         flashing && "bg-mention",
         pending && "opacity-60",
@@ -82,11 +82,11 @@ function MessageRow({ message: m }: { message: Message }) {
       <Avatar person={p} size="xl" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-body font-bold">{p.name}</span>
+          <span className="text-body font-semibold">{p.name}</span>
           {p.isAgent && <AgentBadge />}
           <span className="text-xs text-muted-foreground">{m.time}</span>
         </div>
-        <RichText text={m.text} className="mt-0.5 text-body leading-[1.6]" />
+        <RichText text={m.text} className="text-body" />
         {m.ticket && <TicketCard id={m.ticket} />}
         {m.action && <ActionCard action={m.action} />}
         <Reactions reactions={m.reactions} />
@@ -94,27 +94,27 @@ function MessageRow({ message: m }: { message: Message }) {
           <button
             type="button"
             onClick={() => openThread(m.id)}
-            className="mt-1.5 inline-flex min-h-10 max-w-full cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-meta sm:min-h-9 transition-colors hover:border-input hover:bg-card"
+            className="mt-1 inline-flex min-h-10 max-w-full cursor-pointer items-center gap-2 rounded-md border border-transparent py-1 pr-2 pl-1 text-meta sm:min-h-8 transition-colors hover:border-border hover:bg-card"
           >
             <span aria-hidden className="flex gap-0.5">
               {participants.map((pp) => (
                 <Avatar key={pp.id} person={pp} size="sm" />
               ))}
             </span>
-            <span className="font-bold text-link">{n === 1 ? "1 reply" : `${n} replies`}</span>
+            <span className="font-semibold text-link">{n === 1 ? "1 reply" : `${n} replies`}</span>
             <span className="truncate text-muted-foreground">Last reply {m.replies[m.replies.length - 1].time}</span>
           </button>
         )}
       </div>
       {!pending && (
-        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-lg border bg-card p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={() => openThread(m.id)}
             aria-label="Reply in thread"
-            className="flex h-8 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            className="flex size-7 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <MessageCircleIcon className="size-[17px]" />
+            <MessageCircleIcon className="size-4" />
           </button>
         </div>
       )}
@@ -127,7 +127,7 @@ function MessageSkeleton() {
     <div className="flex flex-col gap-4 px-5 py-2" aria-hidden>
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex animate-pulse gap-3">
-          <div className="size-9 rounded-lg bg-accent" />
+          <div className="size-8 rounded-md bg-accent" />
           <div className="flex flex-1 flex-col gap-2">
             <div className="h-3.5 w-40 rounded bg-accent" />
             <div className="h-3.5 w-3/4 rounded bg-accent" />
