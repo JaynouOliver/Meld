@@ -46,18 +46,18 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
           <Avatar person={p} size={nested ? "md" : "xl"} className={nested ? "" : "rounded-[7px]"} />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className={cn("font-bold", nested ? "text-sm" : "text-[15px]")}>{p.name}</span>
+              <span className={cn("font-bold", nested ? "text-sm" : "text-body")}>{p.name}</span>
               {p.isAgent && <AgentBadge />}
               <span className="text-xs text-muted-foreground">{node.time}</span>
             </div>
-            <RichText text={node.text} className={cn("mt-0.5 leading-[1.55]", nested ? "text-sm" : "text-[15px]")} />
+            <RichText text={node.text} className={cn("mt-0.5 leading-[1.55]", nested ? "text-sm" : "text-body")} />
             <div className="mt-0.5 flex items-center gap-3.5">
               {node.kids.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setExpanded(node.id, !open)}
                   aria-expanded={open}
-                  className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-bold text-link hover:underline pointer-coarse:min-h-10"
+                  className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-meta font-bold text-link hover:underline pointer-coarse:min-h-10"
                 >
                   <ChevronRightIcon className={cn("size-[13px] transition-transform", open && "rotate-90")} strokeWidth={2.4} />
                   {open ? "Hide replies" : k === 1 ? "1 reply" : `${k} replies`}
@@ -66,7 +66,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
               <button
                 type="button"
                 onClick={() => setReplyTo(replying ? null : node.id)}
-                className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-[13px] font-semibold text-muted-foreground hover:underline pointer-coarse:min-h-10"
+                className="inline-flex min-h-[30px] cursor-pointer items-center gap-[5px] py-1 text-meta font-semibold text-muted-foreground hover:underline pointer-coarse:min-h-10"
               >
                 <ReplyIcon className="size-[13px]" />
                 {replying ? "Cancel" : "Reply"}
@@ -106,7 +106,7 @@ function InlineReply({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: 
   return (
     <div ref={boxRef} className={ROW} style={{ paddingLeft: indent(depth) }}>
       <div className="border-l-2 border-border pt-1 pb-3 pl-3">
-        <div className="flex items-center gap-1.5 rounded-lg border border-input bg-white py-[3px] pr-[3px] pl-2.5 focus-within:border-[#8B95A5]">
+        <div className="flex items-center gap-1.5 rounded-lg border border-input bg-card py-[3px] pr-[3px] pl-2.5 focus-within:border-subtle">
           <label htmlFor={inputId} className="sr-only">
             Reply to {name}
           </label>

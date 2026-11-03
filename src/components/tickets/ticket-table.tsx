@@ -3,9 +3,10 @@
 import { ChevronDownIcon, CircleDashedIcon, CircleDotIcon, PlusIcon } from "lucide-react";
 
 import { Avatar } from "@/components/common/avatar";
+import { PriorityLabel } from "@/components/common/priority-label";
 import { StatusPill } from "@/components/common/status-pill";
 import { useCreateTicket } from "@/hooks/use-tickets";
-import { PEOPLE, PERSON_ORDER, PRIORITY_COLOR, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
+import { PEOPLE, PERSON_ORDER, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
 import { matchQuery } from "@/lib/query-language";
 import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   });
 
   return (
-    <div className="-mx-4 border-y bg-white sm:mx-0 sm:rounded-[10px] sm:border">
+    <div className="-mx-4 border-y bg-card sm:mx-0 sm:rounded-lg sm:border">
       <div role="region" aria-label="Tickets">
         <div aria-hidden className={cn("hidden border-b @min-[860px]:grid text-xs font-semibold text-muted-foreground", COLS)}>
           <span className="px-3 py-2.5" />
@@ -80,17 +81,17 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                 type="button"
                 onClick={() => toggleCollapsed(ck)}
                 aria-expanded={open}
-                className="sticky -top-3 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-[#F1F3F6] sm:-top-4 @min-[860px]:static"
+                className="sticky -top-3 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-accent sm:-top-4 @min-[860px]:static"
               >
                 <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} strokeWidth={2.4} />
                 <span
                   aria-hidden
-                  className={cn("flex size-6 shrink-0 items-center justify-center text-[10px] font-bold text-white", g.round ? "rounded-full" : "rounded-md")}
+                  className={cn("flex size-6 shrink-0 items-center justify-center text-2xs font-bold text-white", g.round ? "rounded-full" : "rounded-md")}
                   style={{ background: g.color }}
                 >
                   {g.badge}
                 </span>
-                <span className="text-[15px] font-bold text-foreground">{g.label}</span>
+                <span className="text-body font-bold text-foreground">{g.label}</span>
                 <span className="rounded-full bg-border px-2 py-px text-xs font-semibold text-ink-2">{g.items.length}</span>
               </button>
               {open && (
@@ -108,12 +109,12 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                       <div
                         key={t.id}
                        
-                        className={cn("grid min-h-10 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-[#F8F9FB]")}
+                        className={cn("grid min-h-10 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-muted")}
                       >
                         <span className="px-3 text-right text-xs text-muted-foreground">{rowNum.get(t.id)}</span>
                         <span className="flex min-w-0 items-center gap-2 px-3">
                           {linked ? (
-                            <CircleDotIcon aria-label="Linked to GitHub" className="size-4 shrink-0 text-[#1A7F37]" strokeWidth={2.2} />
+                            <CircleDotIcon aria-label="Linked to GitHub" className="size-4 shrink-0 text-success" strokeWidth={2.2} />
                           ) : (
                             <CircleDashedIcon aria-label="Draft, no GitHub link" className="size-4 shrink-0 text-subtle" />
                           )}
@@ -124,21 +125,21 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                           >
                             {t.title || "Untitled ticket"}
                           </button>
-                          <span className="shrink-0 text-[13px] text-muted-foreground">
+                          <span className="shrink-0 text-meta text-muted-foreground">
                             {t.id}
                             {linked && ` · ${t.links[0].kind === "PR" ? "PR " : ""}#${t.links[0].num}`}
                           </span>
                         </span>
                         <span className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
                           <Avatar person={a} size="xs" />
-                          <span className="truncate text-[13px]">{a.name}</span>
+                          <span className="truncate text-meta">{a.name}</span>
                         </span>
                         <span className="flex h-full items-center border-l border-line-soft px-3">
                           <StatusPill status={t.status} bordered className="py-px" />
                         </span>
-                        <span className="flex h-full items-center border-l border-line-soft px-3 text-[13px] text-ink-2">{teamName(t.team)}</span>
-                        <span className="flex h-full items-center border-l border-line-soft px-3 text-[13px] font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
-                          {t.priority}
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta text-ink-2">{teamName(t.team)}</span>
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta">
+                          <PriorityLabel priority={t.priority} />
                         </span>
                       </div>
                     );
@@ -148,7 +149,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                     <button
                       type="button"
                       onClick={() => create.mutate(preset)}
-                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-white pr-3 pl-4 text-left @min-[860px]:min-h-10 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-[#F8F9FB] hover:text-foreground"
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-card pr-3 pl-4 text-left @min-[860px]:min-h-10 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <PlusIcon className="size-3.5" strokeWidth={2.2} />
                       Add item
@@ -181,17 +182,15 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
       >
         <span className="flex items-start gap-2">
           {link ? (
-            <CircleDotIcon aria-label="Linked to GitHub" className="mt-0.5 size-4 shrink-0 text-[#1A7F37]" strokeWidth={2.2} />
+            <CircleDotIcon aria-label="Linked to GitHub" className="mt-0.5 size-4 shrink-0 text-success" strokeWidth={2.2} />
           ) : (
             <CircleDashedIcon aria-label="Draft, no GitHub link" className="mt-0.5 size-4 shrink-0 text-subtle" />
           )}
-          <span className="line-clamp-2 text-[15px] leading-snug font-semibold text-foreground">{t.title || "Untitled ticket"}</span>
+          <span className="line-clamp-2 text-body leading-snug font-semibold text-foreground">{t.title || "Untitled ticket"}</span>
         </span>
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-[13px] text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-meta text-muted-foreground">
           <StatusPill status={t.status} bordered className="py-px" />
-          <span className="font-semibold" style={{ color: PRIORITY_COLOR[t.priority] }}>
-            {t.priority}
-          </span>
+          <PriorityLabel priority={t.priority} />
           <span aria-hidden>·</span>
           <span>{t.id}</span>
           {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}

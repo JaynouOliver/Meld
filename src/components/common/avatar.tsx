@@ -4,9 +4,9 @@ import type { Person } from "@/lib/types";
 const SIZES = {
   xs: "size-5 text-[8px] rounded-full",
   sm: "size-[22px] text-[9px] rounded-[5px]",
-  md: "size-7 text-[11px] rounded-[7px]",
+  md: "size-7 text-2xs rounded-[7px]",
   lg: "size-8 text-xs rounded-lg",
-  xl: "size-9 text-[13px] rounded-lg",
+  xl: "size-9 text-meta rounded-lg",
 } as const;
 
 /** Square, initials-based avatar from the design. Colors are per-person identity colors. */

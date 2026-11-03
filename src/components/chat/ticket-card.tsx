@@ -16,7 +16,7 @@ export function TicketCard({ id }: { id: string }) {
   const { ticket: t, locked } = lookup(id);
 
   let status = "Deleted";
-  let statusColors: [string, string] = ["#F1F2F4", "#5B6472"];
+  let statusColors: [string, string] = [STATUS_COLORS.Backburner[0], STATUS_COLORS.Backburner[1]];
   let title = "This ticket was deleted";
   let team = "";
   let meta = "";
@@ -35,7 +35,7 @@ export function TicketCard({ id }: { id: string }) {
   }
 
   return (
-    <div className="mt-2 flex max-w-[460px] flex-col gap-1.5 rounded-[10px] border bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(20,24,33,0.04)]">
+    <div className="mt-2 flex max-w-[460px] flex-col gap-1.5 rounded-lg border bg-card px-3.5 py-3 shadow-xs">
       <div className="flex items-center gap-2">
         <TicketIcon aria-hidden className="size-4 text-agent-foreground" />
         <span className="text-xs font-bold tracking-[0.02em] text-muted-foreground">{id}</span>
@@ -44,9 +44,9 @@ export function TicketCard({ id }: { id: string }) {
         </span>
         {team && <span className="text-xs text-muted-foreground">{team}</span>}
       </div>
-      <div className="text-[15px] leading-[1.4] font-semibold">{title}</div>
+      <div className="text-body leading-[1.4] font-semibold">{title}</div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[13px] text-muted-foreground">{meta}</span>
+        <span className="text-meta text-muted-foreground">{meta}</span>
         {t && (
           <Button variant="outline" size="sm" className="h-10 sm:h-9" onClick={() => openTicket(t.id)}>
             Open ticket

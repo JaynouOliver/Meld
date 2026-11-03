@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { DEFAULT_ACCENT } from "@/lib/constants";
 import { SEED_UNREAD } from "@/lib/mock/seed";
 import { DEFAULT_TICKET_QUERY } from "@/lib/query-language";
 import type { ChatId, GroupBy, Role } from "@/lib/types";
+
+export type ThemePref = "light" | "dark" | "system";
 
 /**
  * Client UI state. Server data (messages, tickets) lives in React Query;
@@ -19,8 +22,10 @@ interface UiState {
   // preferences (persisted)
   role: Role;
   accent: string;
+  theme: ThemePref;
   ticketQuery: string;
   groupBy: GroupBy;
+  showInsights: boolean;
 
   // panels
   threadId: string | null;
@@ -40,8 +45,10 @@ interface UiState {
 
   setRole: (role: Role) => void;
   setAccent: (accent: string) => void;
+  setTheme: (theme: ThemePref) => void;
   setTicketQuery: (q: string) => void;
   setGroupBy: (g: GroupBy) => void;
+  setShowInsights: (v: boolean) => void;
 
   openThread: (id: string) => void;
   closeThread: () => void;
@@ -61,9 +68,11 @@ export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
       role: "owner",
-      accent: "#2F6FEB",
+      accent: DEFAULT_ACCENT,
+      theme: "light",
       ticketQuery: DEFAULT_TICKET_QUERY,
       groupBy: "assignee",
+      showInsights: false,
 
       // Desktop opens on the design thread (see Providers); phones start clean.
       threadId: null,
@@ -80,8 +89,10 @@ export const useUiStore = create<UiState>()(
 
       setRole: (role) => set({ role }),
       setAccent: (accent) => set({ accent }),
+      setTheme: (theme) => set({ theme }),
       setTicketQuery: (ticketQuery) => set({ ticketQuery }),
       setGroupBy: (groupBy) => set({ groupBy }),
+      setShowInsights: (showInsights) => set({ showInsights }),
 
       openThread: (threadId) => set({ threadId, replyTo: null, ticketId: null }),
       closeThread: () => set({ threadId: null, replyTo: null }),
@@ -100,7 +111,14 @@ export const useUiStore = create<UiState>()(
     {
       name: "meld-ui",
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ role: s.role, accent: s.accent, ticketQuery: s.ticketQuery, groupBy: s.groupBy }),
+      partialize: (s) => ({ role: s.role, accent: s.accent, theme: s.theme, ticketQuery: s.ticketQuery, groupBy: s.groupBy, showInsights: s.showInsights }),
+      // v1: Cobalt replaced the old blue, and violet became Atlas-only.
+      version: 1,
+      migrate: (persisted, version) => {
+        const s = (persisted ?? {}) as Partial<UiState>;
+        if (version < 1 && (!s.accent || ["#2F6FEB", "#7C3AED"].includes(s.accent.toUpperCase()))) s.accent = DEFAULT_ACCENT;
+        return s as UiState;
+      },
       // Rehydrated in <Providers> after mount to avoid SSR hydration mismatches.
       skipHydration: true,
     },

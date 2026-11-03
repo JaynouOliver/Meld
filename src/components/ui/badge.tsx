@@ -12,7 +12,7 @@ const badgeVariants = cva(
         default: "border-transparent bg-primary text-primary-foreground",
         secondary: "border-transparent bg-accent text-ink-2",
         outline: "text-foreground",
-        agent: "rounded border-transparent bg-agent px-1.5 text-[10px] font-bold tracking-[0.05em] text-agent-foreground",
+        agent: "rounded border-transparent bg-agent px-1.5 text-2xs font-bold tracking-[0.05em] text-agent-foreground",
         unread: "h-5 min-w-5 border-transparent bg-unread px-1.5 py-0 text-white font-bold",
       },
     },

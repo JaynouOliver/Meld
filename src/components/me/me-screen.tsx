@@ -21,7 +21,7 @@ export function MeScreen() {
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-canvas">
       <ScreenHeader>
-        <h1 className="text-[22px] font-bold tracking-[-0.01em] md:text-[17px]">You</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.01em] md:text-base">You</h1>
       </ScreenHeader>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-5">
@@ -37,13 +37,13 @@ export function MeScreen() {
 
           <fieldset className="flex flex-col gap-2">
             <legend className="pb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">View as role (RBAC demo)</legend>
-            <div className="relative overflow-hidden rounded-xl border bg-white">
+            <div className="relative overflow-hidden rounded-xl border bg-card">
               {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
                 <label key={r} className="flex min-h-14 cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0 active:bg-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-ring">
                   <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-[15px] font-semibold">{ROLE_LABEL[r]}</span>
-                    <span className="text-[13px] text-muted-foreground">{ROLE_SCOPE[r]}</span>
+                    <span className="text-body font-semibold">{ROLE_LABEL[r]}</span>
+                    <span className="text-meta text-muted-foreground">{ROLE_SCOPE[r]}</span>
                   </span>
                   <span
                     aria-hidden
