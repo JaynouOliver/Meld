@@ -4,65 +4,205 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Meld design tokens. Values come from the "Team Chat Interface" Claude design.
- * shadcn semantic tokens map onto them, so shadcn components match the design.
- * --brand is the workspace accent and can be changed at runtime (see ui-store).
+ * Meld design tokens: "Meld Business" palette.
+ *   - Cool slate neutrals for a calm, enterprise surface.
+ *   - One Cobalt primary for actions (--brand, overridable per workspace).
+ *   - Violet is reserved for Atlas (the agent) and nothing else.
+ *   - Status / semantic colors carry meaning and never change with the accent.
+ * shadcn semantic tokens map onto these, so shadcn components match.
+ * All text/background pairs below meet WCAG 2.1 AA (4.5:1) in both themes.
  */
 :root {
-  --brand: #2f6feb;
-  --radius: 0.5rem;
+  --brand: #2952e3;
+  --radius: 0.625rem;
 
+  /* Surfaces & text */
   --background: #ffffff;
-  --foreground: #1d2129;
+  --foreground: #151b28;
   --card: #ffffff;
-  --card-foreground: #1d2129;
+  --card-foreground: #151b28;
   --popover: #ffffff;
-  --popover-foreground: #1d2129;
+  --popover-foreground: #151b28;
   --primary: var(--brand);
   --primary-foreground: #ffffff;
-  --secondary: #f6f7f9;
-  --secondary-foreground: #1d2129;
-  --muted: #f6f7f9;
-  --muted-foreground: #5b6472;
-  --accent: #eef0f3;
-  --accent-foreground: #1d2129;
+  --secondary: #f7f8fa;
+  --secondary-foreground: #151b28;
+  --muted: #f7f8fa;
+  --muted-foreground: #5f6b7f;
+  --accent: #eef1f5;
+  --accent-foreground: #151b28;
   --destructive: #b42318;
-  --border: #e4e7ec;
-  --input: #cdd2da;
-  --ring: #2f6feb;
+  --border: #e3e7ed;
+  --input: #c9cfd8;
+  --ring: var(--brand);
 
-  /* extended palette from the design */
-  --ink-2: #3d4451;
-  --subtle: #8b95a5;
-  --line-soft: #eef0f3;
-  --canvas: #fbfbfc;
-  --link: #2459c9;
-  --link-hover: #1a3f8f;
-  --mention: #e3ecfd;
-  --mention-foreground: #1e4fbf;
-  --selected: #eef3fd;
-  --agent: #ede9fe;
-  --agent-foreground: #5b21b6;
-  --unread: #d13438; /* 4.9:1 with white badge text */
-  --online: #22a06b;
-  --atlas-series: #d97706;
+  /* Extended neutrals */
+  --ink-2: #374154;
+  --subtle: #8792a4;
+  --line-soft: #eef1f5;
+  --canvas: #f7f8fa;
 
-  --sidebar: #1c2230;
-  --sidebar-foreground: #c9d1dc;
-  --sidebar-muted: #8b95a5;
-  --sidebar-border: #2c3444;
-  --sidebar-input: #2a3242;
-  --sidebar-input-border: #3a4357;
+  /* Primary family */
+  --link: #1f42b8;
+  --link-hover: #16318c;
+  --mention: #edf2ff;
+  --mention-foreground: #1f42b8;
+  --selected: #edf2ff;
+
+  /* Atlas (agent): violet, reserved */
+  --atlas: #6741d9;
+  --agent: #f3f0ff;
+  --agent-foreground: #5b34c7;
+  --agent-border: #ddd3ff;
+  --atlas-series: var(--atlas);
+
+  /* Semantic */
+  --success: #0e7a52;
+  --success-soft: #e7f6ef;
+  --warning: #9a5300;
+  --warning-soft: #fff4e3;
+  --danger-soft: #feedec;
+  --unread: #d92d20; /* mention badge: 4.8:1 with white text */
+  --online: #12b76a;
+
+  /* Ticket status: [bg, fg, line, dot] */
+  --status-todo-bg: #eef1f5;
+  --status-todo-fg: #374154;
+  --status-todo-line: #c9cfd8;
+  --status-todo-dot: #8792a4;
+  --status-progress-bg: #edf2ff;
+  --status-progress-fg: #1f42b8;
+  --status-progress-line: #b9c9fb;
+  --status-progress-dot: #2952e3;
+  --status-review-bg: #fff4e3;
+  --status-review-fg: #9a5300;
+  --status-review-line: #f5cf8f;
+  --status-review-dot: #e08a00;
+  --status-done-bg: #e7f6ef;
+  --status-done-fg: #0e7a52;
+  --status-done-line: #9fdcbf;
+  --status-done-dot: #12a36b;
+  --status-later-bg: #f7f8fa;
+  --status-later-fg: #5f6b7f;
+  --status-later-line: #c9cfd8;
+  --status-later-dot: #b3bbc8;
+
+  /* Priority */
+  --priority-high: #b42318;
+  --priority-medium: #9a5300;
+  --priority-low: #5f6b7f;
+
+  /* Sidebar (always dark) */
+  --sidebar: #111827;
+  --sidebar-foreground: #c5cdd8;
+  --sidebar-muted: #8792a4;
+  --sidebar-border: #1f2937;
+  --sidebar-input: #1b2433;
+  --sidebar-input-border: #2e3a4d;
+  --sidebar-hover: rgb(255 255 255 / 0.06);
+  --sidebar-agent: #cfc2ff;
+  --sidebar-agent-border: #6b56c9;
+
+  /* Elevation */
+  --shadow-color: 21 27 40;
+}
+
+/* Dark theme. --brand stays the same so the workspace accent still applies. */
+.dark {
+  --background: #12161f;
+  --foreground: #e6e9ef;
+  --card: #171c26;
+  --card-foreground: #e6e9ef;
+  --popover: #1b212c;
+  --popover-foreground: #e6e9ef;
+  --primary-foreground: #ffffff;
+  --secondary: #1b212c;
+  --secondary-foreground: #e6e9ef;
+  --muted: #1a1f2a;
+  --muted-foreground: #98a2b3;
+  --accent: #232a37;
+  --accent-foreground: #e6e9ef;
+  --destructive: #f97066;
+  --border: #2a3240;
+  --input: #3a4352;
+
+  --ink-2: #c5cdd8;
+  --subtle: #6f7a8c;
+  --line-soft: #222937;
+  --canvas: #0e1219;
+
+  --link: #8aa8ff;
+  --link-hover: #b3c6ff;
+  --mention: #1d2a4d;
+  --mention-foreground: #a9bfff;
+  --selected: #1a2440;
+
+  --atlas: #8b6cf0;
+  --agent: #241d3f;
+  --agent-foreground: #c4b5fd;
+  --agent-border: #3d3170;
+
+  --success: #4ad295;
+  --success-soft: #11291f;
+  --warning: #f5b454;
+  --warning-soft: #2e2210;
+  --danger-soft: #2f1615;
+
+  --status-todo-bg: #232a37;
+  --status-todo-fg: #c5cdd8;
+  --status-todo-line: #3a4352;
+  --status-todo-dot: #8792a4;
+  --status-progress-bg: #1a2440;
+  --status-progress-fg: #a9bfff;
+  --status-progress-line: #2f4280;
+  --status-progress-dot: #5b80f5;
+  --status-review-bg: #2e2210;
+  --status-review-fg: #f5b454;
+  --status-review-line: #5c4318;
+  --status-review-dot: #f0a020;
+  --status-done-bg: #11291f;
+  --status-done-fg: #4ad295;
+  --status-done-line: #1f5a40;
+  --status-done-dot: #2fbf7f;
+  --status-later-bg: #1a1f2a;
+  --status-later-fg: #98a2b3;
+  --status-later-line: #3a4352;
+  --status-later-dot: #6f7a8c;
+
+  --priority-high: #f97066;
+  --priority-medium: #f5b454;
+  --priority-low: #98a2b3;
+
+  --sidebar: #0b0f15;
+  --sidebar-border: #1a202b;
+  --sidebar-input: #151b25;
+  --sidebar-input-border: #273142;
+
+  --shadow-color: 0 0 0;
+  color-scheme: dark;
 }
 
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Type scale. Use these instead of text-[Npx]. */
+  --text-2xs: 0.6875rem; /* 11px: badges, tiny labels */
+  --text-2xs--line-height: 1rem;
+  --text-meta: 0.8125rem; /* 13px: metadata, secondary UI */
+  --text-meta--line-height: 1.25rem;
+  --text-body: 0.9375rem; /* 15px: chat message body */
+  --text-body--line-height: 1.5rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Elevation: flat → sm (popovers, hover toolbars) → lg (sheets, menus) */
+  --shadow-xs: 0 1px 2px rgb(var(--shadow-color) / 0.05);
+  --shadow-sm: 0 1px 2px rgb(var(--shadow-color) / 0.06), 0 2px 6px rgb(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 4px 8px rgb(var(--shadow-color) / 0.06), 0 12px 32px rgb(var(--shadow-color) / 0.14);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -93,11 +233,21 @@
   --color-mention: var(--mention);
   --color-mention-foreground: var(--mention-foreground);
   --color-selected: var(--selected);
+  --color-atlas: var(--atlas);
   --color-agent: var(--agent);
   --color-agent-foreground: var(--agent-foreground);
+  --color-agent-border: var(--agent-border);
   --color-unread: var(--unread);
   --color-online: var(--online);
   --color-atlas-series: var(--atlas-series);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -105,6 +255,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-input: var(--sidebar-input);
   --color-sidebar-input-border: var(--sidebar-input-border);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-agent: var(--sidebar-agent);
+  --color-sidebar-agent-border: var(--sidebar-agent-border);
 }
 
 @layer base {
@@ -117,12 +270,18 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01"; /* Inter: open digits, single-storey a */
   }
   a {
     color: var(--link);
   }
   a:hover {
     color: var(--link-hover);
+  }
+  /* One visible, consistent keyboard focus ring everywhere. */
+  :where(button, a, input, textarea, select, [role="button"], [role="tab"], [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 
@@ -132,6 +291,11 @@
 }
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Counts, IDs and stats line up in columns. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {

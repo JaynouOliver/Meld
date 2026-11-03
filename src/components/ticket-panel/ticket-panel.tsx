@@ -208,7 +208,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             <span className={sectionLabel}>Images · {t.images.length}</span>
             <label
               htmlFor="tk-image"
-              className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 md:min-h-9 text-[13px] font-semibold text-foreground hover:bg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md border border-input px-3 md:min-h-9 text-meta font-semibold text-foreground hover:bg-muted focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring"
             >
               <ImageIcon className="size-[15px]" />
               Add image
@@ -225,7 +225,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
                     type="button"
                     aria-label="Remove image"
                     onClick={() => update.mutate({ id: t.id, removeImageId: im.id })}
-                    className="absolute top-1 right-1 flex size-9 cursor-pointer md:size-7 items-center justify-center rounded-md bg-[rgba(20,24,33,0.7)] text-white"
+                    className="absolute top-1 right-1 flex size-9 cursor-pointer md:size-7 items-center justify-center rounded-md bg-black/65 text-white"
                   >
                     <XIcon className="size-3.5" strokeWidth={2.4} />
                   </button>
@@ -233,7 +233,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-input p-3.5 text-center text-[13px] text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-input p-3.5 text-center text-meta text-muted-foreground">
               No images yet. Add screenshots or mockups.
             </div>
           )}
@@ -244,15 +244,15 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
           {t.links.map((l) => (
             <div key={l.id} className="flex items-center gap-2.5 rounded-lg border py-1.5 pr-1.5 pl-3">
               {l.kind === "PR" ? (
-                <GitPullRequestIcon aria-hidden className="size-4 text-[#1A7F37]" />
+                <GitPullRequestIcon aria-hidden className="size-4 text-success" />
               ) : (
-                <CircleDotIcon aria-hidden className="size-4 text-[#1A7F37]" />
+                <CircleDotIcon aria-hidden className="size-4 text-success" />
               )}
               <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
                 <span className="text-sm font-semibold">{(l.kind === "PR" ? "Pull request #" : "Issue #") + l.num}</span>
                 <span className="text-xs text-muted-foreground">{l.repo}</span>
               </span>
-              <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-xs font-semibold text-[#166534]">Open</span>
+              <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">Open</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -298,7 +298,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
         <div className="flex flex-col gap-2">
           <span className={sectionLabel}>Activity</span>
           {[...t.activity].reverse().map((a, i) => (
-            <div key={i} className="flex gap-2 text-[13px] leading-[1.45] text-ink-2">
+            <div key={i} className="flex gap-2 text-meta leading-[1.45] text-ink-2">
               <span className="mt-[7px] size-1.5 shrink-0 rounded-full" style={{ background: a.who === "Atlas" ? "#D97706" : "var(--brand)" }} />
               <span>
                 <strong className="font-semibold text-foreground">{a.who}</strong> {a.text} · <span className="text-muted-foreground">{a.time}</span>

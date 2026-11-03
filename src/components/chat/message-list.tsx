@@ -35,7 +35,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
       </div>
       {!messages && <MessageSkeleton />}
       {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
-      {showTyping && <div className="pt-1.5 pr-3 pl-[60px] text-[13px] sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typing.label}</div>}
+      {showTyping && <div className="pt-1.5 pr-3 pl-[60px] text-meta sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typing.label}</div>}
       </div>
     </div>
   );
@@ -72,17 +72,17 @@ function MessageRow({ message: m }: { message: Message }) {
       <Avatar person={p} size="xl" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-[15px] font-bold">{p.name}</span>
+          <span className="text-body font-bold">{p.name}</span>
           {p.isAgent && <AgentBadge />}
           <span className="text-xs text-muted-foreground">{m.time}</span>
         </div>
-        <RichText text={m.text} className="mt-0.5 text-[15px] leading-[1.6]" />
+        <RichText text={m.text} className="mt-0.5 text-body leading-[1.6]" />
         {m.ticket && <TicketCard id={m.ticket} />}
         {n > 0 && (
           <button
             type="button"
             onClick={() => openThread(m.id)}
-            className="mt-1.5 inline-flex min-h-10 max-w-full cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-[13px] sm:min-h-9 transition-colors hover:border-input hover:bg-white"
+            className="mt-1.5 inline-flex min-h-10 max-w-full cursor-pointer items-center gap-2 rounded-lg border bg-muted py-[5px] pr-2.5 pl-1.5 text-meta sm:min-h-9 transition-colors hover:border-input hover:bg-card"
           >
             <span aria-hidden className="flex gap-0.5">
               {participants.map((pp) => (
@@ -95,7 +95,7 @@ function MessageRow({ message: m }: { message: Message }) {
         )}
       </div>
       {!pending && (
-        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-lg border bg-white p-0.5 opacity-0 shadow-[0_2px_6px_rgba(20,24,33,0.08)] transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-lg border bg-card p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={() => openThread(m.id)}
