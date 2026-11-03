@@ -55,6 +55,10 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: "object",
         properties: {
           title: { type: "string", description: "Short imperative title, sentence case, under 80 characters" },
+          allow_duplicate: {
+            type: "boolean",
+            description: "Only set true when the requester explicitly wants a new ticket despite a similar existing one.",
+          },
           team: { type: "string", enum: [...TEAMS] },
           assignee: { type: "string", enum: [...PERSON_IDS] },
           priority: { type: "string", enum: [...PRIORITIES] },
@@ -156,8 +160,27 @@ export function planToOps(plan: Plan): TicketOp[] {
 export interface ToolCtx {
   role: Role;
   where: ChatId;
+  /** Set when Atlas was asked inside a thread: new tickets report back to it. */
+  threadId?: string | null;
   effects: Effects;
   store: Store;
+}
+
+const STOP = new Set(["the", "a", "an", "to", "for", "of", "on", "in", "and", "or", "with", "add", "fix", "make", "new"]);
+const words = (s: string) => new Set(s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+
+/** An existing visible ticket whose title overlaps heavily with this one, if any. */
+function likelyDuplicate(title: string, tickets: Ticket[]): Ticket | null {
+  const a = words(title);
+  if (a.size < 2) return null;
+  let best: { t: Ticket; score: number } | null = null;
+  for (const t of tickets) {
+    const b = words(t.title);
+    const inter = [...a].filter((w) => b.has(w)).length;
+    const score = inter / Math.min(a.size, b.size || 1);
+    if (score >= 0.6 && inter >= 2 && (!best || score > best.score)) best = { t, score };
+  }
+  return best?.t ?? null;
 }
 
 type Args = Record<string, unknown>;
@@ -237,6 +260,18 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if (!title) return err("A title is required.");
       const assignee = (PERSON_IDS as readonly string[]).includes(String(args.assignee)) ? (args.assignee as PersonId) : "me";
       const priority = PRIORITIES.includes(args.priority as Priority) ? (args.priority as Priority) : "Medium";
+      // Duplicate check against what the requester can see (including this run's staged tickets).
+      if (args.allow_duplicate !== true) {
+        const byId = new Map((await store.listTickets()).map((t) => [t.id, t] as [string, Ticket | null]));
+        for (const [sid, { after }] of effects.plan) byId.set(sid, after);
+        const visible = [...byId.values()].filter((t): t is Ticket => !!t && canSee(role, t) && t.status !== "Done");
+        const dup = likelyDuplicate(title, visible);
+        if (dup) {
+          return err(
+            `Possible duplicate of ${ticketLine(dup)}. Prefer updating that ticket (e.g. add to its description). Only create a new one if the requester clearly wants a separate ticket; then call again with allow_duplicate: true.`,
+          );
+        }
+      }
       const id = await store.nextTicketId();
       const meta = CHAT_META[ctx.where];
       const pr = str(args.pr_number)?.replace(/\D/g, "");
@@ -246,7 +281,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         links: pr ? [{ id: uid(), kind: "PR", num: pr, repo: DEFAULT_REPO }] : [],
         images: [], updated: "Just now",
         // Atlas posts later updates about this ticket where it was asked for.
-        watch: meta.kind === "channel" ? { chat: ctx.where, thread: null } : null,
+        watch: meta.kind === "channel" ? { chat: ctx.where, thread: ctx.threadId ?? null } : null,
         activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: stamp() }],
       };
       return { ok: true, created: ticketLine(t), ...stage(ctx, id, null, t, []) };

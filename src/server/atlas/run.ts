@@ -91,7 +91,7 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
         let result: unknown;
         try {
           args = JSON.parse(call.function.arguments || "{}");
-          result = await runTool(call.function.name, args, { role: input.role, where, effects, store });
+          result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store });
         } catch (e) {
           result = { ok: false, error: `Invalid arguments: ${(e as Error).message}` };
         }

@@ -139,6 +139,34 @@ const cases: Case[] = [
     },
   },
   {
+    name: "thread->tickets: proposes owned tickets from the thread, no duplicate of NW-122",
+    where: "design",
+    threadId: "m2",
+    text: "@Atlas make tickets from this thread",
+    check: async ({ trace, before, reply }) => {
+      const dupWords = /two-step invite prompt/i;
+      const staged = trace.action;
+      if (!staged) return `no tickets proposed: ${reply}`;
+      if (staged.status === "pending") await decideAction({ id: staged.id, decision: "confirm", role: "owner" });
+      const n = newTickets(before);
+      if (!n.length) return "no tickets created after confirming";
+      if (n.some((t) => dupWords.test(t.title))) return `duplicated NW-122: ${n.map((t) => t.title).join(" | ")}`;
+      if (n.some((t) => t.watch?.thread !== "m2")) return "new tickets don't report back to the thread";
+      if (!n.some((t) => t.assignee === "aiko")) return `expected one owned by Aiko (she'll mock the two-step version): ${n.map((t) => `${t.title}/${t.assignee}`).join(" | ")}`;
+      return n.length >= 2 && staged.status !== "pending" ? "2+ tickets were created without a preview" : true;
+    },
+  },
+  {
+    name: "duplicates: refuses to re-file an existing ticket",
+    where: "design",
+    text: "@Atlas create a ticket for the two-step invite prompt in onboarding",
+    check: ({ before, reply }) => {
+      const n = newTickets(before);
+      if (n.length) return `created ${n.map((t) => `${t.id} "${t.title}"`).join(", ")}`;
+      return /NW-122/.test(reply) ? true : `didn't point to NW-122: ${reply}`;
+    },
+  },
+  {
     name: "ambiguous: asks instead of guessing",
     where: "design",
     text: "@Atlas close the invite ticket",

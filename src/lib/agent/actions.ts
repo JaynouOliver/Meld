@@ -28,9 +28,15 @@ export interface ActionRecord {
 export const UNDO_WINDOW_MS = 10 * 60 * 1000;
 /** Changing this many tickets at once needs a confirmation, as does any delete. */
 export const BULK_THRESHOLD = 3;
+/** Creating this many tickets at once (e.g. from a thread) shows a preview first. */
+export const CREATE_PREVIEW_THRESHOLD = 2;
 
 export function needsConfirmation(ops: TicketOp[]) {
-  return ops.some((o) => o.type === "delete") || ops.length >= BULK_THRESHOLD;
+  return (
+    ops.some((o) => o.type === "delete") ||
+    ops.length >= BULK_THRESHOLD ||
+    ops.filter((o) => o.type === "create").length >= CREATE_PREVIEW_THRESHOLD
+  );
 }
 
 const title = (t: Ticket) => `“${t.title || "Untitled"}”`;

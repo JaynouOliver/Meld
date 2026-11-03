@@ -10,14 +10,14 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | 1 | **Ticket CRUD by tagging Atlas** (create, update, bulk, delete, ask-when-ambiguous, role-aware) | ✅ Done: Muse Spark 1.3 + tools, 14/14 evals |
 | 2 | **Status answers with sources**: "where's the Apple Pay launch?" from tickets, PRs and threads, with links | ✅ Done: `ticket_discussion` tool, server-verified citations, jump-to-message chips; 18/18 evals |
 | 3 | **Blocker propagation**: "X blocks Y" or a blocked ticket notifies downstream owners once | To do: needs ticket dependencies + a watcher |
-| 4 | **Thread → tickets**: "@Atlas make tickets from this" with a preview card before creating | To do |
+| 4 | **Thread → tickets**: "@Atlas make tickets from this" with a preview card before creating | ✅ Done: owners from the thread, existing tickets updated instead of re-filed, 2+ new tickets wait on a preview card; 23/23 evals |
 | 5 | **Quiet action-item capture**: private "make this a ticket?" suggestion to the author | To do: needs the memory pipeline |
 | 6 | **"What did I miss?"** per-person catch-up | To do: needs summaries |
 | 7 | **Decision log** with links to where each decision was made | To do: needs fact extraction |
 | 8 | **GitHub automation**: merged PR → Done, failed CI posts, stale review nudges | To do: webhooks |
 | 9 | **Standups and digests** (daily team digest, weekly sprint summary, release notes) | To do: scheduler |
 | 10 | **Onboarding brief**: "catch Diego up on #platform-eng" | To do |
-| 11 | **Duplicate detection** when creating tickets | To do |
+| 11 | **Duplicate detection** when creating tickets | ✅ Done: `create_ticket` refuses near-duplicates of open tickets (title word overlap) unless `allow_duplicate` |
 | 12 | **Confirm cards + undo** for deletes, bulk edits and cross-channel posts | ✅ Done: changes staged per run; deletes and 3+ ticket edits wait for Confirm; everything else gets 10-min Undo; 21/21 evals |
 | 13 | **Voice notes → tickets** with Muse Voice Transcribe | Idea |
 
