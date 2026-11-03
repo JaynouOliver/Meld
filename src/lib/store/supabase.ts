@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { toView, type ActionRecord } from "../agent/actions";
 import { RUN_MAX_ATTEMPTS, RUN_RECENT_MS, RUN_STALE_MS, type AgentRun } from "../agent/runs";
 import { todayIndex } from "../format";
+import type { Decision, Mission, MissionEvent } from "../missions";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
@@ -30,13 +31,15 @@ interface TicketRow {
   priority: Ticket["priority"]; assignee: PersonId; reporter: PersonId; links: Ticket["links"];
   images: Ticket["images"]; watch: Ticket["watch"]; activity: Ticket["activity"]; updated: string;
   blocked_by: string[];
+  mission_id: string | null;
+  due: string | null;
 }
 const toRow = (t: Ticket): TicketRow => ({
   id: t.id, team: t.team, title: t.title, description: t.description, status: t.status, priority: t.priority,
   assignee: t.assignee, reporter: t.reporter, links: t.links, images: t.images, watch: t.watch,
-  activity: t.activity, updated: t.updated, blocked_by: t.blockedBy ?? [],
+  activity: t.activity, updated: t.updated, blocked_by: t.blockedBy ?? [], mission_id: t.missionId ?? null, due: t.due ?? null,
 });
-const fromRow = ({ blocked_by, ...r }: TicketRow): Ticket => ({ ...r, blockedBy: blocked_by ?? [] });
+const fromRow = ({ blocked_by, mission_id, due, ...r }: TicketRow): Ticket => ({ ...r, blockedBy: blocked_by ?? [], missionId: mission_id ?? null, due: due ?? null });
 
 interface MessageRow {
   workspace_id?: string;
@@ -66,6 +69,24 @@ const runFromRow = (r: RunRow): AgentRun => ({
   agentId: r.agent_id ?? "atlas", trigger: r.trigger ?? "mention", depth: r.depth ?? 0, parentRunId: r.parent_run_id ?? null,
   text: r.text, status: r.status, attempts: r.attempts, error: r.error, result: r.result, trace: r.trace,
   createdAt: r.created_at, startedAt: r.started_at, finishedAt: r.finished_at,
+});
+
+interface MissionRow {
+  id: string; title: string; goal: string; chat_id: string; thread_id: string | null; status: Mission["status"]; deadline: string | null;
+  plan: Mission["plan"]; summary: string; health: string; created_by: string | null; created_at: string; launched_at: string | null; last_checkin_at: string | null;
+}
+const missionFrom = (r: MissionRow): Mission => ({
+  id: r.id, title: r.title, goal: r.goal, chatId: r.chat_id, threadId: r.thread_id, status: r.status, deadline: r.deadline,
+  plan: r.plan?.tasks ? r.plan : { tasks: [], risks: [] }, summary: r.summary, health: r.health, createdBy: r.created_by, createdAt: r.created_at,
+  launchedAt: r.launched_at, lastCheckinAt: r.last_checkin_at,
+});
+interface DecisionRow {
+  id: string; mission_id: string; question: string; options: string[]; context: string; status: Decision["status"]; answer: string | null;
+  answered_by: string | null; answered_at: string | null; created_at: string; actions: Decision["actions"] | null;
+}
+const decisionFrom = (r: DecisionRow): Decision => ({
+  id: r.id, missionId: r.mission_id, question: r.question, options: r.options ?? [], context: r.context, status: r.status, answer: r.answer,
+  answeredBy: r.answered_by, answeredAt: r.answered_at, createdAt: r.created_at, actions: r.actions ?? {},
 });
 
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
@@ -194,6 +215,48 @@ export function supabaseStore(ws: string): Store {
   },
   async putSummary(key, chatId, text) {
     check(await sb().from("summaries").upsert({ workspace_id: ws, key, chat_id: chatId, text }, { onConflict: "workspace_id,key" }), "put summary");
+  },
+  async listMissions() {
+    const rows = check(await sb().from("missions").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }), "missions") as MissionRow[];
+    return rows.map(missionFrom);
+  },
+  async getMission(id) {
+    const r = check(await sb().from("missions").select("*").eq("workspace_id", ws).eq("id", id).maybeSingle(), "mission") as MissionRow | null;
+    return r ? missionFrom(r) : null;
+  },
+  async saveMission(m) {
+    check(
+      await sb().from("missions").upsert({
+        id: m.id, workspace_id: ws, title: m.title, goal: m.goal, chat_id: m.chatId, thread_id: m.threadId, status: m.status, deadline: m.deadline,
+        plan: m.plan, summary: m.summary, health: m.health, created_by: m.createdBy, created_at: m.createdAt, launched_at: m.launchedAt, last_checkin_at: m.lastCheckinAt,
+      }),
+      "save mission",
+    );
+  },
+  async listDecisions(filter = {}) {
+    let q = sb().from("mission_decisions").select("*").eq("workspace_id", ws);
+    if (filter.missionId) q = q.eq("mission_id", filter.missionId);
+    if (filter.status) q = q.eq("status", filter.status);
+    const rows = check(await q.order("created_at"), "decisions") as DecisionRow[];
+    return rows.map(decisionFrom);
+  },
+  async saveDecision(x) {
+    check(
+      await sb().from("mission_decisions").upsert({
+        id: x.id, workspace_id: ws, mission_id: x.missionId, question: x.question, options: x.options, context: x.context, status: x.status,
+        answer: x.answer, answered_by: x.answeredBy, answered_at: x.answeredAt, created_at: x.createdAt, actions: x.actions ?? {},
+      }),
+      "save decision",
+    );
+  },
+  async addMissionEvent(e) {
+    check(await sb().from("mission_events").insert({ workspace_id: ws, mission_id: e.missionId, kind: e.kind, actor: e.actor, text: e.text, at: e.at }), "mission event");
+  },
+  async listMissionEvents(missionId) {
+    const rows = check(await sb().from("mission_events").select("mission_id,kind,actor,text,at").eq("workspace_id", ws).eq("mission_id", missionId).order("at"), "mission events") as {
+      mission_id: string; kind: MissionEvent["kind"]; actor: string | null; text: string; at: string;
+    }[];
+    return rows.map((r) => ({ missionId: r.mission_id, kind: r.kind, actor: r.actor, text: r.text, at: r.at }));
   },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.

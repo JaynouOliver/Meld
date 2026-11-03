@@ -102,6 +102,30 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async putSummary(key, _chatId, text) {
     d().summaries.set(key, text);
   },
+  async listMissions() {
+    return clone([...d().missions.values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async getMission(id) {
+    const m = d().missions.get(id);
+    return m ? clone(m) : null;
+  },
+  async saveMission(m) {
+    d().missions.set(m.id, clone(m));
+  },
+  async listDecisions(filter = {}) {
+    return clone([...d().decisions.values()])
+      .filter((x) => (!filter.missionId || x.missionId === filter.missionId) && (!filter.status || x.status === filter.status))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  },
+  async saveDecision(x) {
+    d().decisions.set(x.id, clone(x));
+  },
+  async addMissionEvent(e) {
+    d().missionEvents.push(clone(e));
+  },
+  async listMissionEvents(missionId) {
+    return clone(d().missionEvents.filter((e) => e.missionId === missionId));
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

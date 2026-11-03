@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActiveChat } from "@/hooks/use-active-chat";
 import { useDirectory, useRole } from "@/hooks/use-directory";
+import { useMissions, useOpenDecisions } from "@/hooks/use-missions";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { switchWorkspace } from "@/lib/api/remote";
 import { clearLocalCache } from "@/lib/cache";
@@ -41,10 +42,10 @@ const ROLES: Role[] = ["owner", "member", "guest"];
 
 function SectionLabel({ children, first, onAdd, addLabel }: { children: React.ReactNode; first?: boolean; onAdd?: () => void; addLabel?: string }) {
   return (
-    <div className={cn("flex items-center justify-between px-2.5 pb-1.5 text-xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase", first ? "pt-3" : "pt-[18px]")}>
+    <div className={cn("flex items-center justify-between px-2 pb-1 text-xs font-medium text-sidebar-muted", first ? "pt-2" : "pt-4")}>
       {children}
       {onAdd && (
-        <button type="button" aria-label={addLabel} title={addLabel} onClick={onAdd} className="-my-1 flex size-6 cursor-pointer items-center justify-center rounded-md hover:bg-sidebar-hover hover:text-white">
+        <button type="button" aria-label={addLabel} title={addLabel} onClick={onAdd} className="-my-1 flex size-6 cursor-pointer items-center justify-center rounded-md hover:bg-sidebar-hover hover:text-sidebar-strong">
           <PlusIcon className="size-3.5" strokeWidth={2.4} />
         </button>
       )}
@@ -76,10 +77,10 @@ function NavLink({
         onNavigate?.();
       }}
       className={cn(
-        "flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-[5px] text-body no-underline transition-colors",
+        "flex min-h-[30px] w-full items-center gap-2 rounded-md px-2 py-1 text-sm no-underline transition-colors",
         active
-          ? "bg-brand font-bold text-white hover:text-white"
-          : cn("hover:bg-sidebar-hover", bold ? "font-bold text-white hover:text-white" : "text-sidebar-foreground hover:text-sidebar-foreground"),
+          ? "bg-sidebar-active font-semibold text-sidebar-strong hover:text-sidebar-strong"
+          : cn("hover:bg-sidebar-hover", bold ? "font-semibold text-sidebar-strong hover:text-sidebar-strong" : "text-sidebar-foreground hover:text-sidebar-foreground"),
       )}
     >
       {children}
@@ -89,7 +90,7 @@ function NavLink({
 
 function UnreadBadge({ n }: { n: number }) {
   return (
-    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-unread px-1.5 text-xs font-bold text-white">
+    <span className="tabular flex h-[18px] min-w-[18px] items-center justify-center rounded-sm bg-unread px-1 text-2xs font-semibold text-white">
       {n}
     </span>
   );
@@ -108,6 +109,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const setTheme = useUiStore((s) => s.setTheme);
   const setAccent = useUiStore((s) => s.setAccent);
   const { visible } = useVisibleTickets();
+  const { data: missions } = useMissions();
+  const { data: needsYou } = useOpenDecisions();
+  const liveMissions = missions?.filter((m) => m.status !== "done" && m.status !== "canceled").length ?? 0;
 
   const enterChat = (id: ChatId) => {
     markRead(id);
@@ -139,11 +143,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <NewMessageDialog open={dmOpen} onOpenChange={setDmOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AgentDialog agentId={agentOpen?.id ?? null} open={!!agentOpen} onOpenChange={(o) => !o && setAgentOpen(null)} />
-      <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-3">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DropdownMenuTrigger className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm font-semibold text-sidebar-strong outline-none hover:bg-sidebar-hover focus-visible:ring-2 focus-visible:ring-ring">
+            <span aria-hidden className="flex size-6 items-center justify-center rounded-[5px] bg-sidebar-strong text-xs font-bold text-sidebar">
+              {dir.workspace.name.slice(0, 1).toUpperCase()}
+            </span>
             {dir.workspace.name}
-            <ChevronDownIcon className="size-3.5" strokeWidth={2.2} />
+            <ChevronDownIcon className="size-3.5 text-sidebar-muted" strokeWidth={2.2} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-60">
             <DropdownMenuItem onSelect={() => setPeopleOpen(true)}>
@@ -206,14 +213,27 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           type="button"
           aria-label="New message"
           onClick={() => setDmOpen(true)}
-          className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-hover"
+          className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-sidebar-border bg-sidebar-input text-sidebar-foreground hover:text-sidebar-strong"
         >
-          <SquarePenIcon className="size-[18px]" />
+          <SquarePenIcon className="size-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
-        <SectionLabel first onAdd={dir.role !== "guest" ? () => setCreateOpen(true) : undefined} addLabel="Create a channel">
+      <div className="flex-1 overflow-y-auto px-2 pt-1 pb-3">
+        <div className="pt-2">
+          <NavLink href="/missions" active={pathname.startsWith("/missions")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
+            <FlagIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
+            <span className="flex-1">Missions</span>
+            {needsYou?.length ? (
+              <span title={`${needsYou.length} decision${needsYou.length === 1 ? "" : "s"} waiting on a person`} className="rounded-sm border border-[var(--status-review-line)] px-1 text-2xs font-semibold text-[var(--status-review-fg)]">
+                Needs you · {needsYou.length}
+              </span>
+            ) : (
+              liveMissions > 0 && <span className="tabular text-xs text-sidebar-muted">{liveMissions}</span>
+            )}
+          </NavLink>
+        </div>
+        <SectionLabel onAdd={dir.role !== "guest" ? () => setCreateOpen(true) : undefined} addLabel="Create a channel">
           Channels
         </SectionLabel>
         {dir.channels.map((id) => {
@@ -223,7 +243,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           const n = unread[id] ?? 0;
           return (
             <NavLink key={id} href={`/chat/${id}`} active={active} bold={n > 0} onNavigate={onNavigate} onClick={() => enterChat(id)}>
-              <HashIcon aria-hidden className="size-4 w-5 opacity-75" />
+              <HashIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
               <span className="flex-1 truncate">{meta.kind === "channel" ? meta.label : id}</span>
               {n > 0 && !active && <UnreadBadge n={n} />}
             </NavLink>
@@ -241,18 +261,18 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           const body = (
             <>
               <span className="relative">
-                <Avatar person={personOf(dir, a.id)} size="xs" className="size-5 rounded-[5px] text-2xs" />
+                <Avatar person={personOf(dir, a.id)} size="xs" className="size-5 rounded-[4px] text-[10px]" />
                 <span
                   aria-hidden
-                  className={cn("absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-sidebar", working ? "animate-pulse bg-sidebar-agent" : "bg-online")}
+                  className={cn("absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-sidebar", working ? "animate-pulse bg-brand" : "bg-online")}
                 />
               </span>
               <span className="flex-1 truncate">{a.name}</span>
               <span className="sr-only">{working ? "working" : "idle"}</span>
               {working ? (
-                <span className="text-2xs font-semibold text-sidebar-agent">working</span>
+                <span className="text-2xs font-medium text-sidebar-muted">Working</span>
               ) : (
-                <span className="rounded border border-sidebar-agent-border px-[5px] py-px text-2xs font-bold tracking-[0.05em] text-sidebar-agent">AGENT</span>
+                <span className="rounded-sm border border-sidebar-agent-border px-1 text-2xs leading-4 font-medium text-sidebar-agent">Agent</span>
               )}
               {n > 0 && !active && <UnreadBadge n={n} />}
             </>
@@ -266,7 +286,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               key={a.id}
               type="button"
               onClick={() => setAgentOpen({ id: a.id })}
-              className="flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[15px] text-sidebar-foreground hover:bg-sidebar-hover"
+              className="flex min-h-[30px] w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-sidebar-foreground hover:bg-sidebar-hover"
             >
               {body}
             </button>
@@ -284,10 +304,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           const n = unread[id] ?? 0;
           return (
             <NavLink key={id} href={`/chat/${id}`} active={active} bold={n > 0} onNavigate={onNavigate} onClick={() => enterChat(id)}>
-              <Avatar person={p} size="xs" presence className="size-5 rounded-[5px] text-2xs" ringClassName={active ? "border-brand" : "border-sidebar"} />
+              <Avatar person={p} size="xs" presence className="size-5 rounded-[4px] text-[10px]" ringClassName="border-sidebar" />
               <span className="flex-1 truncate">{p.name}</span>
               {p.isAgent && (
-                <span className="rounded border border-sidebar-agent-border px-[5px] py-px text-2xs font-bold tracking-[0.05em] text-sidebar-agent">AGENT</span>
+                <span className="rounded-sm border border-sidebar-agent-border px-1 text-2xs leading-4 font-medium text-sidebar-agent">Agent</span>
               )}
               {n > 0 && !active && <UnreadBadge n={n} />}
             </NavLink>
@@ -300,28 +320,28 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           { href: "/tickets/mine", label: "Assigned to me", count: visible.filter((t) => t.assignee === dir.me).length },
         ].map((n) => (
           <NavLink key={n.href} href={n.href} active={pathname === n.href} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
-            <TicketIcon aria-hidden className="size-[18px] w-5 opacity-80" />
+            <TicketIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
             <span className="flex-1">{n.label}</span>
-            <span className="text-xs font-semibold opacity-85">{n.count}</span>
+            <span className="tabular text-xs text-sidebar-muted">{n.count}</span>
           </NavLink>
         ))}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-sidebar-border px-4 pt-3 pb-3.5">
+      <div className="flex flex-col gap-2 border-t border-sidebar-border px-3 pt-3 pb-3">
         <div className="flex items-center gap-2.5">
-          <Avatar person={me} size="lg" presence className="text-xs" ringClassName="border-sidebar size-2.5" />
+          <Avatar person={me} size="lg" presence className="rounded-md text-xs" ringClassName="border-sidebar size-2.5" />
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold text-white">{me.name}</span>
+            <span className="text-sm font-semibold text-sidebar-strong">{me.name}</span>
             <span className="text-xs text-sidebar-muted">{roleLabel(dir, role)}</span>
           </div>
         </div>
         {viewAs.length > 1 && (
           <>
-            <label htmlFor="role-select" className="text-2xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase">
+            <label htmlFor="role-select" className="text-xs font-medium text-sidebar-muted">
               View as role
             </label>
             <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-              <SelectTrigger id="role-select" className="h-9 border-sidebar-input-border bg-sidebar-input text-meta text-white [&_svg]:text-white">
+              <SelectTrigger id="role-select" className="h-8 border-sidebar-input-border bg-sidebar-input text-[13px] text-sidebar-strong [&_svg]:text-sidebar-muted">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -3,6 +3,7 @@ import "server-only";
 import { ATLAS_ID } from "@/lib/directory";
 import { uid } from "@/lib/format";
 import { storeFor } from "@/lib/store";
+import type { Mission, PlanTask } from "@/lib/missions";
 import type { Priority, Ticket, TicketStatus } from "@/lib/types";
 import { registry } from "./workspace";
 
@@ -207,5 +208,71 @@ export async function createSandbox(me: { id: string; first: string }) {
     store.appendMessage(dm[jonas], { id: uid(), who: jonas, time: ago(30), text: "Stripe test-mode keys expire on Friday and I don't have dashboard access. Can you rotate them?" }),
   ]);
 
+  await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
+}
+
+/**
+ * A mission already in flight: "Launch paid plans", launched yesterday, with the pricing
+ * page already a day late. Running a check-in shows the agents re-plan the chain behind
+ * it, find the date at risk and ask the visitor to choose date or scope.
+ */
+async function seedMission(
+  store: Awaited<ReturnType<typeof storeFor>>,
+  x: { me: string; chat: string; ids: string[]; people: Record<"maya" | "jonas" | "priya" | "tom", string> },
+) {
+  const day = (n: number) => new Date(Date.now() + n * 86400_000).toISOString().slice(0, 10);
+  const orb = (n: number) => x.ids[n - 1];
+  const fmt = (d: string | null) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const id = `ms${uid()}`;
+  const video = await store.nextTicketId();
+  const { maya, jonas, priya, tom } = x.people;
+  const tasks: PlanTask[] = [
+    { key: "t1", ticketId: orb(4), existing: orb(4), title: "Stripe webhooks for plan upgrades", description: "", owner: jonas, team: "engineering", priority: "High", due: day(1), dependsOn: [] },
+    { key: "t2", ticketId: orb(5), existing: orb(5), title: "Pricing page refresh", description: "", owner: maya, team: "design", priority: "Medium", due: day(-1), dependsOn: [] },
+    { key: "t3", ticketId: orb(7), existing: orb(7), title: "In-app upgrade flow in Settings", description: "", owner: priya, team: "engineering", priority: "High", due: day(2), dependsOn: ["t1"] },
+    { key: "t4", ticketId: orb(6), existing: orb(6), title: "Launch email sequence", description: "", owner: tom, team: "growth", priority: "Medium", due: day(1), dependsOn: ["t2"] },
+    { key: "t5", ticketId: orb(9), existing: orb(9), title: "Product Hunt launch kit", description: "", owner: tom, team: "growth", priority: "Low", due: day(2), dependsOn: ["t4"] },
+    { key: "t6", ticketId: video, title: "Record the 2-minute demo video", description: "Walk through booking, team links and upgrading.", owner: x.me, team: "product", priority: "Medium", due: day(2), dependsOn: [] },
+  ];
+  const root = await store.appendMessage(x.chat, {
+    id: uid(), who: ATLAS_ID, time: ago(1500),
+    text: `Mission started by ${PEOPLE.find((p) => p.name.startsWith("Sofia"))?.name ?? "Sofia"}: launch paid plans (by ${fmt(day(2))}). I'm drafting the plan in this thread.`,
+  });
+  const m: Mission = {
+    id, title: "Launch paid plans", goal: "Launch paid plans: checkout, upgrade flow, pricing page and launch comms", chatId: x.chat, threadId: root.id,
+    status: "active", deadline: day(2), plan: { tasks, risks: ["Webhooks slipping blocks the upgrade flow", "Pricing not final holds up the launch emails"] },
+    summary: "Customers can upgrade in-app and the launch is announced by email and on Product Hunt.", health: "On track: just launched",
+    createdBy: x.me, createdAt: ago(1500), launchedAt: ago(1400), lastCheckinAt: null,
+  };
+  await store.saveMission(m);
+  for (const t of tasks) {
+    if (t.ticketId === video) {
+      await store.insertTicket({
+        id: video, team: "product", title: t.title, description: t.description, status: "To do", priority: "Medium", assignee: x.me, reporter: ATLAS_ID,
+        links: [], images: [], updated: "Yesterday", watch: { chat: x.chat, thread: root.id }, blockedBy: [], missionId: id, due: t.due,
+        activity: [{ who: "Atlas", text: 'created this ticket for the mission "Launch paid plans"', time: ago(1400) }],
+      });
+      continue;
+    }
+    const cur = await store.getTicket(t.ticketId!);
+    if (cur) {
+      await store.saveTicket({
+        ...cur, missionId: id, due: t.due, blockedBy: [...new Set([...(cur.blockedBy ?? []), ...t.dependsOn.map((k) => tasks.find((y) => y.key === k)!.ticketId!)])],
+        activity: [...cur.activity, { who: "Atlas", text: 'added it to the mission "Launch paid plans"', time: ago(1400) }],
+      });
+    }
+  }
+  await store.appendMessage(x.chat, { id: uid(), who: ATLAS_ID, time: ago(1499), text: `Draft plan for "Launch paid plans": 6 tasks across Jonas, Maya, Priya, Tom and you. Critical path: Pricing page refresh → Launch email sequence → Product Hunt launch kit.` }, root.id);
+  await store.appendMessage(x.chat, {
+    id: uid(), who: ATLAS_ID, time: ago(1400),
+    text: `Mission launched: "Launch paid plans".\n${tasks.map((t) => `• ${t.ticketId} ${t.title}, due ${fmt(t.due)}`).join("\n")}\nI'll check in on progress and flag anything that puts the date at risk.`,
+  }, root.id);
+  await store.saveDecision({
+    id: `dc${uid()}`, missionId: id, question: "Launch discount for annual plans?", options: ["2 months free", "20% off the first year"],
+    context: "Tom's launch emails and Maya's pricing page both need the final offer.", status: "open", answer: null, answeredBy: null, answeredAt: null, createdAt: ago(1499),
+  });
+  for (const [kind, text, at] of [["planned", "Drafted 6 tasks for 5 owners.", 1499], ["launched", "Launched with 6 tickets.", 1400]] as const) {
+    await store.addMissionEvent({ missionId: id, kind, actor: kind === "launched" ? x.me : ATLAS_ID, text, at: ago(at) });
+  }
 }

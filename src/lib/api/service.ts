@@ -202,7 +202,7 @@ export async function createTicket(preset: Partial<Ticket>, role: Role): Promise
   return t;
 }
 
-export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team">>;
+export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team" | "due">>;
 
 export interface UpdateTicketInput {
   id: string;
@@ -255,6 +255,11 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   }
   if (p.title !== undefined) t.title = p.title;
   if (p.description !== undefined) t.description = p.description;
+  if (p.due !== undefined && p.due !== (t.due ?? null)) {
+    if (p.due !== null && !/^\d{4}-\d{2}-\d{2}$/.test(p.due)) throw new ApiError("Due date must be YYYY-MM-DD");
+    t.due = p.due;
+    note = p.due ? `set the due date to ${p.due}` : "cleared the due date";
+  }
   if (p.status && p.status !== t.status) {
     t.status = p.status;
     note = announce = `moved it to ${p.status}`;

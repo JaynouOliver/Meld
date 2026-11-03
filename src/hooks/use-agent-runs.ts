@@ -44,7 +44,7 @@ export function useLiveRuns(chatId: ChatId, threadId: string | null): RunView[] 
     ...runsQuery,
     select: (runs: RunView[]) => runs.filter((r) => r.chatId === chatId && (r.threadId ?? null) === threadId),
   });
-  const { data: messages } = useQuery<Message[]>({ queryKey: queryKeys.messages(chatId), enabled: false });
+  const { data: messages } = useQuery<Message[]>({ queryKey: queryKeys.messages(chatId), queryFn: () => api.getMessages(chatId), enabled: false });
   const delivered = (r: RunView) => {
     const id = replyIdFor(r.id);
     return !!messages?.some((m) => m.id === id || m.replies.some((x) => x.id === id));

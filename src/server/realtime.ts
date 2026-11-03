@@ -12,6 +12,8 @@ export interface ChangePing {
   tickets: boolean;
   /** Atlas runs changed (queued, started or finished). */
   runs?: boolean;
+  /** A mission's plan, status or decisions changed. */
+  missions?: boolean;
   /** Members, channels or workspace settings changed: refetch the directory. */
   directory?: boolean;
   workspaceId: string;
@@ -53,7 +55,7 @@ export async function broadcastRun(workspaceId: string, p: RunProgress) {
 export async function pingChanges(ping: ChangePing) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key || (!ping.chats.length && !ping.tickets && !ping.runs && !ping.directory)) return;
+  if (!url || !key || (!ping.chats.length && !ping.tickets && !ping.runs && !ping.directory && !ping.missions)) return;
   try {
     const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
       method: "POST",

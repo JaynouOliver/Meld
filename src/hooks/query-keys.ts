@@ -7,4 +7,7 @@ export const queryKeys = {
   week: ["week"] as const,
   agentRuns: ["agent-runs"] as const,
   directory: ["directory"] as const,
+  missions: ["missions"] as const,
+  mission: (id: string) => ["missions", id] as const,
+  decisions: ["decisions"] as const,
 };
