@@ -4,6 +4,7 @@ import { CHAT_META, DEFAULT_REPO, PEOPLE, STATUSES, PRIORITIES, TEAMS, teamName 
 import { displayTime, stamp, uid } from "@/lib/format";
 import type { Store } from "@/lib/store";
 import type { MessageHit } from "@/lib/store/types";
+import { needsConfirmation, type TicketOp } from "@/lib/agent/actions";
 import { matchQuery } from "@/lib/query-language";
 import { canDelete, canSee } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
@@ -129,12 +130,27 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
-/** What a run changed, for the reply card, cross-channel updates and the activity chart. */
+/**
+ * Changes staged during one Atlas run, keyed by ticket. Nothing is written until the
+ * run ends; then the server applies the batch (with undo) or holds it for the
+ * requester to confirm (deletes, bulk edits). See src/lib/agent/actions.ts.
+ */
+export type Plan = Map<string, { before: Ticket | null; after: Ticket | null; changes: string[] }>;
+
 export interface Effects {
-  created: string[];
-  updated: Map<string, string[]>;
-  deleted: string[];
+  plan: Plan;
   read: string[];
+}
+
+/** The net changes of a run, one op per ticket. */
+export function planToOps(plan: Plan): TicketOp[] {
+  const ops: TicketOp[] = [];
+  for (const { before, after, changes } of plan.values()) {
+    if (!before && after) ops.push({ type: "create", after });
+    else if (before && !after) ops.push({ type: "delete", before });
+    else if (before && after && changes.length) ops.push({ type: "update", before, after, changes });
+  }
+  return ops;
 }
 
 export interface ToolCtx {
@@ -147,13 +163,35 @@ export interface ToolCtx {
 type Args = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 const err = (message: string) => ({ ok: false as const, error: message });
+const clone = <T,>(x: T): T => structuredClone(x);
 
-async function findVisible(store: Store, id: unknown, role: Role): Promise<Ticket | { ok: false; error: string }> {
+/** A ticket as this run sees it: staged state first, then the store. */
+async function current(ctx: ToolCtx, id: string): Promise<Ticket | null> {
+  const staged = ctx.effects.plan.get(id);
+  if (staged) return staged.after ? clone(staged.after) : null;
+  return ctx.store.getTicket(id);
+}
+
+async function findVisible(ctx: ToolCtx, id: unknown): Promise<Ticket | { ok: false; error: string }> {
   const key = String(id ?? "").toUpperCase().trim();
-  const t = key ? await store.getTicket(key) : null;
+  const t = key ? await current(ctx, key) : null;
   // Same answer for missing and hidden tickets, so Atlas can't leak that a hidden one exists.
-  if (!t || !canSee(role, t)) return err(`${key || "That ticket"} doesn't exist or the requester can't see it.`);
+  if (!t || !canSee(ctx.role, t)) return err(`${key || "That ticket"} doesn't exist or the requester can't see it.`);
   return t;
+}
+
+/** Record a staged change and tell the model what happens next. */
+function stage(ctx: ToolCtx, id: string, before: Ticket | null, after: Ticket | null, changes: string[]) {
+  const prev = ctx.effects.plan.get(id);
+  ctx.effects.plan.set(id, { before: prev ? prev.before : before, after, changes: [...(prev?.changes ?? []), ...changes] });
+  const confirm = needsConfirmation(planToOps(ctx.effects.plan));
+  return {
+    staged: true,
+    needs_confirmation: confirm,
+    note: confirm
+      ? "Held for confirmation: nothing changes until the requester confirms in the card under your reply."
+      : "Applied when you finish your reply (the requester can undo it).",
+  };
 }
 
 function srcLabel(where: ChatId) {
@@ -172,11 +210,14 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
   switch (name) {
     case "list_tickets": {
       const q = str(args.query) ?? "";
-      const rows = (await store.listTickets()).filter((t) => canSee(role, t) && matchQuery(t, q));
+      // Store tickets with this run's staged changes on top.
+      const byId = new Map((await store.listTickets()).map((t) => [t.id, t] as [string, Ticket | null]));
+      for (const [id, { after }] of effects.plan) byId.set(id, after);
+      const rows = [...byId.values()].filter((t): t is Ticket => !!t && canSee(role, t) && matchQuery(t, q));
       return { ok: true, count: rows.length, tickets: rows.slice(0, 40).map(ticketLine) };
     }
     case "get_ticket": {
-      const t = await findVisible(store, args.id, role);
+      const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
       effects.read.push(t.id);
       return {
@@ -184,7 +225,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         ticket: ticketLine(t),
         description: t.description || "(none)",
         reporter: PEOPLE[t.reporter].name,
-        recent_activity: t.activity.slice(-5).map((a) => `${a.who} ${a.text} (${a.time})`),
+        recent_activity: t.activity.slice(-5).map((a) => `${a.who} ${a.text} (${displayTime(a.time)})`),
       };
     }
     case "create_ticket": {
@@ -208,17 +249,13 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         watch: meta.kind === "channel" ? { chat: ctx.where, thread: null } : null,
         activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: stamp() }],
       };
-      await store.insertTicket(t);
-      await Promise.all([
-        store.bumpWeek("a"),
-        store.logEvent({ kind: "ticket.created", actor: "atlas", chatId: ctx.where, ticketId: id, payload: { askedBy: "me" } }),
-      ]);
-      effects.created.push(id);
-      return { ok: true, created: ticketLine(t) };
+      return { ok: true, created: ticketLine(t), ...stage(ctx, id, null, t, []) };
     }
     case "update_ticket": {
-      const t = await findVisible(store, args.id, role);
-      if ("ok" in t) return t;
+      const found = await findVisible(ctx, args.id);
+      if ("ok" in found) return found;
+      const before = clone(found);
+      const t = found;
       const changes: string[] = [];
       const status = args.status as TicketStatus | undefined;
       if (status && STATUSES.includes(status) && status !== t.status) {
@@ -253,27 +290,13 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         }
       }
       if (!changes.length) return { ok: true, unchanged: true, ticket: ticketLine(t) };
-      t.updated = "Just now";
-      t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: stamp() });
-      await Promise.all([
-        store.saveTicket(t),
-        store.bumpWeek("a"),
-        store.logEvent({ kind: "ticket.updated", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { changes, askedBy: "me" } }),
-      ]);
-      effects.updated.set(t.id, [...(effects.updated.get(t.id) ?? []), ...changes]);
-      return { ok: true, changes, ticket: ticketLine(t) };
+      return { ok: true, changes, ticket: ticketLine(t), ...stage(ctx, t.id, before, t, changes) };
     }
     case "delete_ticket": {
       if (!canDelete(role)) return err("Only org owners can delete tickets. Moving it to Backburner is an alternative.");
-      const t = await findVisible(store, args.id, role);
+      const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
-      await Promise.all([
-        store.deleteTicket(t.id),
-        store.bumpWeek("a"),
-        store.logEvent({ kind: "ticket.deleted", actor: "atlas", chatId: ctx.where, ticketId: t.id, payload: { askedBy: "me" } }),
-      ]);
-      effects.deleted.push(t.id);
-      return { ok: true, deleted: `${t.id} "${t.title}"` };
+      return { ok: true, deleting: `${t.id} "${t.title}"`, ...stage(ctx, t.id, t, null, []) };
     }
     case "search_messages": {
       const terms = (str(args.query) ?? "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
@@ -287,7 +310,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       return { ok: true, results: hits.slice(0, 8).map((h) => h.line) };
     }
     case "ticket_discussion": {
-      const t = await findVisible(store, args.id, role);
+      const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
       const found = await store.messagesMentioning(t.id, 12);
       return { ok: true, ticket: ticketLine(t), messages: found.reverse().map(hitLine) };

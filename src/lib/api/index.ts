@@ -20,10 +20,13 @@ export const createTicket = impl.createTicket;
 export const updateTicket = impl.updateTicket;
 export const deleteTicket = impl.deleteTicket;
 export const resetWorkspace = impl.resetWorkspace;
+export const decideAction = impl.decideAction;
 
 export type {
   AskAtlasInput,
   AskAtlasResult,
+  DecideActionInput,
+  DecideActionResult,
   PostMessageInput,
   TicketPatch,
   UpdateTicketInput,

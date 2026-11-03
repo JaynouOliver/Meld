@@ -5,6 +5,7 @@
  * Signatures are the contract the UI depends on; see ./index.ts.
  */
 import { runAtlas } from "../agent/atlas";
+import { applyOps, permissionProblem, revertOps, UNDO_WINDOW_MS } from "../agent/actions";
 import { CHAT_META, DEFAULT_REPO, PEOPLE } from "../constants";
 import { stamp, uid } from "../format";
 import { canDelete, canSee } from "../rbac";
@@ -225,4 +226,51 @@ export async function deleteTicket(id: string, role: Role): Promise<void> {
 /** Demo: put the workspace back to its seed state. */
 export async function resetWorkspace(): Promise<void> {
   await (await getStore()).reset();
+}
+
+// ---------------------------------------------------------------- Atlas actions
+
+export interface DecideActionInput {
+  id: string;
+  decision: "confirm" | "cancel" | "undo";
+  role: Role;
+}
+
+export interface DecideActionResult {
+  /** Chats whose messages changed (the card's chat, plus channels Atlas posted updates to). */
+  chats: ChatId[];
+  status: "applied" | "canceled" | "undone";
+}
+
+/**
+ * Confirm, cancel or undo an Atlas action from its card. The clicker's role is
+ * re-checked here, and each card can only be decided once.
+ */
+export async function decideAction(input: DecideActionInput): Promise<DecideActionResult> {
+  await wait(80);
+  const store = await getStore();
+  const a = await store.getAction(input.id);
+  if (!a) throw new ApiError("That action no longer exists", 404);
+  if (input.decision !== "cancel") {
+    const problem = permissionProblem(a.ops, input.role);
+    if (problem) throw new ApiError(problem, 403);
+  }
+  const taken = () => new ApiError("Someone already decided this one", 409);
+
+  if (input.decision === "cancel") {
+    if (!(await store.transitionAction(a.id, ["pending"], "canceled"))) throw taken();
+    return { chats: [a.chatId], status: "canceled" };
+  }
+  if (input.decision === "confirm") {
+    const undoUntil = new Date(Date.now() + UNDO_WINDOW_MS).toISOString();
+    if (!(await store.transitionAction(a.id, ["pending"], "applied", { undoUntil }))) throw taken();
+    const posted = await applyOps(store, a.ops, a.chatId);
+    return { chats: [a.chatId, ...posted], status: "applied" };
+  }
+  // undo
+  if (a.status !== "applied") throw taken();
+  if (!a.undoUntil || Date.parse(a.undoUntil) < Date.now()) throw new ApiError("The undo window has passed", 410);
+  if (!(await store.transitionAction(a.id, ["applied"], "undone", { undoUntil: null }))) throw taken();
+  await revertOps(store, a.ops, a.chatId);
+  return { chats: [a.chatId], status: "undone" };
 }

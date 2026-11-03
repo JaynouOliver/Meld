@@ -14,6 +14,7 @@ import { countReplies } from "@/lib/text";
 import type { ChatId, Message, Person } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
+import { ActionCard } from "./action-card";
 import { TicketCard } from "./ticket-card";
 
 export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Message[] | undefined }) {
@@ -82,6 +83,7 @@ function MessageRow({ message: m }: { message: Message }) {
         </div>
         <RichText text={m.text} className="mt-0.5 text-body leading-[1.6]" />
         {m.ticket && <TicketCard id={m.ticket} />}
+        {m.action && <ActionCard action={m.action} />}
         {n > 0 && (
           <button
             type="button"

@@ -18,7 +18,7 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | 9 | **Standups and digests** (daily team digest, weekly sprint summary, release notes) | To do: scheduler |
 | 10 | **Onboarding brief**: "catch Diego up on #platform-eng" | To do |
 | 11 | **Duplicate detection** when creating tickets | To do |
-| 12 | **Confirm cards + undo** for deletes, bulk edits and cross-channel posts | To do |
+| 12 | **Confirm cards + undo** for deletes, bulk edits and cross-channel posts | ✅ Done: changes staged per run; deletes and 3+ ticket edits wait for Confirm; everything else gets 10-min Undo; 21/21 evals |
 | 13 | **Voice notes → tickets** with Muse Voice Transcribe | Idea |
 
 ### Platform work underneath

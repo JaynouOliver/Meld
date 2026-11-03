@@ -1,8 +1,25 @@
+import { toView, type ActionRecord } from "../agent/actions";
 import { appendMessage, bumpWeek, db, resetDb } from "../mock/db";
 import type { ChatId, Message, ReplyNode } from "../types";
 import type { MessageHit, Store } from "./types";
 
 const clone = <T,>(x: T): T => structuredClone(x);
+
+// Actions live beside the in-memory db (reset with it).
+const g = globalThis as typeof globalThis & { __meldActions?: Map<string, ActionRecord> };
+const actions = (g.__meldActions ??= new Map());
+
+/** Attach each message's action view (and drop the internal id) for the client. */
+function withActions(list: Message[]): Message[] {
+  const fix = <T extends { actionId?: string | null; action?: unknown }>(m: T) => {
+    const a = m.actionId ? actions.get(m.actionId) : null;
+    const { actionId: _drop, ...rest } = m;
+    void _drop;
+    return { ...rest, action: a ? toView(a) : null } as T;
+  };
+  const kids = (n: ReplyNode): ReplyNode => ({ ...fix(n), kids: n.kids.map(kids) });
+  return list.map((m) => ({ ...fix(m), replies: m.replies.map(kids) }));
+}
 
 /** Every message in conversation order, flattened, with its thread root. */
 function allMessages(): MessageHit[] {
@@ -44,7 +61,7 @@ export const memoryStore: Store = {
     db.tickets = db.tickets.filter((x) => x.id !== id);
   },
   async listMessages(chatId) {
-    return clone(db.chats[chatId] ?? []);
+    return withActions(clone(db.chats[chatId] ?? []));
   },
   async appendMessage(chatId, msg, threadId, parentId) {
     return clone(appendMessage(chatId, msg, threadId, parentId));
@@ -76,7 +93,22 @@ export const memoryStore: Store = {
   async logEvent() {
     // The in-memory store keeps no event log.
   },
+  async insertAction(a) {
+    actions.set(a.id, clone(a));
+  },
+  async getAction(id) {
+    const a = actions.get(id);
+    return a ? clone(a) : null;
+  },
+  async transitionAction(id, from, to, patch) {
+    const a = actions.get(id);
+    if (!a || !from.includes(a.status)) return false;
+    a.status = to;
+    if (patch && "undoUntil" in patch) a.undoUntil = patch.undoUntil ?? null;
+    return true;
+  },
   async reset() {
     resetDb();
+    actions.clear();
   },
 };

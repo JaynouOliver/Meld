@@ -47,3 +47,4 @@ export const updateTicket: typeof updateTicketRaw = async (...a) => {
 };
 export const deleteTicket = call("deleteTicket");
 export const resetWorkspace = call("resetWorkspace");
+export const decideAction = call("decideAction");

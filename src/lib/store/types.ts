@@ -1,3 +1,4 @@
+import type { ActionRecord } from "../agent/actions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 
 /** A message found by search, with the thread it belongs to (null when top-level). */
@@ -34,6 +35,13 @@ export interface Store {
   week(): Promise<WeekDay[]>;
   bumpWeek(kind: "p" | "a"): Promise<void>;
   logEvent(e: { kind: string; actor: string; chatId?: ChatId | null; ticketId?: string | null; payload?: unknown }): Promise<void>;
+  insertAction(a: ActionRecord): Promise<void>;
+  getAction(id: string): Promise<ActionRecord | null>;
+  /**
+   * Atomically move an action from one of `from` to `to` (e.g. pending -> applied).
+   * Returns false if it was already decided, so two clicks can't both apply it.
+   */
+  transitionAction(id: string, from: ActionRecord["status"][], to: ActionRecord["status"], patch?: { undoUntil?: string | null }): Promise<boolean>;
   /** Back to the seed workspace. */
   reset(): Promise<void>;
 }

@@ -28,6 +28,7 @@ const methods: Record<string, Method> = {
   updateTicket: api.updateTicket,
   deleteTicket: api.deleteTicket,
   resetWorkspace: api.resetWorkspace,
+  decideAction: api.decideAction,
   askAtlas: async (input: api.AskAtlasInput) => {
     if (!llm()) return api.askAtlas(input);
     const { trace, ...result } = await runAtlasAgent(input);
@@ -53,6 +54,8 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
       const b = (result as api.UpdateTicketResult).broadcastChat;
       return { chats: b ? [b] : [], tickets: true };
     }
+    case "decideAction":
+      return { chats: (result as api.DecideActionResult).chats, tickets: true };
     case "resetWorkspace":
       return { chats: ["general", "design", "payments", "platform", "aiko", "ravi", "atlas"], tickets: true };
     default:

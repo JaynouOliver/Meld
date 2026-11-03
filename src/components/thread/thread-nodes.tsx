@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
+import { ActionCard } from "@/components/chat/action-card";
 import { RichText } from "@/components/common/rich-text";
 import { useFlash } from "@/hooks/use-flash";
 import { useSendMessage } from "@/hooks/use-messages";
@@ -53,6 +54,7 @@ function ThreadNode({ chatId, rootId, node, depth }: { chatId: ChatId; rootId: s
               <span className="text-xs text-muted-foreground">{node.time}</span>
             </div>
             <RichText text={node.text} className={cn("mt-0.5 leading-[1.55]", nested ? "text-sm" : "text-body")} />
+            {node.action && <ActionCard action={node.action} />}
             <div className="mt-0.5 flex items-center gap-3.5">
               {node.kids.length > 0 && (
                 <button

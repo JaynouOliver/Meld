@@ -55,12 +55,27 @@ export interface Ticket {
   activity: Activity[];
 }
 
+/** What the chat shows for an Atlas action (confirm card or undo). */
+export interface ActionView {
+  id: string;
+  status: "pending" | "applied" | "canceled" | "undone";
+  /** One line per change, e.g. "Delete NW-126 \u201cDark mode for settings\u201d". */
+  summary: string[];
+  destructive: boolean;
+  /** ISO time until which an applied action can be undone. */
+  undoUntil: string | null;
+}
+
 export interface ReplyNode {
   id: string;
   who: PersonId;
   time: string;
   text: string;
   ticket?: string | null;
+  /** Internal link to an agent action (stores only). */
+  actionId?: string | null;
+  /** Filled in when listing messages. */
+  action?: ActionView | null;
   kids: ReplyNode[];
 }
 
@@ -71,6 +86,10 @@ export interface Message {
   text: string;
   /** Ticket card attached to the message (Atlas confirmations). */
   ticket?: string | null;
+  /** Internal link to an agent action (stores only). */
+  actionId?: string | null;
+  /** Filled in when listing messages. */
+  action?: ActionView | null;
   replies: ReplyNode[];
 }
 
