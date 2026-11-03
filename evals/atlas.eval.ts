@@ -186,6 +186,33 @@ const cases: Case[] = [
     },
   },
   {
+    name: "thread->tickets: one ticket per commitment, each owner assigned",
+    where: "platform",
+    threadId: "lt1",
+    setup: () => {
+      const t = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+      db.chats.platform.push({
+        id: "lt1", who: "diego", time: t(60), text: "Launch checklist for the self-serve plan on Monday. Who's taking what?",
+        replies: [
+          { id: "lt2", who: "lena", time: t(55), text: "I'll set up the Stripe price IDs for the new plan." },
+          { id: "lt3", who: "ravi", time: t(50), text: "I can add the upgrade button on the billing page." },
+          { id: "lt4", who: "aiko", time: t(45), text: "I'll do the pricing page copy and the plan comparison table." },
+          { id: "lt5", who: "diego", time: t(40), text: "And I'll add monitoring for failed upgrades. Let's go." },
+        ],
+      });
+    },
+    text: "@Atlas create tickets from this thread",
+    check: async ({ before, trace }) => {
+      // Four new tickets: held for confirmation (2+ creates), so confirm first.
+      if (trace.action?.status === "pending") await decideAction({ id: trace.action.id, decision: "confirm", role: "owner" });
+      const made = newTickets(before);
+      const owners = new Set(made.map((t) => t.assignee));
+      for (const who of ["lena", "ravi", "aiko", "diego"]) if (!owners.has(who)) return `no ticket for ${who} (made: ${made.map((t) => `${t.assignee}:${t.title}`).join("; ")})`;
+      if (made.length > 5) return `too many tickets (${made.length})`;
+      return true;
+    },
+  },
+  {
     name: "duplicates: refuses to re-file an existing ticket",
     where: "design",
     text: "@Atlas create a ticket for the two-step invite prompt in onboarding",

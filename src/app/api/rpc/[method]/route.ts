@@ -6,6 +6,7 @@ import * as api from "@/lib/api/service";
 import { atlasDmOf } from "@/lib/directory";
 import { mentionsAgent } from "@/lib/text";
 import type { ChatId, Role } from "@/lib/types";
+import { progressOf } from "@/server/atlas/progress";
 import { enqueueAtlas, processRun, sweepRuns } from "@/server/atlas/queue";
 import { runAtlasAgent } from "@/server/atlas/run";
 import { getSessionUser } from "@/server/auth";
@@ -43,7 +44,8 @@ const methods: Record<string, Method> = {
     return { ...saved, runId: run.id };
   },
   getAgentRuns: async () => {
-    const runs = await api.getAgentRuns();
+    // Live step / draft from this process, for browsers without realtime.
+    const runs = (await api.getAgentRuns()).map((r) => ({ ...r, ...(progressOf(r.id) ?? {}) }));
     // Self-healing: if a run was missed or its worker died, polling browsers restart it.
     if (runs.some((r) => r.status === "queued" || r.status === "running")) after(() => sweepRuns());
     return runs;

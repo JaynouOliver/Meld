@@ -15,14 +15,13 @@ import { countReplies } from "@/lib/text";
 import type { ChatId, Message, Person } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
-import { useAtlasWorking } from "@/hooks/use-agent-runs";
+import { AtlasLive } from "./atlas-live";
 import { ActionCard } from "./action-card";
 import { TicketCard } from "./ticket-card";
 
 export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Message[] | undefined }) {
   const typing = useUiStore((s) => s.typing);
-  const atlasWorking = useAtlasWorking(chatId, null);
-  const typingLabel = typing && typing.chat === chatId && !typing.thread ? typing.label : atlasWorking ? "Atlas is working…" : null;
+  const typingLabel = typing && typing.chat === chatId && !typing.thread ? typing.label : null;
   const { scrollRef, contentRef, pin } = useStickToBottom(chatId);
   // Sending always jumps to your own new message, even if you'd scrolled up.
   const sentTick = useUiStore((s) => s.sentTick);
@@ -40,6 +39,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
       </div>
       {!messages && <MessageSkeleton />}
       {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
+      <AtlasLive chatId={chatId} threadId={null} className="px-3 sm:px-5" />
       {typingLabel && <div className="pt-1.5 pr-3 pl-[60px] text-meta sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typingLabel}</div>}
       </div>
     </div>

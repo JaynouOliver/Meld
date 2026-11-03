@@ -5,12 +5,13 @@ import type OpenAI from "openai";
 import { currentDir } from "@/lib/context";
 import { ATLAS_ID, personOf } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
-import { applyOps, needsConfirmation, summarize as summarizeOps, UNDO_WINDOW_MS, type ActionRecord, type TicketOp } from "@/lib/agent/actions";
+import { applyOps, needsConfirmation, toView, summarize as summarizeOps, UNDO_WINDOW_MS, type ActionRecord, type TicketOp } from "@/lib/agent/actions";
 import { getStore, type Store } from "@/lib/store";
 import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
-import type { ChatId } from "@/lib/types";
+import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
 import { buildContext, SYSTEM_PROMPT, workspaceBlock } from "./prompt";
+import { stepLabel, type Progress } from "./progress";
 import { planToOps, runTool, toolsFor, type Effects } from "./tools";
 
 const MAX_STEPS = 8;
@@ -36,7 +37,9 @@ export interface AtlasTrace {
  * Atlas on Meta's Model API: assemble context, run the tool loop, post the reply,
  * and announce ticket changes in the channels that follow those tickets.
  */
-export async function runAtlasAgent(input: AskAtlasInput & { replyId?: string }): Promise<AskAtlasResult & { trace: AtlasTrace }> {
+export async function runAtlasAgent(
+  input: AskAtlasInput & { replyId?: string; progress?: Progress },
+): Promise<AskAtlasResult & { trace: AtlasTrace; replyMessage?: Message | ReplyNode }> {
   const client = llm();
   if (!client) throw new Error("MODEL_API_KEY is not set");
   const started = Date.now();
@@ -61,38 +64,63 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
   ];
 
   const tools = toolsFor(currentDir());
+  const progress = input.progress;
+  progress?.step(input.threadId ? "Reading the thread" : "Reading the conversation");
   let reply = "";
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       trace.steps = step + 1;
-      const res = await client.chat.completions.create({
+      // Streamed, so the reply appears as it's written (tool calls arrive in pieces too).
+      const stream = await client.chat.completions.create({
         model: ATLAS_MODEL,
         reasoning_effort: ATLAS_EFFORT,
         messages,
         tools,
+        stream: true,
+        stream_options: { include_usage: true },
         // Same prefix (system prompt + tools) for every Atlas call: route to a warm cache.
         prompt_cache_key: `meld-atlas-v2-${currentDir().workspace.id}`,
       });
-      const u = res.usage;
-      trace.usage.prompt += u?.prompt_tokens ?? 0;
-      trace.usage.cached += u?.prompt_tokens_details?.cached_tokens ?? 0;
-      trace.usage.completion += u?.completion_tokens ?? 0;
-      trace.usage.reasoning += u?.completion_tokens_details?.reasoning_tokens ?? 0;
+      let content = "";
+      const parts: { id: string; name: string; args: string }[] = [];
+      for await (const chunk of stream) {
+        const d = chunk.choices[0]?.delta;
+        if (d?.content) {
+          content += d.content;
+          if (!parts.length) progress?.draft(content);
+        }
+        for (const tc of d?.tool_calls ?? []) {
+          const p = (parts[tc.index] ??= { id: "", name: "", args: "" });
+          if (tc.id) p.id = tc.id;
+          if (tc.function?.name) p.name += tc.function.name;
+          if (tc.function?.arguments) p.args += tc.function.arguments;
+        }
+        const u = chunk.usage;
+        if (u) {
+          trace.usage.prompt += u.prompt_tokens ?? 0;
+          trace.usage.cached += u.prompt_tokens_details?.cached_tokens ?? 0;
+          trace.usage.completion += u.completion_tokens ?? 0;
+          trace.usage.reasoning += u.completion_tokens_details?.reasoning_tokens ?? 0;
+        }
+      }
 
-      const msg = res.choices[0]?.message;
-      if (!msg) throw new Error("Empty response from the model");
-      const calls = (msg.tool_calls ?? []).filter((c) => c.type === "function");
+      const calls: OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall[] = parts
+        .filter((p) => p.name)
+        .map((p, i) => ({ id: p.id || `call_${step}_${i}`, type: "function", function: { name: p.name, arguments: p.args } }));
       if (!calls.length) {
-        reply = (msg.content ?? "").trim();
+        reply = content.trim();
         break;
       }
-      messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: calls });
+      // Text before the tool calls is Atlas saying what it's about to do: keep it on screen.
+      if (content.trim()) progress?.note(content);
+      messages.push({ role: "assistant", content: content || null, tool_calls: calls });
       // Parallel tool calls: run all of them, return all results.
       for (const call of calls) {
         let args: Record<string, unknown> = {};
         let result: unknown;
         try {
           args = JSON.parse(call.function.arguments || "{}");
+          progress?.step(stepLabel(call.function.name, args));
           result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store });
         } catch (e) {
           result = { ok: false, error: `Invalid arguments: ${(e as Error).message}` };
@@ -100,6 +128,7 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
         trace.tools.push({ name: call.function.name, args, result });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
       }
+      progress?.step("Putting it together");
     }
     if (!reply) reply = summarize(planToOps(effects.plan)) || "I couldn't finish that. Could you rephrase or break it into smaller steps?";
   } catch (e) {
@@ -135,7 +164,11 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
   const created = ops.flatMap((o) => (o.type === "create" ? [o.after.id] : []));
   const updated = ops.flatMap((o) => (o.type === "update" ? [o.after.id] : []));
   const card = hold ? null : single(created) ?? (created.length ? null : single(updated) ?? single([...new Set(effects.read)]));
-  await store.appendMessage(where, { id: messageId, who: ATLAS_ID, time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null }, input.threadId);
+  const replyMessage = await store.appendMessage(
+    where,
+    { id: messageId, who: ATLAS_ID, time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null },
+    input.threadId,
+  );
 
   trace.reply = reply;
   trace.ms = Date.now() - started;
@@ -149,6 +182,8 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
     openTicket: !hold && !input.threadId ? single(created) : null,
     deleted: hold ? [] : ops.flatMap((o) => (o.type === "delete" ? [o.before.id] : [])),
     trace,
+    // With its action card, as the chat shows it (for the realtime payload).
+    replyMessage: action ? { ...replyMessage, actionId: undefined, action: toView(action) } : replyMessage,
   };
 }
 

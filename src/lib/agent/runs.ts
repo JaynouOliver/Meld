@@ -44,6 +44,11 @@ export interface RunView {
   threadId: string | null;
   status: RunStatus;
   result: RunResult | null;
+  /** While running: what Atlas is doing ("Checking NW-130") and the reply so far. */
+  step?: string | null;
+  draft?: string | null;
+  /** Atlas's "here's what I'll do" line, shown while it works. */
+  note?: string | null;
 }
 
 /** A run still "running" after this long is assumed dead (function killed) and may be retried. */

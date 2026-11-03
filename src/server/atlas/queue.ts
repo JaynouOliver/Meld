@@ -9,6 +9,7 @@ import type { AskAtlasInput } from "@/lib/api/service";
 import { runInCtx } from "../context";
 import { pingChanges } from "../realtime";
 import { contextAs } from "../workspace";
+import { reporter } from "./progress";
 import { runAtlasAgent } from "./run";
 
 /**
@@ -40,7 +41,8 @@ export async function processRun(id: string): Promise<void> {
 
 async function execute(run: AgentRun, workspaceId: string) {
   const store = await getStore();
-  const ping = (p: { chats: string[]; tickets: boolean }) => pingChanges({ ...p, runs: true, origin: null, workspaceId });
+  const ping = (p: { chats: string[]; tickets: boolean; message?: { chatId: string; threadId: string | null; message: unknown } }) =>
+    pingChanges({ ...p, runs: true, origin: null, workspaceId });
   await ping({ chats: [], tickets: false });
   const replyId = replyIdFor(run.id);
 
@@ -51,12 +53,17 @@ async function execute(run: AgentRun, workspaceId: string) {
     return;
   }
 
+  const progress = reporter(workspaceId, run);
   try {
-    const { trace, ...result } = await runAtlasAgent({
-      chatId: run.chatId, text: run.text, threadId: run.threadId, role: run.role, replyId,
+    const { trace, replyMessage, ...result } = await runAtlasAgent({
+      chatId: run.chatId, text: run.text, threadId: run.threadId, role: run.role, replyId, progress,
     });
     await store.finishRun(run.id, { status: "done", result, trace, error: trace.error ?? null });
-    await ping({ chats: result.touchedChats, tickets: true });
+    // The reply rides along, so the chat shows it without refetching.
+    await ping({
+      chats: result.touchedChats, tickets: true,
+      message: replyMessage ? { chatId: run.chatId, threadId: run.threadId, message: replyMessage } : undefined,
+    });
   } catch (e) {
     const error = (e as Error).message;
     console.error(`[atlas] run ${run.id} failed:`, e);
@@ -66,6 +73,8 @@ async function execute(run: AgentRun, workspaceId: string) {
       .catch(() => {});
     await store.finishRun(run.id, { status: "failed", error, result: { touchedChats: [run.chatId], openTicket: null, deleted: [] } });
     await ping({ chats: [run.chatId], tickets: false });
+  } finally {
+    progress.done();
   }
 }
 

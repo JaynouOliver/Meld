@@ -319,3 +319,20 @@
     touch-action: manipulation;
   }
 }
+
+/* Atlas working: a soft sweep across "On it" (the live answer bubble). */
+@keyframes atlas-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.atlas-shimmer {
+  background: linear-gradient(90deg, var(--muted-foreground) 25%, var(--atlas) 50%, var(--muted-foreground) 75%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: atlas-shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-shimmer { animation: none; color: var(--atlas); }
+}

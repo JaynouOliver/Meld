@@ -8,6 +8,7 @@ import { CLIENT_ID } from "@/lib/api/remote";
 import { displayTime } from "@/lib/format";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { insertMessage } from "./use-messages";
+import { setRunProgress } from "./use-run-progress";
 import { useUiStore } from "@/stores/ui-store";
 import { useActiveChat } from "./use-active-chat";
 import { useDirectory } from "./use-directory";
@@ -33,6 +34,11 @@ export function useRealtimeSync() {
     const sb = createClient(URL, KEY, { auth: { persistSession: false } });
     const channel = sb
       .channel(topic(workspaceId))
+      // Atlas's live progress: current step and the reply as it streams.
+      .on("broadcast", { event: "run" }, ({ payload }) => {
+        const p = payload as { runId: string; step: string | null; draft: string | null; note: string | null };
+        setRunProgress(p.runId, { step: p.step, draft: p.draft, note: p.note });
+      })
       .on("broadcast", { event: "changed" }, ({ payload }) => {
         const ping = payload as {
           chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; origin: string | null;

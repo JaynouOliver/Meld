@@ -13,7 +13,7 @@ import { personOf } from "@/lib/directory";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
-import { useAtlasWorking } from "@/hooks/use-agent-runs";
+import { AtlasLive } from "@/components/chat/atlas-live";
 import { ThreadNodes } from "./thread-nodes";
 
 export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message }) {
@@ -27,8 +27,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
   const meta = dir.chats[chatId];
   const p = personOf(dir, root.who);
   const n = countReplies(root.replies);
-  const atlasWorking = useAtlasWorking(chatId, root.id);
-  const typingLabel = typing && typing.thread === root.id ? typing.label : atlasWorking ? "Atlas is working…" : null;
+  const typingLabel = typing && typing.thread === root.id ? typing.label : null;
 
   const submit = () => {
     const text = draft.trim();
@@ -67,6 +66,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
           <span className="h-px flex-1 bg-border" />
         </div>
         <ThreadNodes nodes={root.replies} />
+        <AtlasLive chatId={chatId} threadId={root.id} className="px-4 sm:px-5" />
         {typingLabel && <div className="px-5 pt-1.5 pl-[68px] text-meta text-muted-foreground italic">{typingLabel}</div>}
         </div>
       </div>

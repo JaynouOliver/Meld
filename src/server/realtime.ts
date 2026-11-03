@@ -21,6 +21,31 @@ export interface ChangePing {
   origin: string | null;
 }
 
+/** Live progress of an Atlas run (step label, reply so far). Best-effort, no data stored. */
+export interface RunProgress {
+  runId: string;
+  chatId: ChatId;
+  threadId: string | null;
+  step: string | null;
+  draft: string | null;
+  note: string | null;
+}
+
+export async function broadcastRun(workspaceId: string, p: RunProgress) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  try {
+    await fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ messages: [{ topic: realtimeTopic(workspaceId), event: "run", payload: p }] }),
+    });
+  } catch {
+    // Progress is cosmetic; the final reply still arrives.
+  }
+}
+
 /**
  * Tell every open browser what changed, via Supabase Realtime broadcast. The ping
  * carries no data: browsers refetch through the API, which applies roles.
