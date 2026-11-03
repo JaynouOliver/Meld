@@ -9,6 +9,7 @@ import { TicketPanel } from "@/components/ticket-panel/ticket-panel";
 import { Button } from "@/components/ui/button";
 import { useAgentRunsSync } from "@/hooks/use-agent-runs";
 import { useDirectoryQuery } from "@/hooks/use-directory";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useSheetHistory } from "@/hooks/use-sheet-history";
 import { Sidebar } from "./sidebar";
@@ -20,7 +21,13 @@ import { TabBar } from "./tab-bar";
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { data, isPending, isError, refetch, isRefetching } = useDirectoryQuery();
+  const q = useDirectoryQuery();
+  // The directory can come from the browser's saved cache before hydration finishes;
+  // match the server's HTML (loading) until then, see use-hydrated.ts.
+  const hydrated = useHydrated();
+  const data = hydrated ? q.data : undefined;
+  const isPending = !hydrated || q.isPending;
+  const { isError, refetch, isRefetching } = q;
   const noWorkspace = data === null;
   useEffect(() => {
     if (noWorkspace) router.replace("/onboarding");

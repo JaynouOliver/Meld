@@ -38,12 +38,28 @@ async function activeMembership(user: SessionUser) {
   return { ...current, all };
 }
 
+/**
+ * Directories are rebuilt from the registry (3-4 queries), so each server instance keeps
+ * them for a few seconds per person. Changes made here clear it at once; other instances
+ * catch up within DIR_TTL_MS (and a chat it doesn't know yet forces a rebuild).
+ */
+const DIR_TTL_MS = 5_000;
+const dirCache = new Map<string, { at: number; ctx: RequestCtx | null }>();
+export function forgetDirectories() {
+  dirCache.clear();
+}
+
 /** Request context for this person's active workspace, or null if they have none yet. */
-export async function contextFor(user: SessionUser): Promise<RequestCtx | null> {
+export async function contextFor(user: SessionUser, opts: { fresh?: boolean } = {}): Promise<RequestCtx | null> {
+  const wanted = (await cookies()).get(ACTIVE_WS_COOKIE)?.value ?? "";
+  const key = `${user.id}|${wanted}`;
+  const hit = dirCache.get(key);
+  if (!opts.fresh && hit && Date.now() - hit.at < DIR_TTL_MS) return hit.ctx;
   const m = await activeMembership(user);
-  if (!m) return null;
-  const dir = await buildDirectory(user.id, m.workspace, m.role, m.all);
-  return { dir, store: await storeFor(m.workspace) };
+  const ctx = m ? { dir: await buildDirectory(user.id, m.workspace, m.role, m.all), store: await storeFor(m.workspace) } : null;
+  dirCache.set(key, { at: Date.now(), ctx });
+  if (dirCache.size > 500) dirCache.delete(dirCache.keys().next().value!);
+  return ctx;
 }
 
 /** Context for background work (an Atlas run) on behalf of a member. */

@@ -3,6 +3,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { clearLocalCache } from "../cache";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./shared";
 
 let client: SupabaseClient | null = null;
@@ -22,6 +23,7 @@ export async function signInWith(provider: OAuthProvider, next: string) {
 }
 
 export async function signOut() {
+  clearLocalCache();
   await supabaseBrowser().auth.signOut().catch(() => {});
   await fetch("/auth/signout", { method: "POST" });
   // Full page load on purpose: drops every cached query from the old session.

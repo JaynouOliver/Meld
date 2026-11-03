@@ -58,6 +58,17 @@ export const getAgentRuns = call("getAgentRuns");
 export const getDirectory = call("getDirectory");
 export const markRead = call("markRead");
 
+/** Everything the app needs to start, in one round trip (directory, tickets, week, every chat's messages). */
+export async function getBoot() {
+  const r = await rpc<Awaited<ReturnType<typeof Local.getBoot>>>("getBoot", []);
+  if (!r.directory) return r;
+  return {
+    ...r,
+    tickets: r.tickets?.map(localTicket),
+    messages: r.messages && Object.fromEntries(Object.entries(r.messages).map(([c, list]) => [c, list.map(localMessage)])),
+  };
+}
+
 // Accounts and workspaces (server only; see src/server/workspace.ts).
 type Invite = { token: string; role: import("../types").Role; expiresAt: string };
 export const createWorkspace = (input: { name: string; ticketPrefix?: string; teams?: string[] }) =>

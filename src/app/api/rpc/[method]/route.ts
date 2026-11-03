@@ -76,13 +76,32 @@ const methods: Record<string, Method> = {
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
 const accountMethods: Record<string, (user: SessionUser, ...args: never[]) => Promise<unknown>> = {
   getDirectory: async (user) => {
-    const ctx = await ws.contextFor(user);
+    const ctx = await ws.contextFor(user, { fresh: true });
     if (!ctx) {
       // First visit: make sure the profile exists for when they create or join one.
       await (await ws.registry()).upsertProfile({ id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl });
       return null;
     }
     return ctx.dir;
+  },
+  // Everything the app needs to start, in one round trip (like Slack's boot payload):
+  // the directory, tickets, this week's activity and every chat's messages.
+  getBoot: async (user) => {
+    const ctx = await ws.contextFor(user, { fresh: true });
+    if (!ctx) {
+      await (await ws.registry()).upsertProfile({ id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl });
+      return { directory: null };
+    }
+    return runInCtx(ctx, async () => {
+      const chats = [...ctx.dir.channels, ...ctx.dir.dms].slice(0, 30);
+      const [tickets, week, lists] = await Promise.all([
+        api.getTickets(),
+        api.getWeekActivity(),
+        Promise.all(chats.map((c) => api.getMessages(c).catch(() => null))),
+      ]);
+      const messages = Object.fromEntries(chats.map((c, i) => [c, lists[i]]).filter(([, l]) => l));
+      return { directory: ctx.dir, tickets, week, messages };
+    });
   },
   createWorkspace: async (user, input: ws.CreateWorkspaceInput) => ws.createWorkspace(user, input),
   switchWorkspace: async (user, id: string) => ws.switchWorkspace(user, id),
@@ -143,29 +162,54 @@ export async function POST(req: Request, { params }: { params: Promise<{ method:
 
   if (accountFn) {
     try {
-      return Response.json({ result: (await accountFn(user, ...(args as never[]))) ?? null });
+      const result = await accountFn(user, ...(args as never[]));
+      // Joining, creating or switching workspaces changes what this person's directory holds.
+      if (!["getDirectory", "getBoot", "suggestPrefix"].includes(method)) ws.forgetDirectories();
+      // Someone joined: everyone already in the workspace refreshes their member list.
+      if (method === "acceptInvite") {
+        const { workspaceId } = result as { workspaceId: string };
+        after(() => pingChanges({ chats: [], tickets: false, directory: true, origin: null, workspaceId }));
+      }
+      return Response.json({ result: result ?? null });
     } catch (e) {
       return errorResponse(method, e);
     }
   }
 
-  let ctx: RequestCtx | null;
-  try {
-    ctx = await ws.contextFor(user);
-  } catch (e) {
-    return errorResponse(method, e);
-  }
-  if (!ctx) return Response.json({ error: "Create or join a workspace first" }, { status: 409 });
   const origin = req.headers.get("x-meld-client");
-  return runInCtx(ctx, async () => {
+  const STALE = Symbol("stale directory");
+  const attempt = async (fresh: boolean): Promise<Response | typeof STALE> => {
+    let ctx: RequestCtx | null;
     try {
-      const result = await fn(...(args as never[]));
-      const changed = changes(method, args, result);
-      // Tell the workspace's other browsers after the response is sent.
-      after(() => pingChanges({ ...changed, origin, workspaceId: ctx.dir.workspace.id }));
-      return Response.json({ result: result ?? null });
+      ctx = await ws.contextFor(user, { fresh });
     } catch (e) {
       return errorResponse(method, e);
     }
-  });
+    if (!ctx) return Response.json({ error: "Create or join a workspace first" }, { status: 409 });
+    return runInCtx(ctx, async () => {
+      try {
+        const result = await fn(...(args as never[]));
+        const changed = changes(method, args, result);
+        if (changed.directory) ws.forgetDirectories();
+        // Tell the workspace's other browsers after the response is sent.
+        after(() => pingChanges({ ...changed, origin, workspaceId: ctx.dir.workspace.id, ...livePayload(method, args, result) }));
+        return Response.json({ result: result ?? null });
+      } catch (e) {
+        // A chat created moments ago on another server instance: rebuild and try once more.
+        if (!fresh && e instanceof api.ApiError && e.status === 404) return STALE;
+        return errorResponse(method, e);
+      }
+    });
+  };
+  const res = await attempt(false);
+  return res === STALE ? ((await attempt(true)) as Response) : res;
+}
+
+/** New messages ride along with the realtime ping, so other browsers add them without a refetch. */
+function livePayload(method: string, args: unknown[], result: unknown) {
+  if (method !== "postMessage") return {};
+  const input = args[0] as api.PostMessageInput;
+  const { runId: _r, ...message } = result as api.PostedMessage;
+  void _r;
+  return { message: { chatId: input.chatId, threadId: input.threadId ?? null, message } };
 }

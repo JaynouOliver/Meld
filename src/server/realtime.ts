@@ -15,6 +15,8 @@ export interface ChangePing {
   /** Members, channels or workspace settings changed: refetch the directory. */
   directory?: boolean;
   workspaceId: string;
+  /** A new message, so browsers can show it without refetching the chat. */
+  message?: { chatId: ChatId; threadId: string | null; message: unknown };
   /** Browser tab that caused the change, so it can ignore its own ping. */
   origin: string | null;
 }

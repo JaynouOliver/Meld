@@ -32,6 +32,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (dev) return dev;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const sb = await supabaseServer();
-  const { data } = await sb.auth.getUser();
-  return data.user ? toSessionUser(data.user) : null;
+  // getClaims verifies the session JWT locally (signing keys are cached), so most
+  // requests skip a round trip to the Auth server; it falls back to getUser if needed.
+  const { data } = await sb.auth.getClaims();
+  const c = data?.claims;
+  if (!c?.sub) return null;
+  return toSessionUser({ id: c.sub, email: (c.email as string | undefined) ?? null, user_metadata: (c.user_metadata as Record<string, unknown>) ?? {} });
 }

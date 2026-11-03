@@ -24,6 +24,7 @@ export const decideAction = impl.decideAction;
 export const getAgentRuns = impl.getAgentRuns;
 export const getDirectory = impl.getDirectory;
 export const markRead = impl.markRead;
+export const getBoot = impl.getBoot;
 
 export type {
   AskAtlasInput,

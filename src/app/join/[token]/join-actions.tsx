@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { acceptInvite } from "@/lib/api/remote";
+import { clearLocalCache } from "@/lib/cache";
 import { signOut } from "@/lib/auth/browser";
 
 export function JoinActions(props: { token: string; signedInAs: string | null; alreadyMember: boolean; workspaceName: string }) {
@@ -25,6 +26,7 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
   const join = () =>
     run("join", async () => {
       await acceptInvite(props.token);
+      clearLocalCache();
       // Full load: the app starts fresh in the new workspace.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/app");

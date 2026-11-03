@@ -5,7 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { CLIENT_ID } from "@/lib/api/remote";
-import type { ChatId } from "@/lib/types";
+import { displayTime } from "@/lib/format";
+import type { ChatId, Message, ReplyNode } from "@/lib/types";
+import { insertMessage } from "./use-messages";
 import { useUiStore } from "@/stores/ui-store";
 import { useActiveChat } from "./use-active-chat";
 import { useDirectory } from "./use-directory";
@@ -18,7 +20,8 @@ const topic = (workspaceId: string) => `meld-ws-${workspaceId}`;
 
 /**
  * Live updates between teammates: the server broadcasts "what changed" pings over
- * Supabase Realtime, and this refetches those chats/tickets. Pings carry no data.
+ * Supabase Realtime. New messages come with the ping and are added straight to the
+ * cache; anything else is refetched.
  */
 export function useRealtimeSync() {
   const qc = useQueryClient();
@@ -31,14 +34,26 @@ export function useRealtimeSync() {
     const channel = sb
       .channel(topic(workspaceId))
       .on("broadcast", { event: "changed" }, ({ payload }) => {
-        const ping = payload as { chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; origin: string | null };
+        const ping = payload as {
+          chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; origin: string | null;
+          message?: { chatId: ChatId; threadId: string | null; message: Message | ReplyNode };
+        };
         // Someone's Atlas run was queued, started or finished.
         if (ping.runs) qc.invalidateQueries({ queryKey: queryKeys.agentRuns });
         // Members, channels or workspace settings changed (by anyone, this tab included).
         if (ping.directory) qc.invalidateQueries({ queryKey: queryKeys.directory });
         if (ping.origin === CLIENT_ID) return; // our own change: mutations already handled it
+        // A new message rides along with the ping: add it directly, no refetch.
+        const live = ping.message;
+        if (live) {
+          const key = queryKeys.messages(live.chatId);
+          const node = { ...live.message, time: displayTime(live.message.time) };
+          if (qc.getQueryData(key)) {
+            qc.setQueryData<Message[]>(key, (old) => (has(old, node.id) ? old : insertMessage(old ?? [], node, live.threadId)));
+          }
+        }
         for (const chat of ping.chats) {
-          qc.invalidateQueries({ queryKey: queryKeys.messages(chat) });
+          if (!live || live.chatId !== chat) qc.invalidateQueries({ queryKey: queryKeys.messages(chat) });
           if (chat !== useUiStore.getState().activeChatForUnread) useUiStore.getState().bumpUnread(chat);
         }
         if (ping.tickets) {
@@ -57,3 +72,5 @@ export function useRealtimeSync() {
     useUiStore.setState({ activeChatForUnread: active });
   }, [active]);
 }
+
+const has = (list: Message[] | undefined, id: string) => !!list?.some((m) => m.id === id || m.replies.some((r) => r.id === id));

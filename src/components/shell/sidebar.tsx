@@ -21,6 +21,7 @@ import { useActiveChat } from "@/hooks/use-active-chat";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { switchWorkspace } from "@/lib/api/remote";
+import { clearLocalCache } from "@/lib/cache";
 import { signOut } from "@/lib/auth/browser";
 import { CreateChannelDialog, NewMessageDialog } from "@/components/workspace/channel-dialogs";
 import { PeopleDialog } from "@/components/workspace/people-dialog";
@@ -119,6 +120,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const openWorkspace = async (id: string) => {
     if (id === dir.workspace.id) return;
     await switchWorkspace(id);
+    clearLocalCache();
     // Full load: every cached query belongs to the old workspace.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/app");

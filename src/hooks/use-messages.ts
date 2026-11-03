@@ -93,7 +93,7 @@ export function useSendMessage() {
 type Draft = { id: string; who: Message["who"]; time: string; text: string; ticket?: string | null };
 
 /** Add a message to the cached list: top-level, or as a reply at the end of its thread. */
-function insertMessage(list: Message[], node: Draft, threadId?: string | null): Message[] {
+export function insertMessage(list: Message[], node: Draft, threadId?: string | null): Message[] {
   if (!threadId) return [...list, { ...node, replies: [] }];
   return list.map((m) => (m.id === threadId ? { ...m, replies: [...m.replies, node] } : m));
 }

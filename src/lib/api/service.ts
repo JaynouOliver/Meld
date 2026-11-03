@@ -48,6 +48,19 @@ export async function getDirectory(): Promise<Directory | null> {
   return currentDir();
 }
 
+/** The app's startup data in one call. The server has its own version in the RPC route. */
+export async function getBoot(): Promise<{
+  directory: Directory | null;
+  tickets?: Ticket[];
+  week?: WeekDay[];
+  messages?: Record<ChatId, Message[]>;
+}> {
+  const directory = currentDir();
+  const chats = [...directory.channels, ...directory.dms];
+  const lists = await Promise.all(chats.map((c) => getMessages(c)));
+  return { directory, tickets: await getTickets(), week: await getWeekActivity(), messages: Object.fromEntries(chats.map((c, i) => [c, lists[i]])) };
+}
+
 // ---------------------------------------------------------------- reads
 
 export async function getMessages(chatId: ChatId): Promise<Message[]> {
