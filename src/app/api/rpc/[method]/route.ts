@@ -66,6 +66,10 @@ const methods: Record<string, Method> = {
   updateMember: async (input: Parameters<typeof ws.updateMember>[1]) => ws.updateMember(currentCtx(), input),
   removeMember: async (userId: string) => ws.removeMember(currentCtx(), userId),
   updateWorkspace: async (input: Parameters<typeof ws.updateWorkspaceSettings>[1]) => ws.updateWorkspaceSettings(currentCtx(), input),
+  createChannel: async (input: Parameters<typeof ws.createChannel>[1]) => ws.createChannel(currentCtx(), input),
+  updateChannel: async (input: Parameters<typeof ws.updateChannel>[1]) => ws.updateChannel(currentCtx(), input),
+  deleteChannel: async (id: string) => ws.deleteChannel(currentCtx(), id),
+  openDm: async (userId: string) => ws.openDm(currentCtx(), userId),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
@@ -109,6 +113,10 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
     case "updateMember":
     case "removeMember":
     case "updateWorkspace":
+    case "createChannel":
+    case "updateChannel":
+    case "deleteChannel":
+    case "openDm":
       return { chats: [], tickets: false, directory: true };
     default:
       return { chats: [], tickets: false };

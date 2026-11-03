@@ -100,7 +100,7 @@ export interface Message {
 }
 
 export type ChatMeta =
-  | { id: ChannelId; kind: "channel"; label: string; topic: string; team: TeamId | null; members: PersonId[] }
+  | { id: ChannelId; kind: "channel"; label: string; topic: string; team: TeamId | null; members: PersonId[]; createdBy?: PersonId | null }
   | { id: DmId; kind: "dm"; who: PersonId; topic: string };
 
 export interface WeekDay {

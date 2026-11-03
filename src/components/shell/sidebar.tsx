@@ -22,6 +22,7 @@ import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { switchWorkspace } from "@/lib/api/remote";
 import { signOut } from "@/lib/auth/browser";
+import { CreateChannelDialog, NewMessageDialog } from "@/components/workspace/channel-dialogs";
 import { PeopleDialog } from "@/components/workspace/people-dialog";
 import { ACCENTS } from "@/lib/constants";
 import { personOf } from "@/lib/directory";
@@ -34,10 +35,15 @@ import { type ThemePref, useUiStore } from "@/stores/ui-store";
 const THEME_ICON = { system: MonitorIcon, light: SunIcon, dark: MoonIcon } as const;
 const ROLES: Role[] = ["owner", "member", "guest"];
 
-function SectionLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
+function SectionLabel({ children, first, onAdd, addLabel }: { children: React.ReactNode; first?: boolean; onAdd?: () => void; addLabel?: string }) {
   return (
-    <div className={cn("px-2.5 pb-1.5 text-xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase", first ? "pt-3" : "pt-[18px]")}>
+    <div className={cn("flex items-center justify-between px-2.5 pb-1.5 text-xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase", first ? "pt-3" : "pt-[18px]")}>
       {children}
+      {onAdd && (
+        <button type="button" aria-label={addLabel} title={addLabel} onClick={onAdd} className="-my-1 flex size-6 cursor-pointer items-center justify-center rounded-md hover:bg-sidebar-hover hover:text-white">
+          <PlusIcon className="size-3.5" strokeWidth={2.4} />
+        </button>
+      )}
     </div>
   );
 }
@@ -106,6 +112,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const me = personOf(dir, dir.me);
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [dmOpen, setDmOpen] = useState(false);
   const openWorkspace = async (id: string) => {
     if (id === dir.workspace.id) return;
     await switchWorkspace(id);
@@ -119,6 +127,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Workspace" className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       <PeopleDialog open={peopleOpen} onOpenChange={setPeopleOpen} />
+      <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <NewMessageDialog open={dmOpen} onOpenChange={setDmOpen} />
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -179,6 +189,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           aria-label="New message"
+          onClick={() => setDmOpen(true)}
           className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-sidebar-foreground hover:bg-sidebar-hover"
         >
           <SquarePenIcon className="size-[18px]" />
@@ -186,7 +197,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
-        <SectionLabel first>Channels</SectionLabel>
+        <SectionLabel first onAdd={dir.role !== "guest" ? () => setCreateOpen(true) : undefined} addLabel="Create a channel">
+          Channels
+        </SectionLabel>
         {dir.channels.map((id) => {
           const meta = dir.chats[id];
           if (!meta) return null;
@@ -201,7 +214,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
 
-        <SectionLabel>Direct messages</SectionLabel>
+        <SectionLabel onAdd={() => setDmOpen(true)} addLabel="New message">
+          Direct messages
+        </SectionLabel>
         {dir.dms.map((id) => {
           const meta = dir.chats[id];
           if (!meta) return null;

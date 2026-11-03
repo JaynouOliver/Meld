@@ -83,6 +83,9 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     for (const m of allMessages(d())) if (want.has(m.id)) out[m.id] = { chatId: m.chatId, threadId: m.threadId };
     return out;
   },
+  async deleteChatMessages(chatId) {
+    delete d().chats[chatId];
+  },
   async week() {
     return clone(d().week);
   },

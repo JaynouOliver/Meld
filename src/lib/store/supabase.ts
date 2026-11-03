@@ -165,6 +165,11 @@ export function supabaseStore(ws: string): Store {
     }[];
     return Object.fromEntries(rows.map((r) => [r.id, { chatId: r.chat_id, threadId: r.thread_id }]));
   },
+  async deleteChatMessages(chatId) {
+    // Replies first: they reference their thread roots.
+    check(await sb().from("messages").delete().eq("workspace_id", ws).eq("chat_id", chatId).not("thread_id", "is", null), "delete replies");
+    check(await sb().from("messages").delete().eq("workspace_id", ws).eq("chat_id", chatId), "delete messages");
+  },
   async week() {
     const rows = check(await sb().from("week_activity").select("day,people,atlas").eq("workspace_id", ws).order("day"), "week") as { day: number; people: number; atlas: number }[];
     return DAY.map((d, i) => {

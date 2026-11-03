@@ -53,6 +53,8 @@ export interface Store {
   finishRun(id: string, patch: { status: "done" | "failed"; error?: string | null; result?: AgentRun["result"]; trace?: unknown }): Promise<void>;
   /** Runs that are queued/running, or finished within RUN_RECENT_MS. */
   listRecentRuns(): Promise<AgentRun[]>;
+  /** Remove every message in a chat (its channel was deleted). */
+  deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */
   reset(): Promise<void>;
 }

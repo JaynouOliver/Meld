@@ -88,7 +88,7 @@ export async function buildDirectory(
   const dmIds: ChatId[] = [];
   for (const c of channels) {
     if (c.kind === "channel") {
-      chats[c.id] = { id: c.id, kind: "channel", label: c.name ?? "channel", topic: c.topic, team: c.team, members: everyone };
+      chats[c.id] = { id: c.id, kind: "channel", label: c.name ?? "channel", topic: c.topic, team: c.team, members: everyone, createdBy: c.createdBy };
       channelIds.push(c.id);
     } else if (c.members?.includes(me)) {
       const who = c.members.find((x) => x !== me) ?? me;
@@ -277,4 +277,70 @@ export async function updateWorkspaceSettings(ctx: RequestCtx, input: { name?: s
     patch.teams = input.teams.map((n) => n.trim()).filter(Boolean).map((n) => ctx.dir.teams.find((t) => t.name === n) ?? { id: slugify(n), name: n });
   }
   await (await registry()).updateWorkspace(ctx.dir.workspace.id, patch);
+}
+
+// ---------------------------------------------------------------- channels and DMs
+
+/** Slack-style channel names: lowercase, dashes, no spaces. */
+export function channelName(raw: string) {
+  return raw.trim().toLowerCase().replace(/^#/, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+}
+
+/** Owners manage every channel; members manage the ones they created. */
+function canEditChannel(ctx: RequestCtx, id: ChatId) {
+  const c = ctx.dir.chats[id];
+  return !!c && c.kind === "channel" && (canManage(ctx.dir.role) || c.createdBy === ctx.dir.me);
+}
+
+export async function createChannel(ctx: RequestCtx, input: { name: string; topic?: string; team?: string | null }) {
+  if (ctx.dir.role === "guest") throw new WorkspaceError("Guests can't create channels", 403);
+  const name = channelName(input.name);
+  if (!name) throw new WorkspaceError("Channel names need letters or numbers");
+  const taken = Object.values(ctx.dir.chats).some((c) => c.kind === "channel" && c.label === name);
+  if (taken) throw new WorkspaceError(`#${name} already exists`, 409);
+  const team = input.team && ctx.dir.teams.some((t) => t.id === input.team) ? input.team : null;
+  const id = `ch${uid()}`;
+  await (await registry()).createChannel({
+    id, workspaceId: ctx.dir.workspace.id, kind: "channel", name, topic: input.topic?.trim().slice(0, 120) ?? "", team,
+    members: null, createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
+  });
+  return { id, name };
+}
+
+export async function updateChannel(ctx: RequestCtx, input: { id: ChatId; name?: string; topic?: string }) {
+  if (!canEditChannel(ctx, input.id)) throw new WorkspaceError("Only owners and the channel's creator can edit it", 403);
+  const patch: { name?: string; topic?: string } = {};
+  if (input.name !== undefined) {
+    const name = channelName(input.name);
+    if (!name) throw new WorkspaceError("Channel names need letters or numbers");
+    if (Object.values(ctx.dir.chats).some((c) => c.kind === "channel" && c.label === name && c.id !== input.id)) {
+      throw new WorkspaceError(`#${name} already exists`, 409);
+    }
+    patch.name = name;
+  }
+  if (input.topic !== undefined) patch.topic = input.topic.trim().slice(0, 120);
+  await (await registry()).updateChannel(ctx.dir.workspace.id, input.id, patch);
+}
+
+/** Delete a channel and its messages. The workspace's default channel stays. */
+export async function deleteChannel(ctx: RequestCtx, id: ChatId) {
+  if (!canEditChannel(ctx, id)) throw new WorkspaceError("Only owners and the channel's creator can delete it", 403);
+  if (id === ctx.dir.home) throw new WorkspaceError("The default channel can't be deleted", 400);
+  await ctx.store.deleteChatMessages(id);
+  await (await registry()).deleteChannel(ctx.dir.workspace.id, id);
+  return { home: ctx.dir.home };
+}
+
+/** The DM between me and another member (made the first time). */
+export async function openDm(ctx: RequestCtx, userId: string) {
+  if (userId === ctx.dir.me) throw new WorkspaceError("That's you");
+  if (!ctx.dir.people[userId]) throw new WorkspaceError("Not a member of this workspace", 404);
+  const existing = Object.values(ctx.dir.chats).find((c) => c.kind === "dm" && c.who === userId);
+  if (existing) return { id: existing.id };
+  const id = `dm${uid()}`;
+  await (await registry()).createChannel({
+    id, workspaceId: ctx.dir.workspace.id, kind: "dm", name: null, topic: "", team: null,
+    members: [ctx.dir.me, userId], createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
+  });
+  return { id };
 }

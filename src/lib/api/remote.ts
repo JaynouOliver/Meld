@@ -70,4 +70,9 @@ export const revokeInvite = (token: string) => rpc<void>("revokeInvite", [token]
 export const updateMember = (input: { userId: string; role?: import("../types").Role; team?: string | null; title?: string | null }) =>
   rpc<void>("updateMember", [input]);
 export const removeMember = (userId: string) => rpc<void>("removeMember", [userId]);
+export const createChannel = (input: { name: string; topic?: string; team?: string | null }) =>
+  rpc<{ id: string; name: string }>("createChannel", [input]);
+export const updateChannel = (input: { id: string; name?: string; topic?: string }) => rpc<void>("updateChannel", [input]);
+export const deleteChannel = (id: string) => rpc<{ home: string }>("deleteChannel", [id]);
+export const openDm = (userId: string) => rpc<{ id: string }>("openDm", [userId]);
 export const updateWorkspace = (input: { name?: string; teams?: string[]; repo?: string | null }) => rpc<void>("updateWorkspace", [input]);

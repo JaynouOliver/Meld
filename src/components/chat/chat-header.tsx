@@ -1,6 +1,10 @@
 "use client";
 
+import { SettingsIcon } from "lucide-react";
+import { useState } from "react";
+
 import { Avatar } from "@/components/common/avatar";
+import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { ATLAS_ID, personOf } from "@/lib/directory";
@@ -11,6 +15,8 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
   const dir = useDirectory();
   const meta = dir.chats[chatId];
   const role = useRole();
+  const canEdit = useCanEditChannel(chatId);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   if (!meta) return null;
 
   if (meta.kind === "dm") {
@@ -31,6 +37,15 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
     <ScreenHeader
       back="/home"
       actions={
+        <div className="flex shrink-0 items-center gap-2">
+        {canEdit && (
+          <>
+            <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettingsOpen(true)} className="flex size-9 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted hover:text-foreground">
+              <SettingsIcon className="size-4" />
+            </button>
+            <ChannelSettingsDialog key={`${chatId}-${meta.label}`} chatId={chatId} open={settingsOpen} onOpenChange={setSettingsOpen} />
+          </>
+        )}
         <div title="Channel members" className="flex shrink-0 items-center gap-2 rounded-lg border py-1 pr-2.5 pl-1.5">
           <span aria-hidden className="flex pl-1 max-[360px]:hidden">
             {meta.members.slice(0, 3).map((k) => (
@@ -38,6 +53,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
             ))}
           </span>
           <span className="text-meta font-semibold text-ink-2">{meta.members.length}</span>
+        </div>
         </div>
       }
     >
