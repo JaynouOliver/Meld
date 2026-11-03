@@ -1,32 +1,17 @@
 "use client";
 
-import { LoaderCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { GitHubIcon, GoogleIcon } from "@/components/marketing/brand-icons";
-import { signInWith, type OAuthProvider } from "@/lib/auth/browser";
+import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { safeNext } from "@/lib/auth/shared";
 
 export function LoginCard({ devAuth }: { devAuth: boolean }) {
   const params = useSearchParams();
   const signup = params.get("mode") === "signup";
   const next = safeNext(params.get("next"));
-  const [busy, setBusy] = useState<OAuthProvider | null>(null);
-  const [error, setError] = useState<string | null>(params.get("error"));
-  const verb = signup ? "Sign up" : "Continue";
-
-  const go = async (p: OAuthProvider) => {
-    setBusy(p);
-    setError(null);
-    try {
-      await signInWith(p, next);
-    } catch (e) {
-      setBusy(null);
-      setError((e as Error).message || "Couldn't start sign-in.");
-    }
-  };
+  const error = params.get("error");
 
   return (
     <div className="w-full max-w-sm rounded-2xl border bg-card p-7 shadow-sm">
@@ -35,13 +20,8 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
         {signup ? "Then set up your company's workspace and invite your team." : "Welcome back. Pick how you signed up."}
       </p>
 
-      <div className="mt-6 grid gap-2.5">
-        <ProviderButton onClick={() => go("github")} busy={busy === "github"} disabled={!!busy}>
-          <GitHubIcon className="size-[18px]" /> {verb} with GitHub
-        </ProviderButton>
-        <ProviderButton onClick={() => go("google")} busy={busy === "google"} disabled={!!busy}>
-          <GoogleIcon className="size-[18px]" /> {verb} with Google
-        </ProviderButton>
+      <div className="mt-6">
+        <ProviderButtons verb={signup ? "Sign up" : "Continue"} next={next} />
       </div>
 
       {error && (
@@ -59,20 +39,6 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
         </Link>
       </p>
     </div>
-  );
-}
-
-function ProviderButton(props: { onClick: () => void; busy: boolean; disabled: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      disabled={props.disabled}
-      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border bg-background text-sm font-semibold hover:bg-muted disabled:cursor-default disabled:opacity-60"
-    >
-      {props.busy ? <LoaderCircleIcon className="size-[18px] animate-spin" /> : null}
-      {props.children}
-    </button>
   );
 }
 

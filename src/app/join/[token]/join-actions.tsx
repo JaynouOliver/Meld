@@ -3,9 +3,9 @@
 import { LoaderCircleIcon } from "lucide-react";
 import { useState } from "react";
 
-import { GitHubIcon, GoogleIcon } from "@/components/marketing/brand-icons";
+import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { acceptInvite } from "@/lib/api/remote";
-import { signInWith, signOut, type OAuthProvider } from "@/lib/auth/browser";
+import { signOut } from "@/lib/auth/browser";
 
 export function JoinActions(props: { token: string; signedInAs: string | null; alreadyMember: boolean; workspaceName: string }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -31,16 +31,9 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
     });
 
   if (!props.signedInAs) {
-    const go = (p: OAuthProvider) => run(p, () => signInWith(p, back));
     return (
-      <div className="mt-6 grid gap-2.5">
-        <Provider onClick={() => go("github")} busy={busy === "github"}>
-          <GitHubIcon className="size-[18px]" /> Continue with GitHub
-        </Provider>
-        <Provider onClick={() => go("google")} busy={busy === "google"}>
-          <GoogleIcon className="size-[18px]" /> Continue with Google
-        </Provider>
-        {error && <p role="alert" className="text-meta text-destructive">{error}</p>}
+      <div className="mt-6">
+        <ProviderButtons verb="Continue" next={back} />
       </div>
     );
   }
@@ -65,18 +58,5 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
       </p>
       {error && <p role="alert" className="mt-2 text-meta text-destructive">{error}</p>}
     </div>
-  );
-}
-
-function Provider(props: { onClick: () => void; busy: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border bg-background text-sm font-semibold hover:bg-muted"
-    >
-      {props.busy && <LoaderCircleIcon className="size-[18px] animate-spin" />}
-      {props.children}
-    </button>
   );
 }
