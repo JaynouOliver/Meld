@@ -1,9 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { toView, type ActionRecord } from "../agent/actions";
+import { RUN_MAX_ATTEMPTS, RUN_RECENT_MS, RUN_STALE_MS, type AgentRun } from "../agent/runs";
 import { todayIndex } from "../format";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
-import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
+import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
 import type { Store } from "./types";
 
 /**
@@ -50,9 +51,20 @@ const actionFromRow = (r: ActionRow): ActionRecord => ({
 });
 
 /** Rows (ordered by seq) back into the nested Message / ReplyNode tree the UI uses. */
+interface RunRow {
+  id: string; trigger_message_id: string; chat_id: ChatId; thread_id: string | null; role: AgentRun["role"];
+  text: string; status: AgentRun["status"]; attempts: number; error: string | null; result: AgentRun["result"]; trace: unknown;
+  created_at: string; started_at: string | null; finished_at: string | null;
+}
+const runFromRow = (r: RunRow): AgentRun => ({
+  id: r.id, triggerMessageId: r.trigger_message_id, chatId: r.chat_id, threadId: r.thread_id, role: r.role,
+  text: r.text, status: r.status, attempts: r.attempts, error: r.error, result: r.result, trace: r.trace,
+  createdAt: r.created_at, startedAt: r.started_at, finishedAt: r.finished_at,
+});
+
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
   const roots: Message[] = [];
-  const byId = new Map<string, Message | ReplyNode>();
+  const byId = new Map<string, Message>();
   for (const r of rows) {
     const a = r.action_id ? actions.get(r.action_id) : undefined;
     const base = { id: r.id, who: r.who, time: r.time_label, text: r.text, ticket: r.ticket_id, action: a ? toView(a) : null };
@@ -62,12 +74,9 @@ function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map
       byId.set(r.id, m);
       continue;
     }
-    const node: ReplyNode = { ...base, kids: [] };
-    byId.set(r.id, node);
-    const parent = byId.get(r.parent_id ?? r.thread_id);
-    if (!parent) continue;
-    if ("replies" in parent) parent.replies.push(node);
-    else parent.kids.push(node);
+    // Threads are flat: older rows with a parent_id (nested replies) list in the thread
+    // in conversation order like every other reply.
+    byId.get(r.thread_id)?.replies.push(base);
   }
   return roots;
 }
@@ -108,18 +117,17 @@ export const supabaseStore: Store = {
     const acts = (check(actRes, "list actions") as ActionRow[]).map(actionFromRow);
     return toTree(rows, new Map(acts.map((a) => [a.id, a])));
   },
-  async appendMessage(chatId, msg, threadId, parentId) {
+  async appendMessage(chatId, msg, threadId) {
     const row = {
-      id: msg.id, chat_id: chatId, thread_id: threadId ?? null, parent_id: threadId ? (parentId ?? null) : null,
+      id: msg.id, chat_id: chatId, thread_id: threadId ?? null, parent_id: null,
       who: msg.who, text: msg.text, ticket_id: msg.ticket ?? null, time_label: msg.time, action_id: msg.actionId ?? null,
     };
-    // One round trip: the foreign keys reject a reply to a thread/parent that no longer
+    // One round trip: the foreign key rejects a reply to a thread that no longer
     // exists, and only then do we fall back (same behaviour as the memory store).
     let res = await sb().from("messages").insert(row);
-    if (res.error?.code === "23503" && row.parent_id) res = await sb().from("messages").insert({ ...row, parent_id: null });
-    if (res.error?.code === "23503" && row.thread_id) res = await sb().from("messages").insert({ ...row, thread_id: null, parent_id: null });
+    if (res.error?.code === "23503" && row.thread_id) res = await sb().from("messages").insert({ ...row, thread_id: null });
     check(res, "append message");
-    return row.thread_id ? { ...msg, kids: [] } : { ...msg, replies: [] };
+    return row.thread_id ? { ...msg } : { ...msg, replies: [] };
   },
   async searchMessages(terms, limit) {
     const q = terms.map((t) => t.replace(/[^\p{L}\p{N}-]/gu, "")).filter(Boolean).join(" or ");
@@ -187,8 +195,46 @@ export const supabaseStore: Store = {
     const rows = check(await sb().from("agent_actions").update(update).eq("id", id).in("status", from).select("id"), "transition action") as { id: string }[];
     return rows.length > 0;
   },
+  async enqueueRun(run) {
+    const res = await sb().from("agent_runs").insert({
+      id: run.id, trigger_message_id: run.triggerMessageId, chat_id: run.chatId, thread_id: run.threadId,
+      role: run.role, text: run.text, status: run.status, attempts: run.attempts, created_at: run.createdAt,
+    });
+    if (res.error?.code === "23505") {
+      // Already enqueued for this message (a retried request): return that run.
+      const row = check(await sb().from("agent_runs").select("*").eq("trigger_message_id", run.triggerMessageId).single(), "get run") as RunRow;
+      return runFromRow(row);
+    }
+    check(res, "enqueue run");
+    return run;
+  },
+  async claimRun(id) {
+    // One conditional UPDATE in Postgres, so two workers can't both claim it.
+    const rows = check(
+      await sb().rpc("claim_agent_run", { p_id: id, p_stale_seconds: RUN_STALE_MS / 1000, p_max_attempts: RUN_MAX_ATTEMPTS }),
+      "claim run",
+    ) as RunRow[];
+    return rows.length ? runFromRow(rows[0]) : null;
+  },
+  async finishRun(id, patch) {
+    const update: Record<string, unknown> = { status: patch.status, finished_at: new Date().toISOString() };
+    if ("error" in patch) update.error = patch.error;
+    if ("result" in patch) update.result = patch.result;
+    if ("trace" in patch) update.trace = patch.trace;
+    check(await sb().from("agent_runs").update(update).eq("id", id), "finish run");
+  },
+  async listRecentRuns() {
+    const since = new Date(Date.now() - RUN_RECENT_MS).toISOString();
+    const cols = "id,trigger_message_id,chat_id,thread_id,role,text,status,attempts,error,result,created_at,started_at,finished_at";
+    const rows = check(
+      await sb().from("agent_runs").select(cols).or(`status.in.(queued,running),finished_at.gt.${since}`).order("created_at").limit(50),
+      "list runs",
+    ) as unknown as RunRow[];
+    return rows.map((r) => runFromRow({ ...r, trace: null }));
+  },
   async reset() {
     const db = sb();
+    check(await db.from("agent_runs").delete().neq("id", ""), "clear runs");
     check(await db.from("agent_actions").delete().neq("id", ""), "clear actions");
     // Order matters: replies reference their thread roots.
     check(await db.from("events").delete().gte("id", 0), "clear events");
@@ -203,12 +249,8 @@ export const supabaseStore: Store = {
     for (const [chatId, msgs] of Object.entries(SEED_CHATS) as [ChatId, Message[]][]) {
       for (const m of msgs) {
         rows.push({ id: m.id, chat_id: chatId, thread_id: null, parent_id: null, who: m.who, text: m.text, ticket_id: m.ticket ?? null, time_label: m.time });
-        const walk = (nodes: ReplyNode[], parent: string | null) =>
-          nodes.forEach((n) => {
-            rows.push({ id: n.id, chat_id: chatId, thread_id: m.id, parent_id: parent, who: n.who, text: n.text, ticket_id: n.ticket ?? null, time_label: n.time });
-            walk(n.kids, n.id);
-          });
-        walk(m.replies, null);
+        for (const n of m.replies)
+          rows.push({ id: n.id, chat_id: chatId, thread_id: m.id, parent_id: null, who: n.who, text: n.text, ticket_id: n.ticket ?? null, time_label: n.time });
       }
     }
     // Insert in order so seq preserves conversation order.

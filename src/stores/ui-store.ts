@@ -29,8 +29,6 @@ interface UiState {
 
   // panels
   threadId: string | null;
-  replyTo: string | null;
-  expanded: Record<string, boolean>;
   ticketId: string | null;
 
   // live
@@ -58,8 +56,6 @@ interface UiState {
 
   openThread: (id: string) => void;
   closeThread: () => void;
-  setReplyTo: (id: string | null) => void;
-  setExpanded: (id: string, open: boolean) => void;
   openTicket: (id: string) => void;
   closeTicket: () => void;
 
@@ -82,8 +78,6 @@ export const useUiStore = create<UiState>()(
 
       // Desktop opens on the design thread (see Providers); phones start clean.
       threadId: null,
-      replyTo: null,
-      expanded: { r1: true, s2: true, s3: true },
       ticketId: null,
 
       typing: null,
@@ -103,11 +97,8 @@ export const useUiStore = create<UiState>()(
       setGroupBy: (groupBy) => set({ groupBy }),
       setShowInsights: (showInsights) => set({ showInsights }),
 
-      openThread: (threadId) => set({ threadId, replyTo: null, ticketId: null }),
-      closeThread: () => set({ threadId: null, replyTo: null }),
-      setReplyTo: (replyTo) =>
-        set((s) => ({ replyTo, expanded: replyTo ? { ...s.expanded, [replyTo]: true } : s.expanded })),
-      setExpanded: (id, open) => set((s) => ({ expanded: { ...s.expanded, [id]: open } })),
+      openThread: (threadId) => set({ threadId, ticketId: null }),
+      closeThread: () => set({ threadId: null }),
       openTicket: (ticketId) => set({ ticketId }),
       closeTicket: () => set({ ticketId: null }),
 

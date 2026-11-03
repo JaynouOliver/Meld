@@ -12,6 +12,7 @@ import { CHAT_META, PEOPLE } from "@/lib/constants";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { useAtlasWorking } from "@/hooks/use-agent-runs";
 import { ThreadNodes } from "./thread-nodes";
 
 export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message }) {
@@ -24,7 +25,8 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
   const meta = CHAT_META[chatId];
   const p = PEOPLE[root.who];
   const n = countReplies(root.replies);
-  const showTyping = typing && typing.thread === root.id;
+  const atlasWorking = useAtlasWorking(chatId, root.id);
+  const typingLabel = typing && typing.thread === root.id ? typing.label : atlasWorking ? "Atlas is working…" : null;
 
   const submit = () => {
     const text = draft.trim();
@@ -62,8 +64,8 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
           </span>
           <span className="h-px flex-1 bg-border" />
         </div>
-        <ThreadNodes chatId={chatId} rootId={root.id} nodes={root.replies} depth={0} />
-        {showTyping && <div className="px-5 pt-1.5 pl-[68px] text-meta text-muted-foreground italic">{typing.label}</div>}
+        <ThreadNodes nodes={root.replies} />
+        {typingLabel && <div className="px-5 pt-1.5 pl-[68px] text-meta text-muted-foreground italic">{typingLabel}</div>}
         </div>
       </div>
 

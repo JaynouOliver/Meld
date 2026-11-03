@@ -9,6 +9,8 @@ export interface ChangePing {
   chats: ChatId[];
   /** Ticket data (or the activity chart) changed. */
   tickets: boolean;
+  /** Atlas runs changed (queued, started or finished). */
+  runs?: boolean;
   /** Browser tab that caused the change, so it can ignore its own ping. */
   origin: string | null;
 }
@@ -20,7 +22,7 @@ export interface ChangePing {
 export async function pingChanges(ping: ChangePing) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key || (!ping.chats.length && !ping.tickets)) return;
+  if (!url || !key || (!ping.chats.length && !ping.tickets && !ping.runs)) return;
   try {
     const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
       method: "POST",

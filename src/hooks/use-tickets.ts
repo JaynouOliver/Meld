@@ -50,7 +50,7 @@ export function useCreateTicket() {
     onSuccess: (t) => {
       qc.setQueryData<Ticket[]>(queryKeys.tickets, (old) => (old ? [...old, t] : [t]));
       qc.invalidateQueries({ queryKey: queryKeys.week });
-      useUiStore.setState({ threadId: null, replyTo: null });
+      useUiStore.setState({ threadId: null });
       openTicket(t.id);
     },
   });

@@ -6,6 +6,7 @@
  */
 import { runAtlas } from "../agent/atlas";
 import { applyOps, permissionProblem, revertOps, UNDO_WINDOW_MS } from "../agent/actions";
+import { toRunView, type RunResult, type RunView } from "../agent/runs";
 import { CHAT_META, DEFAULT_REPO, PEOPLE } from "../constants";
 import { stamp, uid } from "../format";
 import { canDelete, canSee } from "../rbac";
@@ -43,17 +44,22 @@ export async function getWeekActivity(): Promise<WeekDay[]> {
 export interface PostMessageInput {
   chatId: ChatId;
   text: string;
+  /** Reply in this thread (threads are flat: there are no replies to replies). */
   threadId?: string | null;
-  parentId?: string | null;
+  /** The sender's role; Atlas acts with it when the message is addressed to Atlas. */
+  role?: Role;
 }
 
-export async function postMessage(input: PostMessageInput): Promise<Message | ReplyNode> {
+/** The saved message, plus the Atlas run it started (server only: the reply arrives later). */
+export type PostedMessage = (Message | ReplyNode) & { runId?: string | null };
+
+export async function postMessage(input: PostMessageInput): Promise<PostedMessage> {
   await wait(60);
   const store = await getStore();
   const msg = { id: uid(), who: "me" as PersonId, time: stamp(), text: input.text };
   const [saved] = await Promise.all([
-    store.appendMessage(input.chatId, msg, input.threadId, input.parentId),
-    store.logEvent({ kind: "message.posted", actor: "me", chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId, parentId: input.parentId } }),
+    store.appendMessage(input.chatId, msg, input.threadId),
+    store.logEvent({ kind: "message.posted", actor: "me", chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId } }),
   ]);
   return saved;
 }
@@ -62,13 +68,12 @@ export interface AskAtlasInput extends PostMessageInput {
   role: Role;
 }
 
-export interface AskAtlasResult {
-  /** Chats that received a new Atlas message. */
-  touchedChats: ChatId[];
-  /** Ticket Atlas wants opened (e.g. just created). */
-  openTicket: string | null;
-  /** Ticket ids that no longer exist after this action. */
-  deleted: string[];
+export type AskAtlasResult = RunResult;
+
+/** Atlas runs in progress or just finished, so every browser can show "Atlas is working…". */
+export async function getAgentRuns(): Promise<RunView[]> {
+  const store = await getStore();
+  return (await store.listRecentRuns()).map(toRunView);
 }
 
 /**
@@ -91,7 +96,7 @@ export async function askAtlas(input: AskAtlasInput): Promise<AskAtlasResult> {
     if (!prev) await store.insertTicket(t);
     else if (JSON.stringify(prev) !== JSON.stringify(t)) await store.saveTicket(t);
   }
-  await store.appendMessage(input.chatId, { id: uid(), who: "atlas", time: stamp(), text: out.reply, ticket: out.ticket }, input.threadId, input.parentId);
+  await store.appendMessage(input.chatId, { id: uid(), who: "atlas", time: stamp(), text: out.reply, ticket: out.ticket }, input.threadId);
   const touched: ChatId[] = [input.chatId];
   if (out.broadcast) {
     await store.appendMessage(out.broadcast.chat, { id: uid(), who: "atlas", time: stamp(), text: out.broadcast.text }, out.broadcast.thread);

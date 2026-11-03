@@ -2,12 +2,15 @@ import { after } from "next/server";
 
 import * as api from "@/lib/api/service";
 import type { ChatId } from "@/lib/types";
+import { mentionsAgent } from "@/lib/text";
+import { enqueueAtlas, processRun, sweepRuns } from "@/server/atlas/queue";
 import { runAtlasAgent } from "@/server/atlas/run";
 import { llm } from "@/server/llm";
 import { pingChanges } from "@/server/realtime";
 
-// Atlas runs a model loop; give it room on Vercel (default limits are lower).
-export const maxDuration = 60;
+// Atlas runs after the response (after()), within this function's time limit. Long
+// runs (e.g. turning a thread into tickets) can take a minute or more.
+export const maxDuration = 300;
 
 /**
  * RPC endpoint behind src/lib/api/remote.ts: each method is the same function the
@@ -22,7 +25,22 @@ const methods: Record<string, Method> = {
   getMessages: api.getMessages,
   getTickets: api.getTickets,
   getWeekActivity: api.getWeekActivity,
-  postMessage: api.postMessage,
+  // An @Atlas message enqueues a run in the same request; it runs once the response is
+  // sent and the reply arrives over realtime. Without a model, the browser calls the
+  // rule-based askAtlas instead (no runId).
+  postMessage: async (input: api.PostMessageInput) => {
+    const saved = await api.postMessage(input);
+    if (!llm() || !mentionsAgent(input.text, input.chatId)) return saved;
+    const run = await enqueueAtlas({ ...input, role: input.role ?? "member", triggerMessageId: saved.id });
+    after(() => processRun(run.id));
+    return { ...saved, runId: run.id };
+  },
+  getAgentRuns: async () => {
+    const runs = await api.getAgentRuns();
+    // Self-healing: if a run was missed or its worker died, polling browsers restart it.
+    if (runs.some((r) => r.status === "queued" || r.status === "running")) after(() => sweepRuns());
+    return runs;
+  },
   teammateReply: api.teammateReply,
   createTicket: api.createTicket,
   updateTicket: api.updateTicket,
@@ -38,11 +56,11 @@ const methods: Record<string, Method> = {
 };
 
 /** Which chats / data a call changed, for the realtime ping. */
-function changes(method: string, args: unknown[], result: unknown): { chats: ChatId[]; tickets: boolean } {
+function changes(method: string, args: unknown[], result: unknown): { chats: ChatId[]; tickets: boolean; runs?: boolean } {
   const a0 = args[0] as Record<string, unknown> | string | undefined;
   switch (method) {
     case "postMessage":
-      return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false };
+      return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false, runs: !!(result as api.PostedMessage).runId };
     case "teammateReply":
       return { chats: [a0 as ChatId], tickets: false };
     case "askAtlas":

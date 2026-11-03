@@ -6,8 +6,10 @@ import * as api from "@/lib/api";
 import { PEOPLE, CHAT_META } from "@/lib/constants";
 import { clock, displayTime } from "@/lib/format";
 import { mentionsAgent } from "@/lib/text";
-import type { ChatId, Message, ReplyNode, Ticket } from "@/lib/types";
+import type { PostMessageInput } from "@/lib/api";
+import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { trackRun, useAtlasAnswered } from "./use-agent-runs";
 import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
@@ -31,26 +33,15 @@ export function useSendMessage() {
   const qc = useQueryClient();
   const notify = useNotifyChat();
 
+  const answered = useAtlasAnswered();
+
+  // Rule-based Atlas (browser preview, or no model configured): answers in the same call.
   const agent = useMutation({
     mutationFn: api.askAtlas,
     onMutate: (input) => {
       useUiStore.getState().setTyping({ chat: input.chatId, thread: input.threadId ?? null, label: "Atlas is working…" });
     },
-    onSuccess: (res, input) => {
-      const ui = useUiStore.getState();
-      res.touchedChats.forEach((c) => notify(c));
-      qc.invalidateQueries({ queryKey: queryKeys.tickets });
-      qc.invalidateQueries({ queryKey: queryKeys.week });
-      if (input.parentId) ui.setExpanded(input.parentId, true);
-      if (ui.ticketId && res.deleted.includes(ui.ticketId)) ui.closeTicket();
-      if (res.openTicket && !input.threadId) {
-        // Wait for the new ticket to be in cache before opening its panel.
-        qc.refetchQueries({ queryKey: queryKeys.tickets }).then(() => {
-          const t = qc.getQueryData<Ticket[]>(queryKeys.tickets)?.find((x) => x.id === res.openTicket);
-          if (t) useUiStore.setState({ ticketId: t.id, threadId: null, replyTo: null });
-        });
-      }
-    },
+    onSuccess: (res, input) => answered(res, input),
     onSettled: () => useUiStore.getState().setTyping(null),
   });
 
@@ -67,21 +58,23 @@ export function useSendMessage() {
   });
 
   return useMutation({
-    mutationFn: api.postMessage,
+    mutationFn: (input: PostMessageInput) => api.postMessage({ ...input, role: useUiStore.getState().role }),
     // Show the message instantly (top-level or in a thread); the server's copy replaces it.
     onMutate: async (input) => {
       const key = queryKeys.messages(input.chatId);
       await qc.cancelQueries({ queryKey: key });
       const pendingId = `pending-${Date.now()}`;
       const node = { id: pendingId, who: "me" as const, time: clock(), text: input.text };
-      qc.setQueryData<Message[]>(key, (old) => insertMessage(old ?? [], node, input.threadId, input.parentId));
+      qc.setQueryData<Message[]>(key, (old) => insertMessage(old ?? [], node, input.threadId));
       return { pendingId };
     },
     onSuccess: (saved, input, ctx) => {
       const real = { ...saved, time: displayTime(saved.time) };
       qc.setQueryData<Message[]>(queryKeys.messages(input.chatId), (old) => replaceMessage(old ?? [], ctx.pendingId, real));
       const role = useUiStore.getState().role;
-      if (mentionsAgent(input.text, input.chatId)) agent.mutate({ ...input, role });
+      // The server queued an Atlas run: its reply arrives when the run finishes.
+      if (saved.runId) trackRun(qc, { id: saved.runId, chatId: input.chatId, threadId: input.threadId ?? null, status: "queued", result: null });
+      else if (mentionsAgent(input.text, input.chatId)) agent.mutate({ ...input, role });
       else if (input.chatId === "aiko" || input.chatId === "ravi") teammate.mutate(input.chatId);
     },
     // On failure, drop the optimistic copy by reloading the chat from the server.
@@ -91,22 +84,14 @@ export function useSendMessage() {
 
 type Draft = { id: string; who: Message["who"]; time: string; text: string; ticket?: string | null };
 
-/** Add a message to the cached tree: top-level, or as a reply in a thread (under a parent reply). */
-function insertMessage(list: Message[], node: Draft, threadId?: string | null, parentId?: string | null): Message[] {
+/** Add a message to the cached list: top-level, or as a reply at the end of its thread. */
+function insertMessage(list: Message[], node: Draft, threadId?: string | null): Message[] {
   if (!threadId) return [...list, { ...node, replies: [] }];
-  const reply: ReplyNode = { ...node, kids: [] };
-  return list.map((m) => {
-    if (m.id !== threadId) return m;
-    if (!parentId) return { ...m, replies: [...m.replies, reply] };
-    const add = (nodes: ReplyNode[]): ReplyNode[] =>
-      nodes.map((n) => (n.id === parentId ? { ...n, kids: [...n.kids, reply] } : { ...n, kids: add(n.kids) }));
-    return { ...m, replies: add(m.replies) };
-  });
+  return list.map((m) => (m.id === threadId ? { ...m, replies: [...m.replies, node] } : m));
 }
 
 /** Swap the optimistic copy for the server's saved message, keeping its place. */
 function replaceMessage(list: Message[], pendingId: string, saved: Message | ReplyNode): Message[] {
-  const swapNodes = (nodes: ReplyNode[]): ReplyNode[] =>
-    nodes.map((n) => (n.id === pendingId ? { ...n, id: saved.id, time: saved.time } : { ...n, kids: swapNodes(n.kids) }));
-  return list.map((m) => (m.id === pendingId ? { ...m, id: saved.id, time: saved.time } : { ...m, replies: swapNodes(m.replies) }));
+  const swap = <T extends { id: string; time: string }>(n: T): T => (n.id === pendingId ? { ...n, id: saved.id, time: saved.time } : n);
+  return list.map((m) => ({ ...swap(m), replies: m.replies.map(swap) }));
 }

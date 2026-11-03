@@ -66,6 +66,7 @@ export interface ActionView {
   undoUntil: string | null;
 }
 
+/** A reply in a thread. Threads are flat, like Slack: replies can't have replies. */
 export interface ReplyNode {
   id: string;
   who: PersonId;
@@ -76,7 +77,6 @@ export interface ReplyNode {
   actionId?: string | null;
   /** Filled in when listing messages. */
   action?: ActionView | null;
-  kids: ReplyNode[];
 }
 
 export interface Message {

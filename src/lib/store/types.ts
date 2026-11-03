@@ -1,4 +1,5 @@
 import type { ActionRecord } from "../agent/actions";
+import type { AgentRun } from "../agent/runs";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 
 /** A message found by search, with the thread it belongs to (null when top-level). */
@@ -25,8 +26,8 @@ export interface Store {
   saveTicket(t: Ticket): Promise<void>;
   deleteTicket(id: string): Promise<void>;
   listMessages(chatId: ChatId): Promise<Message[]>;
-  /** Top-level message, or a reply in a thread (optionally under another reply). */
-  appendMessage(chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null, parentId?: string | null): Promise<Message | ReplyNode>;
+  /** Top-level message, or a reply in a thread. Threads are flat: replies can't have replies. */
+  appendMessage(chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null): Promise<Message | ReplyNode>;
   searchMessages(terms: string[], limit: number): Promise<MessageHit[]>;
   /** Messages whose text mentions a ticket id (e.g. "NW-130"), newest first. */
   messagesMentioning(ticketId: string, limit: number): Promise<MessageHit[]>;
@@ -42,6 +43,16 @@ export interface Store {
    * Returns false if it was already decided, so two clicks can't both apply it.
    */
   transitionAction(id: string, from: ActionRecord["status"][], to: ActionRecord["status"], patch?: { undoUntil?: string | null }): Promise<boolean>;
+  /** Add a queued run. Idempotent on triggerMessageId: returns the existing run if there is one. */
+  enqueueRun(run: AgentRun): Promise<AgentRun>;
+  /**
+   * Atomically take a run to execute: queued, or running but stale (its worker died),
+   * and under the attempt limit. Returns null if someone else has it or it's finished.
+   */
+  claimRun(id: string): Promise<AgentRun | null>;
+  finishRun(id: string, patch: { status: "done" | "failed"; error?: string | null; result?: AgentRun["result"]; trace?: unknown }): Promise<void>;
+  /** Runs that are queued/running, or finished within RUN_RECENT_MS. */
+  listRecentRuns(): Promise<AgentRun[]>;
   /** Back to the seed workspace. */
   reset(): Promise<void>;
 }

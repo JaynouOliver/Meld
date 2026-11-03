@@ -74,6 +74,22 @@ everyone, not just the sender. This also removes the request-timeout risk on slo
 **No duplicates:** each job's idempotency key is its trigger message id; a per-thread
 advisory lock means one Atlas run per thread at a time; tool writes carry the run id.
 
+### As built (agent queue, v1)
+
+- **Queue = the `agent_runs` table.** `postMessage` saves the message and, if it addresses
+  Atlas, enqueues a run in the same request (`trigger_message_id` is unique, so a retried
+  request never runs twice). The response returns immediately.
+- **Worker = the same function, after the response** (`after()` from `next/server`,
+  `maxDuration = 300`). `claim_agent_run()` is one conditional `UPDATE`, so only one worker
+  can take a run.
+- **Self-healing instead of `pg_cron` for now:** browsers poll `getAgentRuns` while a run is
+  in flight; that call sweeps runs that were never picked up (> 10 s) or whose worker died
+  (> 5 min), up to 2 attempts. A retried run checks for its reply (deterministic id) first.
+- **Status for everyone:** runs broadcast a `runs` ping on enqueue/start/finish; every tab
+  shows "Atlas is working…" in that chat or thread, and refetches when it finishes.
+- Still to do from the design above: `pgmq` + `pg_net` push, per-thread locks, the `memory`
+  and `watch` queues.
+
 ## 5. Memory: how chats are stored for agents
 
 ```

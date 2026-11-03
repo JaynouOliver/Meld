@@ -35,7 +35,7 @@ export interface AtlasTrace {
  * Atlas on Meta's Model API: assemble context, run the tool loop, post the reply,
  * and announce ticket changes in the channels that follow those tickets.
  */
-export async function runAtlasAgent(input: AskAtlasInput): Promise<AskAtlasResult & { trace: AtlasTrace }> {
+export async function runAtlasAgent(input: AskAtlasInput & { replyId?: string }): Promise<AskAtlasResult & { trace: AtlasTrace }> {
   const client = llm();
   if (!client) throw new Error("MODEL_API_KEY is not set");
   const started = Date.now();
@@ -113,7 +113,7 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
   // Apply the run's changes, or hold them for confirmation (deletes, bulk edits).
   const ops = trace.error ? [] : planToOps(effects.plan);
   const hold = needsConfirmation(ops);
-  const messageId = uid();
+  const messageId = input.replyId ?? uid();
   const touched = new Set<ChatId>([where]);
   let action: ActionRecord | null = null;
   if (ops.length) {
@@ -132,7 +132,7 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
   const created = ops.flatMap((o) => (o.type === "create" ? [o.after.id] : []));
   const updated = ops.flatMap((o) => (o.type === "update" ? [o.after.id] : []));
   const card = hold ? null : single(created) ?? (created.length ? null : single(updated) ?? single([...new Set(effects.read)]));
-  await store.appendMessage(where, { id: messageId, who: "atlas", time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null }, input.threadId, input.parentId);
+  await store.appendMessage(where, { id: messageId, who: "atlas", time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null }, input.threadId);
 
   trace.reply = reply;
   trace.ms = Date.now() - started;

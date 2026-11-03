@@ -92,7 +92,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const enterChat = (id: ChatId) => {
     markRead(id);
-    useUiStore.setState({ threadId: null, replyTo: null });
+    useUiStore.setState({ threadId: null });
   };
 
   const me = PEOPLE.me;
@@ -179,7 +179,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           { href: "/tickets", label: "All tickets", count: visible.length },
           { href: "/tickets/mine", label: "Assigned to me", count: visible.filter((t) => t.assignee === "me").length },
         ].map((n) => (
-          <NavLink key={n.href} href={n.href} active={pathname === n.href} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null, replyTo: null })}>
+          <NavLink key={n.href} href={n.href} active={pathname === n.href} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
             <TicketIcon aria-hidden className="size-[18px] w-5 opacity-80" />
             <span className="flex-1">{n.label}</span>
             <span className="text-xs font-semibold opacity-85">{n.count}</span>

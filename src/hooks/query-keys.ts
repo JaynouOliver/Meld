@@ -5,4 +5,5 @@ export const queryKeys = {
   allMessages: ["messages"] as const,
   tickets: ["tickets"] as const,
   week: ["week"] as const,
+  agentRuns: ["agent-runs"] as const,
 };

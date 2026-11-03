@@ -54,10 +54,7 @@ export function ticketLine(t: Ticket) {
 }
 
 function flatten(nodes: ReplyNode[], depth: number, out: string[]) {
-  for (const n of nodes) {
-    out.push(`${"  ".repeat(depth)}[${n.id} ${displayTime(n.time)}] ${PEOPLE[n.who].name}: ${n.text}`);
-    flatten(n.kids, depth + 1, out);
-  }
+  for (const n of nodes) out.push(`${"  ".repeat(depth)}[${n.id} ${displayTime(n.time)}] ${PEOPLE[n.who].name}: ${n.text}`);
 }
 
 /**

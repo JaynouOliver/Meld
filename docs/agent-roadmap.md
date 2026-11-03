@@ -29,7 +29,8 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | Eval harness (`npm run eval:atlas`) | ✅ Done |
 | Persistent storage: Postgres + append-only event log | To do: needed before deploying (serverless loses in-memory state) |
 | Memory pipeline: thread/channel summaries, facts, search index | To do |
-| Streaming replies and "working…" progress | To do |
+| Async Atlas on a job queue (`agent_runs`): post returns at once, reply arrives over realtime, "Atlas is working…" for everyone | ✅ Done: see architecture.md §4 "As built" |
+| Streaming replies (token by token) | To do |
 | Trace viewer (context, tool calls, tokens per Atlas run) | To do: traces are logged today |
 | Real auth (role from the session, not the request) | To do |
 | Deploy (Vercel preview per branch) | To do: needs your Vercel account |

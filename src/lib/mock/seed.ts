@@ -59,16 +59,13 @@ export const SEED_CHATS: Record<ChatId, Message[]> = {
     m("m1", "aiko", "10:02 AM", "Pushed the new onboarding flow to staging. The welcome screen now skips straight to workspace setup."),
     m("m2", "me", "10:06 AM", "Nice. Before we lock it, I want to rethink where the invite step lives. Starting a thread so we keep this in one place.", {
       replies: [
-        { id: "r1", who: "aiko", time: "10:09 AM", text: "My take: move invites to after the first project is created. People invite more when there is something to show.", kids: [
-          { id: "s1", who: "me", time: "10:12 AM", text: "Worried that hurts team signups. Solo users may never come back to invite anyone.", kids: [] },
-          { id: "s2", who: "aiko", time: "10:14 AM", text: "Fair. What if we keep a light invite prompt up front and a stronger one after the first project? That is basically NW-122.", kids: [
-            { id: "s3", who: "me", time: "10:15 AM", text: "Love it. Can the stronger prompt wait for the second project instead of the first?", kids: [
-              { id: "s4", who: "aiko", time: "10:16 AM", text: "Sure. I'll add that as a variant on NW-122.", kids: [] },
-            ] },
-          ] },
-        ] },
-        { id: "r2", who: "me", time: "10:18 AM", text: "Let's prototype both and compare on Thursday.", kids: [] },
-        { id: "r3", who: "aiko", time: "10:21 AM", text: "On it. I'll mock the two-step version first.", kids: [] },
+        { id: "r1", who: "aiko", time: "10:09 AM", text: "My take: move invites to after the first project is created. People invite more when there is something to show." },
+        { id: "s1", who: "me", time: "10:12 AM", text: "Worried that hurts team signups. Solo users may never come back to invite anyone." },
+        { id: "s2", who: "aiko", time: "10:14 AM", text: "Fair. What if we keep a light invite prompt up front and a stronger one after the first project? That is basically NW-122." },
+        { id: "s3", who: "me", time: "10:15 AM", text: "Love it. Can the stronger prompt wait for the second project instead of the first?" },
+        { id: "s4", who: "aiko", time: "10:16 AM", text: "Sure. I'll add that as a variant on NW-122." },
+        { id: "r2", who: "me", time: "10:18 AM", text: "Let's prototype both and compare on Thursday." },
+        { id: "r3", who: "aiko", time: "10:21 AM", text: "On it. I'll mock the two-step version first." },
       ],
     }),
     m("m3", "aiko", "10:25 AM", "Also: tomorrow’s standup moved to 11:30."),

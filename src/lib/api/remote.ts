@@ -26,7 +26,7 @@ const call =
   ((...args: unknown[]) => rpc(name as string, args)) as Fn<K>;
 
 // The server stores ISO times; show them in the viewer's local time.
-const localReply = (n: ReplyNode): ReplyNode => ({ ...n, time: displayTime(n.time), kids: n.kids.map(localReply) });
+const localReply = (n: ReplyNode): ReplyNode => ({ ...n, time: displayTime(n.time) });
 const localMessage = (m: Message): Message => ({ ...m, time: displayTime(m.time), replies: m.replies.map(localReply) });
 const localTicket = (t: Ticket): Ticket => ({ ...t, activity: t.activity.map((a) => ({ ...a, time: displayTime(a.time) })) });
 
@@ -48,3 +48,4 @@ export const updateTicket: typeof updateTicketRaw = async (...a) => {
 export const deleteTicket = call("deleteTicket");
 export const resetWorkspace = call("resetWorkspace");
 export const decideAction = call("decideAction");
+export const getAgentRuns = call("getAgentRuns");

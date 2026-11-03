@@ -28,7 +28,9 @@ export function useRealtimeSync() {
     const channel = sb
       .channel(TOPIC)
       .on("broadcast", { event: "changed" }, ({ payload }) => {
-        const ping = payload as { chats: ChatId[]; tickets: boolean; origin: string | null };
+        const ping = payload as { chats: ChatId[]; tickets: boolean; runs?: boolean; origin: string | null };
+        // Someone's Atlas run was queued, started or finished.
+        if (ping.runs) qc.invalidateQueries({ queryKey: queryKeys.agentRuns });
         if (ping.origin === CLIENT_ID) return; // our own change: mutations already handled it
         for (const chat of ping.chats) {
           qc.invalidateQueries({ queryKey: queryKeys.messages(chat) });

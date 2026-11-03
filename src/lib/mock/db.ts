@@ -36,30 +36,14 @@ export function bumpWeek(kind: "p" | "a") {
   db.week[todayIndex()][kind] += 1;
 }
 
-export function findNode(list: ReplyNode[] | undefined, id: string): ReplyNode | null {
-  for (const n of list || []) {
-    if (n.id === id) return n;
-    const f = findNode(n.kids, id);
-    if (f) return f;
-  }
-  return null;
-}
-
-/** Append a message to a chat, a thread, or a nested reply. */
-export function appendMessage(
-  chatId: ChatId,
-  msg: Omit<Message, "replies">,
-  threadId?: string | null,
-  parentId?: string | null,
-) {
+/** Append a message to a chat, or a reply to a thread (threads are flat). */
+export function appendMessage(chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null) {
   const chat = db.chats[chatId];
   if (threadId) {
     const root = chat.find((x) => x.id === threadId);
     if (root) {
-      const node: ReplyNode = { ...msg, kids: [] };
-      const parent = parentId ? findNode(root.replies, parentId) : null;
-      if (parent) parent.kids.push(node);
-      else root.replies.push(node);
+      const node: ReplyNode = { ...msg };
+      root.replies.push(node);
       return node;
     }
   }

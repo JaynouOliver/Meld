@@ -76,7 +76,7 @@ function preview(m: Message | undefined) {
 
 function enter(id: ChatId) {
   useUiStore.getState().markRead(id);
-  useUiStore.setState({ threadId: null, replyTo: null });
+  useUiStore.setState({ threadId: null });
 }
 
 function ChatRow({ id, last }: { id: ChatId; last: Message | undefined }) {

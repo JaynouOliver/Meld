@@ -25,6 +25,6 @@ export function mentionsAgent(text: string, chatId: string) {
   return chatId === "atlas" || /@(atlas|agent)\b/i.test(text);
 }
 
-export function countReplies(list: { kids?: unknown[] }[] | undefined): number {
-  return (list || []).reduce((a, n) => a + 1 + countReplies(n.kids as { kids?: unknown[] }[]), 0);
+export function countReplies(list: unknown[] | undefined): number {
+  return list?.length ?? 0;
 }
