@@ -15,6 +15,12 @@ async function rpc<T>(method: string, args: unknown[]): Promise<T> {
     headers: { "Content-Type": "application/json", "x-meld-client": CLIENT_ID },
     body: JSON.stringify({ args }),
   });
+  if (res.status === 401 && typeof window !== "undefined") {
+    // Session ended: sign in again, then come back here.
+    // Full page load on purpose: drops every cached query from the old session.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? `${method} failed (${res.status})`);
   return body.result as T;

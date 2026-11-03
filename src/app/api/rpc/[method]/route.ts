@@ -6,6 +6,7 @@ import { mentionsAgent } from "@/lib/text";
 import { enqueueAtlas, processRun, sweepRuns } from "@/server/atlas/queue";
 import { runAtlasAgent } from "@/server/atlas/run";
 import { llm } from "@/server/llm";
+import { getSessionUser } from "@/server/auth";
 import { pingChanges } from "@/server/realtime";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
@@ -85,6 +86,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ method:
   const { method } = await params;
   const fn = methods[method];
   if (!fn) return Response.json({ error: `Unknown method ${method}` }, { status: 404 });
+  // Every call needs a signed-in user (Supabase session, or the dev cookie locally).
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
   const { args = [] } = (await req.json().catch(() => ({}))) as { args?: unknown[] };
   try {
     const result = await fn(...(args as never[]));

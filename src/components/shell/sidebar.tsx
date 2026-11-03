@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, HashIcon, MonitorIcon, MoonIcon, SquarePenIcon, SunIcon, TicketIcon } from "lucide-react";
+import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, SquarePenIcon, SunIcon, TicketIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +8,7 @@ import { Avatar } from "@/components/common/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -17,6 +18,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActiveChat } from "@/hooks/use-active-chat";
 import { useVisibleTickets } from "@/hooks/use-tickets";
+import { signOut } from "@/lib/auth/browser";
 import { ACCENTS, CHANNELS, CHAT_META, DMS, PEOPLE, WORKSPACE_NAME } from "@/lib/constants";
 import { THEME_OPTIONS } from "@/lib/theme";
 import { ROLE_LABEL, ROLE_OPTION_LABEL } from "@/lib/rbac";
@@ -130,6 +132,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="font-normal">Signed in as {me.name}</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => void signOut()}>
+              <LogOutIcon className="size-4 text-muted-foreground" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <button
