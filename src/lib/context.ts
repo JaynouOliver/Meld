@@ -15,6 +15,8 @@ import type { Store } from "./store/types";
 export interface RequestCtx {
   dir: Directory;
   store: Store;
+  /** Set while an agent runs: the directory is narrowed to what that agent can read. */
+  scopedTo?: string;
 }
 
 let provider: (() => RequestCtx | undefined) | null = null;

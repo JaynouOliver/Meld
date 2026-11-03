@@ -1,32 +1,25 @@
 import "server-only";
 
-import { ATLAS_ID } from "@/lib/directory";
-import { stamp, uid } from "@/lib/format";
+import { agentById, agentModeIn, type AgentInfo, type Directory } from "@/lib/directory";
+import { stamp } from "@/lib/format";
 import { currentCtx } from "@/lib/context";
 import { getStore } from "@/lib/store";
 import { replyIdFor, RUN_PICKUP_MS, RUN_STALE_MS, type AgentRun } from "@/lib/agent/runs";
-import type { AskAtlasInput } from "@/lib/api/service";
+import type { Message } from "@/lib/types";
 import { runInCtx } from "../context";
 import { pingChanges } from "../realtime";
 import { contextAs } from "../workspace";
+import { agentName, dispatch } from "../agents/dispatch";
+import { shouldRespond } from "../agents/triage";
 import { reporter } from "./progress";
 import { runAtlasAgent } from "./run";
 
 /**
- * The agent queue (docs/architecture.md §4). A run is a row in agent_runs:
- * enqueue → claim (atomic) → run the agent → finish. Runs normally start right after
- * the request that enqueued them (Next's after()); sweepRuns() picks up any that were
- * missed or whose worker died.
+ * The agent queue (docs/architecture.md §4, docs/agent-platform.md). A run is a row in
+ * agent_runs, in one agent's inbox: enqueue (dispatch.ts) → claim (atomic) → run the
+ * agent → finish. Runs normally start right after the request that enqueued them (Next's
+ * after()); sweepRuns() picks up any that were missed or whose worker died.
  */
-export async function enqueueAtlas(input: AskAtlasInput & { triggerMessageId: string }): Promise<AgentRun> {
-  const store = await getStore();
-  return store.enqueueRun({
-    id: `run${uid()}`, triggerMessageId: input.triggerMessageId, chatId: input.chatId,
-    threadId: input.threadId ?? null, requester: currentCtx().dir.me, role: input.role, text: input.text,
-    status: "queued", attempts: 0, error: null, result: null, trace: null,
-    createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
-  });
-}
 
 /** Execute one run if we can claim it. Safe to call more than once for the same run. */
 export async function processRun(id: string): Promise<void> {
@@ -35,44 +28,97 @@ export async function processRun(id: string): Promise<void> {
   if (!run) return; // someone else has it, or it's finished
   // Run as the person who asked (the sweep may be triggered by someone else's browser).
   const workspaceId = currentCtx().dir.workspace.id;
-  const ctx = currentCtx().dir.me === run.requester ? currentCtx() : await contextAs(workspaceId, run.requester);
+  const ctx = currentCtx().dir.me === run.requester && !currentCtx().scopedTo ? currentCtx() : await contextAs(workspaceId, run.requester);
   await runInCtx(ctx, () => execute(run, workspaceId));
 }
 
 async function execute(run: AgentRun, workspaceId: string) {
-  const store = await getStore();
+  const { dir, store } = currentCtx();
+  const agent = agentById(dir, run.agentId);
+  if (!agent) {
+    // The agent was deleted while the run waited.
+    await store.finishRun(run.id, { status: "failed", error: "agent no longer exists", result: { touchedChats: [], openTicket: null, deleted: [] } });
+    return;
+  }
+  // The agent reads only the chats it's a member of (and the requester can see).
+  const scoped = { ...currentCtx(), dir: scopeFor(dir, agent.id), scopedTo: agent.id };
+  const out = await runInCtx(scoped, () => executeAs(agent, run, workspaceId));
+  // Hand-offs: agents this reply @mentions pick it up, one level deeper (governed in dispatch).
+  if (out?.reply) {
+    const next = await dispatch({
+      chatId: run.chatId, threadId: out.threadId, messageId: out.reply.id, authorId: agent.id, text: out.reply.text, parent: run,
+    });
+    await Promise.all(next.map((r) => processRun(r.id)));
+  }
+}
+
+/** The directory as this agent may see it: channels it's in, and its own DM. */
+function scopeFor(dir: Directory, agentId: string): Directory {
+  const chats = Object.fromEntries(Object.entries(dir.chats).filter(([id]) => agentModeIn(dir, id, agentId) !== null));
+  return { ...dir, chats, channels: dir.channels.filter((c) => chats[c]), dms: dir.dms.filter((c) => chats[c]) };
+}
+
+async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
+  const { dir, store } = currentCtx();
   const ping = (p: { chats: string[]; tickets: boolean; message?: { chatId: string; threadId: string | null; message: unknown } }) =>
     pingChanges({ ...p, runs: true, origin: null, workspaceId });
   await ping({ chats: [], tickets: false });
   const replyId = replyIdFor(run.id);
+  const silent = { touchedChats: [] as string[], openTicket: null, deleted: [] as string[] };
 
   // A retried run (its first worker died) may have replied already: don't do it twice.
   if (run.attempts > 1 && (await store.getMessageRefs([replyId]))[replyId]) {
     await store.finishRun(run.id, { status: "done", result: { touchedChats: [run.chatId], openTicket: null, deleted: [] } });
     await ping({ chats: [run.chatId], tickets: true });
-    return;
+    return null;
   }
 
-  const progress = reporter(workspaceId, run);
+  // Proactive (lurk / active): first decide whether this is ours to answer at all.
+  const meta = dir.chats[run.chatId];
+  if (run.trigger === "proactive") {
+    const list = await store.listMessages(run.chatId);
+    const recent = run.threadId ? (() => { const r = list.find((m) => m.id === run.threadId); return r ? [r, ...r.replies] : []; })() : list;
+    const go = await shouldRespond({
+      agent, mode: agentModeIn(dir, run.chatId, agent.id) ?? "lurk", dir, recent: recent as Message[], text: run.text,
+      chatLabel: meta?.kind === "channel" ? `#${meta.label}` : "a direct message", author: agentName(run.requester),
+    }).catch(() => false);
+    if (!go) {
+      await store.finishRun(run.id, { status: "done", result: silent });
+      await ping({ chats: [], tickets: false });
+      return null;
+    }
+  }
+
+  // 👀 on the message while working on it (replaced by the reply).
+  await store.react(run.triggerMessageId, "👀", agent.id, true).catch(() => {});
+  await ping({ chats: [run.chatId], tickets: false });
+  // Speaking up uninvited goes in a thread, so it doesn't take over the channel.
+  const threadId = run.threadId ?? (run.trigger === "proactive" ? run.triggerMessageId : null);
+
+  const progress = reporter(workspaceId, { ...run, threadId });
   try {
     const { trace, replyMessage, ...result } = await runAtlasAgent({
-      chatId: run.chatId, text: run.text, threadId: run.threadId, role: run.role, replyId, progress,
+      chatId: run.chatId, text: run.text, threadId, role: run.role, replyId, progress, agent, depth: run.depth,
     });
     await store.finishRun(run.id, { status: "done", result, trace, error: trace.error ?? null });
+    await store.react(run.triggerMessageId, "👀", agent.id, false).catch(() => {});
     // The reply rides along, so the chat shows it without refetching.
     await ping({
       chats: result.touchedChats, tickets: true,
-      message: replyMessage ? { chatId: run.chatId, threadId: run.threadId, message: replyMessage } : undefined,
+      message: replyMessage ? { chatId: run.chatId, threadId, message: replyMessage } : undefined,
     });
+    return replyMessage && !trace.error ? { reply: replyMessage, threadId } : null;
   } catch (e) {
     const error = (e as Error).message;
-    console.error(`[atlas] run ${run.id} failed:`, e);
+    console.error(`[agent] run ${run.id} (${agent.handle}) failed:`, e);
     // Tell the person instead of leaving them waiting.
     await store
-      .appendMessage(run.chatId, { id: replyId, who: ATLAS_ID, time: stamp(), text: "Sorry, something went wrong on my side and nothing was changed. Please try again." }, run.threadId)
+      .appendMessage(run.chatId, { id: replyId, who: agent.id, time: stamp(), text: "Sorry, something went wrong on my side and nothing was changed. Please try again." }, threadId)
       .catch(() => {});
+    await store.react(run.triggerMessageId, "👀", agent.id, false).catch(() => {});
     await store.finishRun(run.id, { status: "failed", error, result: { touchedChats: [run.chatId], openTicket: null, deleted: [] } });
     await ping({ chats: [run.chatId], tickets: false });
+    return null;
   } finally {
     progress.done();
   }

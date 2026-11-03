@@ -129,7 +129,7 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     return true;
   },
   async enqueueRun(run) {
-    const existing = [...d().runs.values()].find((r) => r.triggerMessageId === run.triggerMessageId);
+    const existing = [...d().runs.values()].find((r) => r.triggerMessageId === run.triggerMessageId && r.agentId === run.agentId);
     if (existing) return clone(existing);
     d().runs.set(run.id, clone(run));
     return clone(run);
@@ -145,6 +145,26 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async finishRun(id, patch) {
     const r = d().runs.get(id);
     if (r) Object.assign(r, { ...patch, finishedAt: new Date().toISOString() });
+  },
+  async countRunsSince(chatId, since) {
+    const t = Date.parse(since);
+    return [...d().runs.values()].filter((r) => r.chatId === chatId && Date.parse(r.createdAt) > t).length;
+  },
+  async react(messageId, emoji, who, on) {
+    for (const list of Object.values(d().chats)) {
+      for (const m of list) {
+        for (const n of [m, ...m.replies]) {
+          if (n.id !== messageId) continue;
+          const r = { ...(n.reactions ?? {}) };
+          const people = (r[emoji] ?? []).filter((x) => x !== who);
+          if (on) people.push(who);
+          if (people.length) r[emoji] = people;
+          else delete r[emoji];
+          n.reactions = r;
+          return;
+        }
+      }
+    }
   },
   async listRecentRuns() {
     const since = Date.now() - RUN_RECENT_MS;

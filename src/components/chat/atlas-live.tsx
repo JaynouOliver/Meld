@@ -3,33 +3,47 @@
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
-import { useAtlasRun } from "@/hooks/use-agent-runs";
+import { useLiveRuns } from "@/hooks/use-agent-runs";
 import { useDirectory } from "@/hooks/use-directory";
 import { useRunProgress } from "@/hooks/use-run-progress";
 import { ATLAS_ID, personOf } from "@/lib/directory";
+import type { RunView } from "@/lib/agent/runs";
 import type { ChatId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Atlas answering, live: appears the moment you ask ("On it"), shows what Atlas is
- * doing while it works ("Checking NW-130"), then streams the reply. When the saved
- * reply arrives, the real message takes its place.
+ * Agents answering, live: a bubble appears the moment you ask ("On it"), shows what the
+ * agent is doing while it works ("Checking NW-130"), then streams the reply. When the
+ * saved reply arrives, the real message takes its place. One bubble per working agent.
  */
 export function AtlasLive({ chatId, threadId, className }: { chatId: ChatId; threadId: string | null; className?: string }) {
+  const runs = useLiveRuns(chatId, threadId);
+  return (
+    <>
+      {runs.map((r) => (
+        <LiveBubble key={r.id} run={r} className={className} />
+      ))}
+    </>
+  );
+}
+
+function LiveBubble({ run, className }: { run: RunView; className?: string }) {
   const dir = useDirectory();
-  const run = useAtlasRun(chatId, threadId);
-  const progress = useRunProgress(run?.id ?? null);
-  if (!run) return null;
+  const progress = useRunProgress(run.id);
+  // A proactive check shows up only once the agent has decided to speak.
+  if (run.trigger === "proactive" && !progress) return null;
+  const agent = personOf(dir, run.agentId ?? ATLAS_ID);
   const draft = progress?.draft ? clean(progress.draft) : "";
   const step = progress?.step ?? (run.status === "queued" ? "Getting started" : "Reading the conversation");
 
   return (
-    <div data-testid="atlas-live" className={cn("flex gap-3 py-1.5", className)} aria-live="polite">
-      <Avatar person={personOf(dir, ATLAS_ID)} size="xl" className="rounded-[7px]" />
+    <div data-testid="atlas-live" data-agent={agent.id} className={cn("flex gap-3 py-1.5", className)} aria-live="polite">
+      <Avatar person={agent} size="xl" className="rounded-[7px]" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-body font-bold">Atlas</span>
+          <span className="text-body font-bold">{agent.name}</span>
           <AgentBadge />
+          {run.trigger === "delegation" && <span className="text-xs text-muted-foreground">picked up a hand-off</span>}
         </div>
         {progress?.note && !draft && <p className="mt-0.5 text-body leading-[1.55]">{clean(progress.note)}</p>}
         {draft ? (

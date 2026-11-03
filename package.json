@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "preview:build": "node preview/build.mjs",
     "eval:atlas": "DATA_STORE=memory tsx --conditions=react-server --env-file=.env.local evals/atlas.eval.ts",
-    "test:queue": "DATA_STORE=memory tsx --conditions=react-server evals/queue.test.ts"
+    "test:queue": "DATA_STORE=memory tsx --conditions=react-server evals/queue.test.ts",
+    "test:agents": "DATA_STORE=memory tsx --conditions=react-server evals/agents.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

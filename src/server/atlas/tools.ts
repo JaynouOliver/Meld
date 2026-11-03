@@ -2,7 +2,7 @@ import type OpenAI from "openai";
 
 import { PRIORITIES, STATUSES } from "@/lib/constants";
 import { currentDir } from "@/lib/context";
-import { ATLAS_ID, personOf, type Directory } from "@/lib/directory";
+import { ATLAS_ID, personOf, type AgentTool, type Directory } from "@/lib/directory";
 import { displayTime, stamp, uid } from "@/lib/format";
 import type { Store } from "@/lib/store";
 import type { MessageHit } from "@/lib/store/types";
@@ -18,13 +18,21 @@ import { ticketLine } from "./prompt";
 const TEAMS_ENUM = "__TEAMS__";
 const PEOPLE_ENUM = "__PEOPLE__";
 
-/** The tools with this workspace's teams and people filled into the enums. */
-export function toolsFor(dir: Directory): OpenAI.Chat.Completions.ChatCompletionTool[] {
+/** Which permission group each tool needs (an agent's `tools`). */
+const TOOL_GROUP: Record<string, AgentTool> = {
+  list_tickets: "read", get_ticket: "read", ticket_discussion: "read", search_messages: "read", catch_up: "read",
+  create_ticket: "write", update_ticket: "write", delete_ticket: "delete",
+};
+export const toolAllowed = (name: string, allowed: AgentTool[] = ["read", "write", "delete"]) => allowed.includes(TOOL_GROUP[name] ?? "read");
+
+/** The tools this agent may use, with this workspace's teams and people filled into the enums. */
+export function toolsFor(dir: Directory, allowed?: AgentTool[]): OpenAI.Chat.Completions.ChatCompletionTool[] {
   const teams = dir.teams.map((t) => t.id);
   const people = dir.personOrder.filter((id) => id !== ATLAS_ID);
-  return JSON.parse(
+  const all: OpenAI.Chat.Completions.ChatCompletionTool[] = JSON.parse(
     JSON.stringify(TOOLS).replaceAll(`["${TEAMS_ENUM}"]`, JSON.stringify(teams)).replaceAll(`["${PEOPLE_ENUM}"]`, JSON.stringify(people)),
   );
+  return all.filter((t) => t.type === "function" && toolAllowed(t.function.name, allowed));
 }
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -200,6 +208,8 @@ export interface ToolCtx {
   threadId?: string | null;
   effects: Effects;
   store: Store;
+  /** The running agent's tool groups (Atlas: all). */
+  allowed?: AgentTool[];
 }
 
 const STOP = new Set(["the", "a", "an", "to", "for", "of", "on", "in", "and", "or", "with", "add", "fix", "make", "new"]);
@@ -274,6 +284,7 @@ function hitLine(m: MessageHit) {
 
 export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<unknown> {
   const { role, effects, store } = ctx;
+  if (!toolAllowed(name, ctx.allowed)) return err(`You don't have the ${TOOL_GROUP[name]} permission for ${name}. Ask a teammate or @atlas.`);
   switch (name) {
     case "list_tickets": {
       const q = str(args.query) ?? "";

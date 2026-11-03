@@ -3,14 +3,15 @@ import "server-only";
 import type OpenAI from "openai";
 
 import { currentDir } from "@/lib/context";
-import { ATLAS_ID, personOf } from "@/lib/directory";
+import { ATLAS_AGENT, personOf, type AgentInfo } from "@/lib/directory";
+import { MAX_AGENT_DEPTH } from "@/lib/agent/runs";
 import { stamp, uid } from "@/lib/format";
 import { applyOps, needsConfirmation, toView, summarize as summarizeOps, UNDO_WINDOW_MS, type ActionRecord, type TicketOp } from "@/lib/agent/actions";
 import { getStore, type Store } from "@/lib/store";
 import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
-import { buildContext, SYSTEM_PROMPT, workspaceBlock } from "./prompt";
+import { buildContext, systemPromptFor, workspaceBlock } from "./prompt";
 import { stepLabel, type Progress } from "./progress";
 import { planToOps, runTool, toolsFor, type Effects } from "./tools";
 
@@ -38,7 +39,7 @@ export interface AtlasTrace {
  * and announce ticket changes in the channels that follow those tickets.
  */
 export async function runAtlasAgent(
-  input: AskAtlasInput & { replyId?: string; progress?: Progress },
+  input: AskAtlasInput & { replyId?: string; progress?: Progress; agent?: AgentInfo; depth?: number },
 ): Promise<AskAtlasResult & { trace: AtlasTrace; replyMessage?: Message | ReplyNode }> {
   const client = llm();
   if (!client) throw new Error("MODEL_API_KEY is not set");
@@ -52,18 +53,23 @@ export async function runAtlasAgent(
     citations: { kept: [], invalid: [], overLimit: [] },
   };
 
+  const agent = input.agent ?? ATLAS_AGENT;
   const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where)]);
+  // Handed over by another agent: the request text is that agent's message.
+  const lastHop = (input.depth ?? 0) >= MAX_AGENT_DEPTH
+    ? "\nThis is the last hand-off allowed in this chain: finish it yourself or hand back to a person; don't @mention other agents."
+    : "";
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n${workspaceBlock(currentDir())}` },
+    { role: "system", content: `${systemPromptFor(agent, currentDir())}\n\n${workspaceBlock(currentDir())}` },
     {
       role: "user",
       content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}
 
-Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
+Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.text}${lastHop}`,
     },
   ];
 
-  const tools = toolsFor(currentDir());
+  const tools = toolsFor(currentDir(), agent.tools);
   const progress = input.progress;
   progress?.step(input.threadId ? "Reading the thread" : "Reading the conversation");
   let reply = "";
@@ -121,7 +127,7 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
         try {
           args = JSON.parse(call.function.arguments || "{}");
           progress?.step(stepLabel(call.function.name, args));
-          result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store });
+          result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store, allowed: agent.tools });
         } catch (e) {
           result = { ok: false, error: `Invalid arguments: ${(e as Error).message}` };
         }
@@ -166,7 +172,7 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
   const card = hold ? null : single(created) ?? (created.length ? null : single(updated) ?? single([...new Set(effects.read)]));
   const replyMessage = await store.appendMessage(
     where,
-    { id: messageId, who: ATLAS_ID, time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null },
+    { id: messageId, who: agent.id, time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null },
     input.threadId,
   );
 

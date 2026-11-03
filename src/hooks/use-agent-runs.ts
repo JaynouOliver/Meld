@@ -35,11 +35,11 @@ export function useAtlasWorking(chatId: ChatId, threadId: string | null) {
 }
 
 /**
- * The Atlas run to show live in a chat or thread: one in flight, or one that just
- * finished whose reply hasn't reached this chat's messages yet (so the live bubble
- * hands over to the real message without a gap).
+ * Agent runs to show live in a chat or thread: in flight, or just finished with a reply
+ * that hasn't reached this chat's messages yet (so the live bubble hands over to the real
+ * message without a gap). Proactive checks that decided to stay quiet are left out.
  */
-export function useAtlasRun(chatId: ChatId, threadId: string | null): RunView | null {
+export function useLiveRuns(chatId: ChatId, threadId: string | null): RunView[] {
   const { data } = useQuery({
     ...runsQuery,
     select: (runs: RunView[]) => runs.filter((r) => r.chatId === chatId && (r.threadId ?? null) === threadId),
@@ -49,7 +49,19 @@ export function useAtlasRun(chatId: ChatId, threadId: string | null): RunView | 
     const id = replyIdFor(r.id);
     return !!messages?.some((m) => m.id === id || m.replies.some((x) => x.id === id));
   };
-  return data?.find((r) => active(r) || (r.status === "done" && !delivered(r) && !gaveUp.has(r.id))) ?? null;
+  const replied = (r: RunView) => (r.result?.touchedChats.length ?? 1) > 0;
+  return (data ?? []).filter((r) => active(r) || (r.status === "done" && replied(r) && !delivered(r) && !gaveUp.has(r.id)));
+}
+
+/** The first live run in a chat or thread (Atlas's "working" state). */
+export function useAtlasRun(chatId: ChatId, threadId: string | null): RunView | null {
+  return useLiveRuns(chatId, threadId)[0] ?? null;
+}
+
+/** Agents with a run in flight right now (presence: working). */
+export function useWorkingAgents(): Set<string> {
+  const { data } = useQuery({ ...runsQuery, select: (runs: RunView[]) => runs.filter(active).map((r) => r.agentId ?? "atlas").join(",") });
+  return new Set((data ?? "").split(",").filter(Boolean));
 }
 
 /** Runs whose reply we stopped waiting for (older finished runs, or the reply is elsewhere). */

@@ -3,6 +3,7 @@
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { ActionCard } from "@/components/chat/action-card";
+import { Reactions } from "@/components/chat/reactions";
 import { RichText } from "@/components/common/rich-text";
 import { useDirectory } from "@/hooks/use-directory";
 import { useFlash } from "@/hooks/use-flash";
@@ -39,6 +40,7 @@ function ThreadReply({ node }: { node: ReplyNode }) {
           </div>
           <RichText text={node.text} className="mt-0.5 text-body leading-[1.55]" />
           {node.action && <ActionCard action={node.action} />}
+          <Reactions reactions={node.reactions} />
         </div>
       </div>
     </div>

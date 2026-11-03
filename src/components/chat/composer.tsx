@@ -8,7 +8,7 @@ import { useSendMessage } from "@/hooks/use-messages";
 import { useUiStore } from "@/stores/ui-store";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { STATUS_COLORS } from "@/lib/constants";
-import { ATLAS_ID, personOf, teamName } from "@/lib/directory";
+import { agentModeIn, agentsOf, ATLAS_ID, personOf, teamName } from "@/lib/directory";
 import type { ChatId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -52,14 +52,23 @@ export function Composer({ chatId }: { chatId: ChatId }) {
     if (!pop) return [];
     const q = pop.q.toLowerCase();
     if (pop.kind === "people") {
-      // Atlas first, then the other members.
-      const mentionable = [ATLAS_ID, ...dir.personOrder.filter((k) => k !== ATLAS_ID && k !== dir.me)];
-      return mentionable.map((k) => personOf(dir, k)).filter((p) => p.first.toLowerCase().startsWith(q)).map((p) => {
-        return {
-          insert: "@" + p.first, name: p.name, handle: "@" + p.first, badge: p.initials, color: p.color, ink: "#FFFFFF",
-          sub: p.isAgent ? "Agent · create, read, update, delete tickets" : teamName(dir, p.team),
-        };
-      });
+      // Agents first (by @handle), then the other members (by first name).
+      const agents = agentsOf(dir)
+        .filter((a) => a.handle.startsWith(q) || a.name.toLowerCase().startsWith(q))
+        .map((a) => {
+          const p = personOf(dir, a.id);
+          const here = agentModeIn(dir, chatId, a.id);
+          return {
+            insert: "@" + a.handle, name: a.name, handle: "@" + a.handle, badge: p.initials, color: p.color, ink: "#FFFFFF",
+            sub: here ? `Agent · ${a.description || "agent"}` : "Agent · not in this channel",
+          };
+        });
+      const people = dir.personOrder
+        .filter((k) => k !== ATLAS_ID && k !== dir.me)
+        .map((k) => personOf(dir, k))
+        .filter((p) => !p.isAgent && p.first.toLowerCase().startsWith(q))
+        .map((p) => ({ insert: "@" + p.first, name: p.name, handle: "@" + p.first, badge: p.initials, color: p.color, ink: "#FFFFFF", sub: teamName(dir, p.team) }));
+      return [...agents, ...people].slice(0, 8);
     }
     const key = q.replace(new RegExp(`^${escapeRe(prefix)}-?`, "i"), "");
     const num = (id: string) => id.slice(prefix.length + 1);
@@ -70,7 +79,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
         const [bg, fg] = STATUS_COLORS[t.status];
         return { insert: t.id, name: t.id, handle: t.title || "Untitled ticket", badge: num(t.id), color: bg, ink: fg, sub: `${t.status} · ${teamName(dir, t.team)}` };
       });
-  }, [pop, visible, dir, prefix]);
+  }, [pop, visible, dir, prefix, chatId]);
 
   const update = (val: string) => {
     setDraft(val);

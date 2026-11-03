@@ -1,7 +1,7 @@
 import "server-only";
 
 import { DEMO_CHATS, DEMO_PEOPLE, DEMO_ROLES, DEMO_TEAMS, DEMO_WORKSPACE_ID } from "@/lib/mock/demo";
-import type { ChannelRow, InviteRow, MemberRow, Profile, Registry, WorkspaceRow } from "./types";
+import type { AgentRow, ChannelAgentRow, ChannelRow, InviteRow, MemberRow, Profile, Registry, WorkspaceRow } from "./types";
 
 /** In-process registry for local dev and tests, seeded with the Northwind demo. */
 interface Data {
@@ -10,10 +10,12 @@ interface Data {
   members: Map<string, Map<string, Omit<MemberRow, keyof Profile> & { id: string }>>;
   channels: ChannelRow[];
   invites: InviteRow[];
+  agents: AgentRow[];
+  channelAgents: (ChannelAgentRow & { workspaceId: string })[];
 }
 
 function seed(): Data {
-  const d: Data = { profiles: new Map(), workspaces: new Map(), members: new Map(), channels: [], invites: [] };
+  const d: Data = { profiles: new Map(), workspaces: new Map(), members: new Map(), channels: [], invites: [], agents: [], channelAgents: [] };
   d.workspaces.set(DEMO_WORKSPACE_ID, {
     id: DEMO_WORKSPACE_ID, name: "Northwind", slug: "northwind", ticketPrefix: "NW", repo: "northwind/web", teams: DEMO_TEAMS, demo: true,
   });
@@ -96,6 +98,31 @@ export const memoryRegistry: Registry = {
   },
   async deleteChannel(workspaceId, id) {
     data.channels = data.channels.filter((c) => !(c.workspaceId === workspaceId && c.id === id));
+  },
+  async agents(workspaceId) {
+    return clone(data.agents.filter((a) => a.workspaceId === workspaceId));
+  },
+  async agentByToken(tokenHash) {
+    const a = data.agents.find((x) => x.tokenHash === tokenHash);
+    return a ? clone(a) : null;
+  },
+  async createAgent(a) {
+    data.agents.push(clone(a));
+  },
+  async updateAgent(workspaceId, id, patch) {
+    const a = data.agents.find((x) => x.workspaceId === workspaceId && x.id === id);
+    if (a) Object.assign(a, clone(patch));
+  },
+  async deleteAgent(workspaceId, id) {
+    data.agents = data.agents.filter((x) => !(x.workspaceId === workspaceId && x.id === id));
+    data.channelAgents = data.channelAgents.filter((x) => !(x.workspaceId === workspaceId && x.agentId === id));
+  },
+  async channelAgents(workspaceId) {
+    return clone(data.channelAgents.filter((x) => x.workspaceId === workspaceId)).map(({ workspaceId: _w, ...r }) => (void _w, r));
+  },
+  async setChannelAgent(workspaceId, chatId, agentId, mode) {
+    data.channelAgents = data.channelAgents.filter((x) => !(x.workspaceId === workspaceId && x.chatId === chatId && x.agentId === agentId));
+    if (mode) data.channelAgents.push({ workspaceId, chatId, agentId, mode });
   },
   async createInvite(i) {
     data.invites.push(clone(i));

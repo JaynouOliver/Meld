@@ -43,6 +43,27 @@ export interface ChannelRow {
   createdAt: string;
 }
 
+export interface AgentRow {
+  id: PersonId;
+  workspaceId: string;
+  handle: string;
+  name: string;
+  description: string;
+  instructions: string;
+  tools: ("read" | "write" | "delete")[];
+  kind: "custom" | "external";
+  color: string | null;
+  tokenHash: string | null;
+  createdBy: PersonId | null;
+  createdAt: string;
+}
+
+export interface ChannelAgentRow {
+  chatId: ChatId;
+  agentId: PersonId;
+  mode: "mention" | "lurk" | "active" | "off";
+}
+
 export interface InviteRow {
   token: string;
   workspaceId: string;
@@ -69,6 +90,14 @@ export interface Registry {
   createChannel(c: ChannelRow): Promise<void>;
   updateChannel(workspaceId: string, id: ChatId, patch: Partial<Pick<ChannelRow, "name" | "topic">>): Promise<void>;
   deleteChannel(workspaceId: string, id: ChatId): Promise<void>;
+  agents(workspaceId: string): Promise<AgentRow[]>;
+  agentByToken(tokenHash: string): Promise<AgentRow | null>;
+  createAgent(a: AgentRow): Promise<void>;
+  updateAgent(workspaceId: string, id: PersonId, patch: Partial<Pick<AgentRow, "name" | "handle" | "description" | "instructions" | "tools" | "tokenHash">>): Promise<void>;
+  deleteAgent(workspaceId: string, id: PersonId): Promise<void>;
+  channelAgents(workspaceId: string): Promise<ChannelAgentRow[]>;
+  /** Set an agent's mode in a channel; null removes the row (back to the default). */
+  setChannelAgent(workspaceId: string, chatId: ChatId, agentId: PersonId, mode: ChannelAgentRow["mode"] | null, by: PersonId): Promise<void>;
   createInvite(i: InviteRow): Promise<void>;
   invite(token: string): Promise<InviteRow | null>;
   invites(workspaceId: string): Promise<InviteRow[]>;

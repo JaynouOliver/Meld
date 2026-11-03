@@ -25,9 +25,11 @@ import { clearLocalCache } from "@/lib/cache";
 import { signOut } from "@/lib/auth/browser";
 import { CreateChannelDialog, NewMessageDialog } from "@/components/workspace/channel-dialogs";
 import { PeopleDialog } from "@/components/workspace/people-dialog";
+import { AgentDialog } from "@/components/agents/agent-dialog";
+import { useWorkingAgents } from "@/hooks/use-agent-runs";
 import { SettingsDialog } from "@/components/workspace/settings-dialog";
 import { ACCENTS } from "@/lib/constants";
-import { personOf } from "@/lib/directory";
+import { agentDmOf, agentsOf, personOf } from "@/lib/directory";
 import { THEME_OPTIONS } from "@/lib/theme";
 import { canManage, clampRole, roleLabel, roleOptionLabel } from "@/lib/rbac";
 import type { ChatId, Role } from "@/lib/types";
@@ -117,6 +119,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState<{ id: string | null } | null>(null);
+  const workingAgents = useWorkingAgents();
   const openWorkspace = async (id: string) => {
     if (id === dir.workspace.id) return;
     await switchWorkspace(id);
@@ -134,6 +138,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
       <NewMessageDialog open={dmOpen} onOpenChange={setDmOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AgentDialog agentId={agentOpen?.id ?? null} open={!!agentOpen} onOpenChange={(o) => !o && setAgentOpen(null)} />
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -225,10 +230,53 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
 
+        <SectionLabel onAdd={dir.role !== "guest" ? () => setAgentOpen({ id: null }) : undefined} addLabel="Add an agent">
+          Agents
+        </SectionLabel>
+        {agentsOf(dir).map((a) => {
+          const dm = agentDmOf(dir, a.id);
+          const active = !!dm && activeChat === dm;
+          const n = dm ? (unread[dm] ?? 0) : 0;
+          const working = workingAgents.has(a.id);
+          const body = (
+            <>
+              <span className="relative">
+                <Avatar person={personOf(dir, a.id)} size="xs" className="size-5 rounded-[5px] text-2xs" />
+                <span
+                  aria-hidden
+                  className={cn("absolute -right-0.5 -bottom-0.5 size-2 rounded-full border border-sidebar", working ? "animate-pulse bg-sidebar-agent" : "bg-online")}
+                />
+              </span>
+              <span className="flex-1 truncate">{a.name}</span>
+              <span className="sr-only">{working ? "working" : "idle"}</span>
+              {working ? (
+                <span className="text-2xs font-semibold text-sidebar-agent">working</span>
+              ) : (
+                <span className="rounded border border-sidebar-agent-border px-[5px] py-px text-2xs font-bold tracking-[0.05em] text-sidebar-agent">AGENT</span>
+              )}
+              {n > 0 && !active && <UnreadBadge n={n} />}
+            </>
+          );
+          return dm ? (
+            <NavLink key={a.id} href={`/chat/${dm}`} active={active} bold={n > 0} onNavigate={onNavigate} onClick={() => enterChat(dm)}>
+              {body}
+            </NavLink>
+          ) : (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setAgentOpen({ id: a.id })}
+              className="flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[15px] text-sidebar-foreground hover:bg-sidebar-hover"
+            >
+              {body}
+            </button>
+          );
+        })}
+
         <SectionLabel onAdd={() => setDmOpen(true)} addLabel="New message">
           Direct messages
         </SectionLabel>
-        {dir.dms.map((id) => {
+        {dir.dms.filter((id) => { const m = dir.chats[id]; return !(m?.kind === "dm" && personOf(dir, m.who).isAgent); }).map((id) => {
           const meta = dir.chats[id];
           if (!meta) return null;
           const p = personOf(dir, meta.kind === "dm" ? meta.who : dir.me);

@@ -12,7 +12,7 @@ import { DEMO_WORKSPACE_ID } from "../src/lib/mock/demo";
 import { dueRuns } from "../src/server/atlas/queue";
 
 const run = (id: string, trigger: string): AgentRun => ({
-  id, triggerMessageId: trigger, chatId: "design", threadId: null, requester: "me", role: "owner", text: "@Atlas hi",
+  id, triggerMessageId: trigger, chatId: "design", threadId: null, agentId: "atlas", trigger: "mention", depth: 0, parentRunId: null, requester: "me", role: "owner", text: "@Atlas hi",
   status: "queued", attempts: 0, error: null, result: null, trace: null,
   createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
 });

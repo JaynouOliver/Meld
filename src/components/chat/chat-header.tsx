@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/common/avatar";
 import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
 import { CatchUpButton } from "./catch-up-button";
+import { ChannelAgents } from "@/components/agents/channel-agents";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { ATLAS_ID, personOf } from "@/lib/directory";
@@ -39,6 +40,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div className="flex shrink-0 items-center gap-2">
+        <ChannelAgents chatId={chatId} />
         {canEdit && (
           <>
             <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettingsOpen(true)} className="flex size-9 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted hover:text-foreground">

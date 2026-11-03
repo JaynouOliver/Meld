@@ -16,6 +16,7 @@ import type { ChatId, Message, Person } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 import { AtlasLive } from "./atlas-live";
+import { Reactions } from "./reactions";
 import { ActionCard } from "./action-card";
 import { TicketCard } from "./ticket-card";
 
@@ -88,6 +89,7 @@ function MessageRow({ message: m }: { message: Message }) {
         <RichText text={m.text} className="mt-0.5 text-body leading-[1.6]" />
         {m.ticket && <TicketCard id={m.ticket} />}
         {m.action && <ActionCard action={m.action} />}
+        <Reactions reactions={m.reactions} />
         {n > 0 && (
           <button
             type="button"

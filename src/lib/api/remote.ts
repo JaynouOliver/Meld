@@ -87,4 +87,16 @@ export const createChannel = (input: { name: string; topic?: string; team?: stri
 export const updateChannel = (input: { id: string; name?: string; topic?: string }) => rpc<void>("updateChannel", [input]);
 export const deleteChannel = (id: string) => rpc<{ home: string }>("deleteChannel", [id]);
 export const openDm = (userId: string) => rpc<{ id: string }>("openDm", [userId]);
+export interface AgentInput {
+  name: string;
+  handle?: string;
+  description?: string;
+  instructions?: string;
+  tools?: ("read" | "write" | "delete")[];
+}
+export const createAgent = (input: AgentInput) => rpc<{ id: string; handle: string }>("createAgent", [input]);
+export const updateAgent = (input: AgentInput & { id: string }) => rpc<void>("updateAgent", [input]);
+export const deleteAgent = (id: string) => rpc<void>("deleteAgent", [id]);
+export const setChannelAgent = (input: { chatId: string; agentId: string; mode: "mention" | "lurk" | "active" | "off" }) =>
+  rpc<void>("setChannelAgent", [input]);
 export const updateWorkspace = (input: { name?: string; teams?: string[]; repo?: string | null }) => rpc<void>("updateWorkspace", [input]);

@@ -3,11 +3,11 @@ import { after } from "next/server";
 import type { SessionUser } from "@/lib/auth/shared";
 import { currentCtx, type RequestCtx } from "@/lib/context";
 import * as api from "@/lib/api/service";
-import { atlasDmOf } from "@/lib/directory";
-import { mentionsAgent } from "@/lib/text";
 import type { ChatId, Role } from "@/lib/types";
 import { progressOf } from "@/server/atlas/progress";
-import { enqueueAtlas, processRun, sweepRuns } from "@/server/atlas/queue";
+import { toRunView } from "@/lib/agent/runs";
+import { dispatch } from "@/server/agents/dispatch";
+import { processRun, sweepRuns } from "@/server/atlas/queue";
 import { runAtlasAgent } from "@/server/atlas/run";
 import { getSessionUser } from "@/server/auth";
 import { runInCtx } from "@/server/context";
@@ -36,12 +36,19 @@ const methods: Record<string, Method> = {
   // An @Atlas message enqueues a run in the same request; it runs once the response is
   // sent and the reply arrives over realtime. Without a model, the browser calls the
   // rule-based askAtlas instead (no runId).
+  // Agents that should look at the message (mentioned, the DM's agent, lurk/active
+  // channel agents) get a run in their inbox, in the same request; they run once the
+  // response is sent and their replies arrive over realtime. Without a model, the
+  // browser calls the rule-based askAtlas instead (no runs).
   postMessage: async (input: api.PostMessageInput) => {
     const saved = await api.postMessage(input);
-    if (!llm() || !mentionsAgent(input.text, input.chatId, atlasDmOf(currentCtx().dir))) return saved;
-    const run = await enqueueAtlas({ ...input, role: api.effectiveRole(input.role), triggerMessageId: saved.id });
-    after(() => processRun(run.id));
-    return { ...saved, runId: run.id };
+    if (!llm()) return saved;
+    const runs = await dispatch({
+      chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
+      text: saved.text, role: api.effectiveRole(input.role),
+    });
+    if (runs.length) after(() => Promise.all(runs.map((r) => processRun(r.id))));
+    return { ...saved, runs: runs.map(toRunView) };
   },
   getAgentRuns: async () => {
     // Live step / draft from this process, for browsers without realtime.
@@ -73,6 +80,10 @@ const methods: Record<string, Method> = {
   updateChannel: async (input: Parameters<typeof ws.updateChannel>[1]) => ws.updateChannel(currentCtx(), input),
   deleteChannel: async (id: string) => ws.deleteChannel(currentCtx(), id),
   openDm: async (userId: string) => ws.openDm(currentCtx(), userId),
+  createAgent: async (input: ws.AgentInput) => ws.createAgent(currentCtx(), input),
+  updateAgent: async (input: ws.AgentInput & { id: string }) => ws.updateAgent(currentCtx(), input),
+  deleteAgent: async (id: string) => ws.deleteAgent(currentCtx(), id),
+  setChannelAgent: async (input: Parameters<typeof ws.setChannelAgent>[1]) => ws.setChannelAgent(currentCtx(), input),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
@@ -116,7 +127,7 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
   const a0 = args[0] as Record<string, unknown> | string | undefined;
   switch (method) {
     case "postMessage":
-      return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false, runs: !!(result as api.PostedMessage).runId };
+      return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false, runs: !!(result as api.PostedMessage).runs?.length };
     case "teammateReply":
       return { chats: [a0 as ChatId], tickets: false };
     case "askAtlas":
@@ -140,6 +151,10 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
     case "updateChannel":
     case "deleteChannel":
     case "openDm":
+    case "createAgent":
+    case "updateAgent":
+    case "deleteAgent":
+    case "setChannelAgent":
       return { chats: [], tickets: false, directory: true };
     default:
       return { chats: [], tickets: false };
@@ -211,7 +226,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ method:
 function livePayload(method: string, args: unknown[], result: unknown) {
   if (method !== "postMessage") return {};
   const input = args[0] as api.PostMessageInput;
-  const { runId: _r, ...message } = result as api.PostedMessage;
+  const { runs: _r, ...message } = result as api.PostedMessage;
   void _r;
   return { message: { chatId: input.chatId, threadId: input.threadId ?? null, message } };
 }

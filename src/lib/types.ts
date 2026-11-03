@@ -3,6 +3,8 @@ export type PersonId = string;
 /** A team inside a workspace (workspace.teams). */
 export type TeamId = string;
 export type Role = "owner" | "member" | "guest";
+/** How an agent behaves in a channel: only when tagged, reads along and speaks up on a trigger, or chimes in. */
+export type AgentMode = "mention" | "lurk" | "active";
 export type TicketStatus = "To do" | "In progress" | "In review" | "Done" | "Backburner";
 export type Priority = "Low" | "Medium" | "High";
 export type ChannelId = string;
@@ -85,6 +87,8 @@ export interface ReplyNode {
   actionId?: string | null;
   /** Filled in when listing messages. */
   action?: ActionView | null;
+  /** Emoji → who reacted (people or agents), e.g. an agent's 👀 while it works. */
+  reactions?: Record<string, PersonId[]>;
 }
 
 export interface Message {
@@ -98,11 +102,16 @@ export interface Message {
   actionId?: string | null;
   /** Filled in when listing messages. */
   action?: ActionView | null;
+  reactions?: Record<string, PersonId[]>;
   replies: ReplyNode[];
 }
 
 export type ChatMeta =
-  | { id: ChannelId; kind: "channel"; label: string; topic: string; team: TeamId | null; members: PersonId[]; createdBy?: PersonId | null }
+  | {
+      id: ChannelId; kind: "channel"; label: string; topic: string; team: TeamId | null; members: PersonId[]; createdBy?: PersonId | null;
+      /** Agents that can read this channel, and how forward they are here. */
+      agents?: { id: PersonId; mode: AgentMode }[];
+    }
   | { id: DmId; kind: "dm"; who: PersonId; topic: string };
 
 export interface WeekDay {

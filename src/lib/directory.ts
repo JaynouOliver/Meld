@@ -1,4 +1,4 @@
-import type { ChatId, ChatMeta, Person, PersonId, Role, TeamId } from "./types";
+import type { AgentMode, ChatId, ChatMeta, Person, PersonId, Role, TeamId } from "./types";
 
 /**
  * Everything the app needs to know about the signed-in person's workspace: who's in it,
@@ -20,6 +20,30 @@ export interface WorkspaceInfo {
   /** Default GitHub repo for PR links (e.g. "acme/web"), if set. */
   repo: string | null;
 }
+
+/** What an agent may do: read (tickets, chat history), write (create/update tickets), delete. */
+export type AgentTool = "read" | "write" | "delete";
+export const AGENT_TOOLS: AgentTool[] = ["read", "write", "delete"];
+
+/** An agent member of the workspace (Atlas is built in; others are made by the team). */
+export interface AgentInfo {
+  id: PersonId;
+  /** Mention name, e.g. "triage" for @triage. */
+  handle: string;
+  name: string;
+  /** Role, shown on its profile ("Triages bug reports and files tickets"). */
+  description: string;
+  /** The team's instructions for it (added to its system prompt). */
+  instructions: string;
+  tools: AgentTool[];
+  kind: "builtin" | "custom" | "external";
+  createdBy: PersonId | null;
+}
+
+export const ATLAS_AGENT: AgentInfo = {
+  id: "atlas", handle: "atlas", name: "Atlas", kind: "builtin", createdBy: null, tools: ["read", "write", "delete"], instructions: "",
+  description: "Files, updates and finds tickets; answers status questions; turns threads into tasks; catches you up.",
+};
 
 export interface Membership {
   id: string;
@@ -51,6 +75,38 @@ export interface Directory {
   memberships: Membership[];
   /** The Northwind sample workspace: demo teammates answer DMs. */
   demo: boolean;
+  /** Agent members (Atlas first). Each is also in `people` with isAgent. */
+  agents?: AgentInfo[];
+}
+
+export const agentsOf = (dir: Pick<Directory, "agents">) => dir.agents ?? [ATLAS_AGENT];
+export const agentById = (dir: Pick<Directory, "agents">, id: PersonId) => agentsOf(dir).find((a) => a.id === id) ?? null;
+
+/** The agent's mode in a channel, or null when it can't read it. DMs: only the agent in it. */
+export function agentModeIn(dir: Pick<Directory, "chats">, chatId: ChatId, agentId: PersonId): AgentMode | null {
+  const c = dir.chats[chatId];
+  if (!c) return null;
+  if (c.kind === "dm") return c.who === agentId ? "mention" : null;
+  // The server lists every agent in the channel, Atlas included (unless removed).
+  if (!c.agents) return agentId === ATLAS_ID ? "mention" : null;
+  return c.agents.find((a) => a.id === agentId)?.mode ?? null;
+}
+
+/** Agents @mentioned in a message (by handle; "@agent" still means Atlas). */
+export function mentionedAgents(dir: Pick<Directory, "agents">, text: string): PersonId[] {
+  const handles = [...text.matchAll(/@([A-Za-z0-9_-]+)/g)].map((m) => m[1].toLowerCase());
+  const out = new Set<PersonId>();
+  for (const h of handles) {
+    if (h === "agent") out.add(ATLAS_ID);
+    const a = agentsOf(dir).find((x) => x.handle.toLowerCase() === h);
+    if (a) out.add(a.id);
+  }
+  return [...out];
+}
+
+/** An agent's DM with me, if it exists. */
+export function agentDmOf(dir: Pick<Directory, "chats">, agentId: PersonId): ChatId | null {
+  return Object.values(dir.chats).find((c) => c.kind === "dm" && c.who === agentId)?.id ?? null;
 }
 
 export const ATLAS_ID: PersonId = "atlas";

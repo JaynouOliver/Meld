@@ -42,6 +42,7 @@ interface MessageRow {
   workspace_id?: string;
   id: string; chat_id: ChatId; thread_id: string | null; parent_id: string | null;
   who: PersonId; text: string; ticket_id: string | null; time_label: string; action_id?: string | null;
+  reactions?: Record<string, string[]> | null;
 }
 
 interface ActionRow {
@@ -56,11 +57,13 @@ const actionFromRow = (r: ActionRow): ActionRecord => ({
 /** Rows (ordered by seq) back into the nested Message / ReplyNode tree the UI uses. */
 interface RunRow {
   id: string; trigger_message_id: string; chat_id: ChatId; thread_id: string | null; requester: string; role: AgentRun["role"];
+  agent_id: string; trigger: AgentRun["trigger"]; depth: number; parent_run_id: string | null;
   text: string; status: AgentRun["status"]; attempts: number; error: string | null; result: AgentRun["result"]; trace: unknown;
   created_at: string; started_at: string | null; finished_at: string | null;
 }
 const runFromRow = (r: RunRow): AgentRun => ({
   id: r.id, triggerMessageId: r.trigger_message_id, chatId: r.chat_id, threadId: r.thread_id, requester: r.requester, role: r.role,
+  agentId: r.agent_id ?? "atlas", trigger: r.trigger ?? "mention", depth: r.depth ?? 0, parentRunId: r.parent_run_id ?? null,
   text: r.text, status: r.status, attempts: r.attempts, error: r.error, result: r.result, trace: r.trace,
   createdAt: r.created_at, startedAt: r.started_at, finishedAt: r.finished_at,
 });
@@ -70,7 +73,7 @@ function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map
   const byId = new Map<string, Message>();
   for (const r of rows) {
     const a = r.action_id ? actions.get(r.action_id) : undefined;
-    const base = { id: r.id, who: r.who, time: r.time_label, text: r.text, ticket: r.ticket_id, action: a ? toView(a) : null };
+    const base = { id: r.id, who: r.who, time: r.time_label, text: r.text, ticket: r.ticket_id, action: a ? toView(a) : null, reactions: r.reactions ?? undefined };
     if (!r.thread_id) {
       const m: Message = { ...base, replies: [] };
       roots.push(m);
@@ -116,7 +119,7 @@ export function supabaseStore(ws: string): Store {
   },
   async listMessages(chatId) {
     const [msgRes, actRes] = await Promise.all([
-      sb().from("messages").select("id,chat_id,thread_id,parent_id,who,text,ticket_id,time_label,action_id").eq("workspace_id", ws).eq("chat_id", chatId).order("seq"),
+      sb().from("messages").select("id,chat_id,thread_id,parent_id,who,text,ticket_id,time_label,action_id,reactions").eq("workspace_id", ws).eq("chat_id", chatId).order("seq"),
       sb().from("agent_actions").select("*").eq("workspace_id", ws).eq("chat_id", chatId),
     ]);
     const rows = check(msgRes, "list messages") as MessageRow[];
@@ -236,13 +239,13 @@ export function supabaseStore(ws: string): Store {
   },
   async enqueueRun(run) {
     const res = await sb().from("agent_runs").insert({
-      workspace_id: ws, requester: run.requester,
+      workspace_id: ws, requester: run.requester, agent_id: run.agentId, trigger: run.trigger, depth: run.depth, parent_run_id: run.parentRunId,
       id: run.id, trigger_message_id: run.triggerMessageId, chat_id: run.chatId, thread_id: run.threadId,
       role: run.role, text: run.text, status: run.status, attempts: run.attempts, created_at: run.createdAt,
     });
     if (res.error?.code === "23505") {
       // Already enqueued for this message (a retried request): return that run.
-      const row = check(await sb().from("agent_runs").select("*").eq("workspace_id", ws).eq("trigger_message_id", run.triggerMessageId).single(), "get run") as RunRow;
+      const row = check(await sb().from("agent_runs").select("*").eq("workspace_id", ws).eq("trigger_message_id", run.triggerMessageId).eq("agent_id", run.agentId).single(), "get run") as RunRow;
       return runFromRow(row);
     }
     check(res, "enqueue run");
@@ -263,9 +266,17 @@ export function supabaseStore(ws: string): Store {
     if ("trace" in patch) update.trace = patch.trace;
     check(await sb().from("agent_runs").update(update).eq("workspace_id", ws).eq("id", id), "finish run");
   },
+  async countRunsSince(chatId, since) {
+    const r = await sb().from("agent_runs").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("chat_id", chatId).gt("created_at", since);
+    if (r.error) throw new Error(`count runs: ${r.error.message}`);
+    return r.count ?? 0;
+  },
+  async react(messageId, emoji, who, on) {
+    check(await sb().rpc("toggle_reaction", { p_ws: ws, p_id: messageId, p_emoji: emoji, p_who: who, p_on: on }), "react");
+  },
   async listRecentRuns() {
     const since = new Date(Date.now() - RUN_RECENT_MS).toISOString();
-    const cols = "id,trigger_message_id,chat_id,thread_id,requester,role,text,status,attempts,error,result,created_at,started_at,finished_at";
+    const cols = "id,trigger_message_id,chat_id,thread_id,requester,role,agent_id,trigger,depth,parent_run_id,text,status,attempts,error,result,created_at,started_at,finished_at";
     const rows = check(
       await sb().from("agent_runs").select(cols).eq("workspace_id", ws).or(`status.in.(queued,running),finished_at.gt.${since}`).order("created_at").limit(50),
       "list runs",

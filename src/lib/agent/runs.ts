@@ -6,6 +6,7 @@ import type { ChatId, PersonId, Role } from "../types";
  * reply reaches every browser over realtime. See docs/architecture.md §4.
  */
 export type RunStatus = "queued" | "running" | "done" | "failed";
+export type RunTrigger = "mention" | "dm" | "delegation" | "proactive";
 
 export interface RunResult {
   /** Chats that received a new Atlas message. */
@@ -22,6 +23,13 @@ export interface AgentRun {
   triggerMessageId: string;
   chatId: ChatId;
   threadId: string | null;
+  /** Which agent's inbox this run is in ("atlas" or a custom agent). */
+  agentId: PersonId;
+  /** Why: tagged, a DM, handed over by another agent, or a proactive check (lurk/active). */
+  trigger: RunTrigger;
+  /** Hops from the human message (0) through agent-to-agent hand-offs; capped by the loop governor. */
+  depth: number;
+  parentRunId: string | null;
   /** Who asked, and with what role: the run acts with their permissions. */
   requester: PersonId;
   role: Role;
@@ -40,6 +48,8 @@ export interface AgentRun {
 /** What browsers see: enough to show "Atlas is working…" and react when it's done. */
 export interface RunView {
   id: string;
+  agentId?: PersonId;
+  trigger?: RunTrigger;
   chatId: ChatId;
   threadId: string | null;
   status: RunStatus;
@@ -59,9 +69,18 @@ export const RUN_MAX_ATTEMPTS = 2;
 /** Finished runs stay visible this long, so browsers that were polling see them finish. */
 export const RUN_RECENT_MS = 2 * 60 * 1000;
 
+/**
+ * Loop governor (docs/agent-platform.md): how far agents may wake each other, and how many
+ * agent runs a chat may start in a window. Proactive (lurk/active) checks give way first.
+ */
+export const MAX_AGENT_DEPTH = 3;
+export const RATE_WINDOW_MS = 5 * 60 * 1000;
+export const RATE_PROACTIVE = 8;
+export const RATE_ALL = 16;
+
 /** The reply message id is derived from the run, so a retried run can tell it already replied. */
 export const replyIdFor = (runId: string) => `${runId}r`;
 
 export const toRunView = (r: AgentRun): RunView => ({
-  id: r.id, chatId: r.chatId, threadId: r.threadId, status: r.status, result: r.result,
+  id: r.id, agentId: r.agentId, trigger: r.trigger, chatId: r.chatId, threadId: r.threadId, status: r.status, result: r.result,
 });

@@ -80,10 +80,11 @@ export function useSendMessage() {
     onSuccess: (saved, input, ctx) => {
       const real = { ...saved, time: displayTime(saved.time) };
       qc.setQueryData<Message[]>(queryKeys.messages(input.chatId), (old) => replaceMessage(old ?? [], ctx.pendingId, real));
-      // The server queued an Atlas run: its reply arrives when the run finishes.
-      if (saved.runId) trackRun(qc, { id: saved.runId, chatId: input.chatId, threadId: input.threadId ?? null, status: "queued", result: null });
+      // The server queued agent runs (any agents tagged or listening): replies arrive when
+      // they finish. `runs` is absent only without a model (preview): rule-based Atlas then.
+      if (saved.runs) for (const r of saved.runs) trackRun(qc, r);
       else if (mentionsAgent(input.text, input.chatId, atlasDmOf(dir))) agent.mutate({ ...input, role });
-      else if (isDemoTeammateDm(input.chatId)) teammate.mutate(input.chatId);
+      if (isDemoTeammateDm(input.chatId)) teammate.mutate(input.chatId);
     },
     // On failure, drop the optimistic copy by reloading the chat from the server.
     onError: (_e, input) => qc.invalidateQueries({ queryKey: queryKeys.messages(input.chatId) }),

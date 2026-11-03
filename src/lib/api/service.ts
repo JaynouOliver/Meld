@@ -96,8 +96,8 @@ export interface PostMessageInput {
   role?: Role;
 }
 
-/** The saved message, plus the Atlas run it started (server only: the reply arrives later). */
-export type PostedMessage = (Message | ReplyNode) & { runId?: string | null };
+/** The saved message, plus the agent runs it started (server only: replies arrive later). */
+export type PostedMessage = (Message | ReplyNode) & { runs?: RunView[] };
 
 export async function postMessage(input: PostMessageInput): Promise<PostedMessage> {
   await wait(60);

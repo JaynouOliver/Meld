@@ -4,12 +4,12 @@ import { cookies } from "next/headers";
 
 import type { SessionUser } from "@/lib/auth/shared";
 import type { RequestCtx } from "@/lib/context";
-import { ATLAS, ATLAS_ID, makePerson, type Directory, type Team } from "@/lib/directory";
+import { ATLAS, ATLAS_AGENT, ATLAS_ID, makePerson, type AgentInfo, type Directory, type Team } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
 import { DEMO_PEOPLE } from "@/lib/mock/demo";
 import { canManage } from "@/lib/rbac";
 import { storeFor, usingSupabase } from "@/lib/store";
-import type { ChatId, ChatMeta, Role } from "@/lib/types";
+import type { AgentMode, ChatId, ChatMeta, Role } from "@/lib/types";
 import { memoryRegistry } from "./registry/memory";
 import type { ChannelRow, Registry, WorkspaceRow } from "./registry/types";
 
@@ -78,7 +78,9 @@ export async function buildDirectory(
   memberships: { workspace: WorkspaceRow; role: Role }[],
 ): Promise<Directory> {
   const reg = await registry();
-  const [members, channelRows] = await Promise.all([reg.members(ws.id), reg.channels(ws.id)]);
+  const [members, channelRows, agentRows, channelAgents] = await Promise.all([
+    reg.members(ws.id), reg.channels(ws.id), reg.agents(ws.id), reg.channelAgents(ws.id),
+  ]);
   let channels = channelRows;
 
   // Everyone has a DM with Atlas; make it the first time it's needed.
@@ -92,11 +94,29 @@ export async function buildDirectory(
   }
 
   const people: Directory["people"] = { [ATLAS_ID]: ATLAS };
+  // Agents the team made are members too: profile, DMs, mentions.
+  const agents: AgentInfo[] = [
+    ATLAS_AGENT,
+    ...agentRows.map((a) => ({
+      id: a.id, handle: a.handle, name: a.name, description: a.description, instructions: a.instructions,
+      tools: a.tools, kind: a.kind, createdBy: a.createdBy,
+    })),
+  ];
+  for (const a of agentRows) {
+    people[a.id] = { ...makePerson({ id: a.id, name: a.name, title: a.description }), color: a.color ?? makePerson({ id: a.id, name: a.name }).color, isAgent: true };
+  }
+  const agentIds = new Set(agents.map((a) => a.id));
+  /** Agents that can read a channel: explicit rows, plus Atlas unless it was removed. */
+  const rosterOf = (chatId: string) => {
+    const rows = channelAgents.filter((r) => r.chatId === chatId && agentIds.has(r.agentId));
+    const list = rows.filter((r) => r.mode !== "off").map((r) => ({ id: r.agentId, mode: r.mode as AgentMode }));
+    if (!rows.some((r) => r.agentId === ATLAS_ID)) list.unshift({ id: ATLAS_ID, mode: "mention" });
+    return list;
+  };
   for (const m of members) {
     // Demo teammates keep their designed colors.
     people[m.id] = ws.demo && DEMO_PEOPLE[m.id] ? DEMO_PEOPLE[m.id] : makePerson({ id: m.id, name: m.name, team: m.team, avatarUrl: m.avatarUrl, title: m.title }, m.id === me);
   }
-  const everyone = [...members.map((m) => m.id), ATLAS_ID];
   const teamOf = (id: string | null) => ws.teams.find((t) => t.id === id)?.name;
 
   const chats: Record<ChatId, ChatMeta> = {};
@@ -104,7 +124,11 @@ export async function buildDirectory(
   const dmIds: ChatId[] = [];
   for (const c of channels) {
     if (c.kind === "channel") {
-      chats[c.id] = { id: c.id, kind: "channel", label: c.name ?? "channel", topic: c.topic, team: c.team, members: everyone, createdBy: c.createdBy };
+      const roster = rosterOf(c.id);
+      chats[c.id] = {
+        id: c.id, kind: "channel", label: c.name ?? "channel", topic: c.topic, team: c.team, createdBy: c.createdBy,
+        members: [...members.map((m) => m.id), ...roster.map((r) => r.id)], agents: roster,
+      };
       channelIds.push(c.id);
     } else if (c.members?.includes(me)) {
       const who = c.members.find((x) => x !== me) ?? me;
@@ -117,9 +141,9 @@ export async function buildDirectory(
   // Teammate DMs by name, Atlas last (as in the design).
   dmIds.sort((a, b) => {
     const wa = (chats[a] as { who: string }).who, wb = (chats[b] as { who: string }).who;
-    if (wa === ATLAS_ID) return 1;
-    if (wb === ATLAS_ID) return -1;
-    return (people[wa]?.name ?? "").localeCompare(people[wb]?.name ?? "");
+    // Teammates by name, then agents, Atlas last.
+    const rank = (id: string) => (id === ATLAS_ID ? 2 : people[id]?.isAgent ? 1 : 0);
+    return rank(wa) - rank(wb) || (people[wa]?.name ?? "").localeCompare(people[wb]?.name ?? "");
   });
 
   const others = members.filter((m) => m.id !== me).sort((a, b) => a.name.localeCompare(b.name)).map((m) => m.id);
@@ -138,6 +162,7 @@ export async function buildDirectory(
     home: ws.demo ? "design" : general ?? channelIds[0] ?? dmIds[0],
     memberships: memberships.map((x) => ({ id: x.workspace.id, name: x.workspace.name, role: x.role })),
     demo: ws.demo,
+    agents,
   };
 }
 
@@ -359,4 +384,88 @@ export async function openDm(ctx: RequestCtx, userId: string) {
     members: [ctx.dir.me, userId], createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
   });
   return { id };
+}
+
+// ---------------------------------------------------------------- agents
+
+const RESERVED_HANDLES = new Set(["atlas", "agent", "here", "channel", "everyone", "me"]);
+const AGENT_COLORS = ["#7C3AED", "#0EA5E9", "#059669", "#D97706", "#DB2777", "#4F46E5"];
+
+export interface AgentInput {
+  name: string;
+  handle?: string;
+  description?: string;
+  instructions?: string;
+  tools?: ("read" | "write" | "delete")[];
+}
+
+function cleanHandle(raw: string) {
+  return raw.trim().toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+}
+
+function checkHandle(ctx: RequestCtx, handle: string, self?: string) {
+  if (!handle) throw new WorkspaceError("The handle needs letters or numbers");
+  if (RESERVED_HANDLES.has(handle)) throw new WorkspaceError(`@${handle} is reserved`);
+  const taken = (ctx.dir.agents ?? []).some((a) => a.handle === handle && a.id !== self);
+  if (taken) throw new WorkspaceError(`@${handle} is already taken`, 409);
+}
+
+const toolsFrom = (t?: string[]) => {
+  const ok = (t ?? ["read"]).filter((x): x is "read" | "write" | "delete" => x === "read" || x === "write" || x === "delete");
+  return ok.length ? [...new Set<"read" | "write" | "delete">(["read", ...ok])] : (["read"] as ("read" | "write" | "delete")[]);
+};
+
+/** A new agent member. It starts in no channels: add it where it should read along. */
+export async function createAgent(ctx: RequestCtx, input: AgentInput) {
+  if (ctx.dir.role === "guest") throw new WorkspaceError("Guests can't add agents", 403);
+  const name = input.name.trim().slice(0, 40);
+  if (!name) throw new WorkspaceError("Give the agent a name");
+  const handle = cleanHandle(input.handle || name);
+  checkHandle(ctx, handle);
+  const id = `ag${uid()}`;
+  const n = (ctx.dir.agents ?? []).length;
+  await (await registry()).createAgent({
+    id, workspaceId: ctx.dir.workspace.id, handle, name, description: input.description?.trim().slice(0, 200) ?? "",
+    instructions: input.instructions?.trim().slice(0, 4000) ?? "", tools: toolsFrom(input.tools), kind: "custom",
+    color: AGENT_COLORS[n % AGENT_COLORS.length], tokenHash: null, createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
+  });
+  return { id, handle };
+}
+
+function canEditAgent(ctx: RequestCtx, id: string) {
+  const a = (ctx.dir.agents ?? []).find((x) => x.id === id);
+  if (!a || a.kind === "builtin") throw new WorkspaceError("Atlas is built in and can't be edited", 400);
+  if (!canManage(ctx.dir.role) && a.createdBy !== ctx.dir.me) throw new WorkspaceError("Only owners and whoever made this agent can change it", 403);
+  return a;
+}
+
+export async function updateAgent(ctx: RequestCtx, input: AgentInput & { id: string }) {
+  canEditAgent(ctx, input.id);
+  const patch: Parameters<Registry["updateAgent"]>[2] = {};
+  if (input.name !== undefined) patch.name = input.name.trim().slice(0, 40) || undefined;
+  if (input.handle !== undefined) {
+    patch.handle = cleanHandle(input.handle);
+    checkHandle(ctx, patch.handle, input.id);
+  }
+  if (input.description !== undefined) patch.description = input.description.trim().slice(0, 200);
+  if (input.instructions !== undefined) patch.instructions = input.instructions.trim().slice(0, 4000);
+  if (input.tools !== undefined) patch.tools = toolsFrom(input.tools);
+  await (await registry()).updateAgent(ctx.dir.workspace.id, input.id, patch);
+}
+
+export async function deleteAgent(ctx: RequestCtx, id: string) {
+  canEditAgent(ctx, id);
+  await (await registry()).deleteAgent(ctx.dir.workspace.id, id);
+}
+
+/** Add an agent to a channel (with a mode), change its mode, or remove it ("off"). */
+export async function setChannelAgent(ctx: RequestCtx, input: { chatId: ChatId; agentId: string; mode: AgentMode | "off" }) {
+  if (ctx.dir.role === "guest") throw new WorkspaceError("Guests can't change who's in a channel", 403);
+  const chat = ctx.dir.chats[input.chatId];
+  if (!chat || chat.kind !== "channel") throw new WorkspaceError("Agents join channels, not DMs");
+  if (!(ctx.dir.agents ?? []).some((a) => a.id === input.agentId)) throw new WorkspaceError("Unknown agent", 404);
+  if (!["mention", "lurk", "active", "off"].includes(input.mode)) throw new WorkspaceError("Unknown mode");
+  // Atlas is in every channel by default, so removing it needs an explicit "off" row.
+  const mode = input.mode === "off" && input.agentId !== ATLAS_ID ? null : input.mode;
+  await (await registry()).setChannelAgent(ctx.dir.workspace.id, input.chatId, input.agentId, mode, ctx.dir.me);
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 import { check, sb } from "@/lib/store/supabase";
 import type { Role } from "@/lib/types";
-import type { ChannelRow, InviteRow, MemberRow, Registry, WorkspaceRow } from "./types";
+import type { AgentRow, ChannelAgentRow, ChannelRow, InviteRow, MemberRow, Registry, WorkspaceRow } from "./types";
 
 interface WsRow { id: string; name: string; slug: string; ticket_prefix: string; repo: string | null; teams: WorkspaceRow["teams"]; demo: boolean }
 const wsFrom = (r: WsRow): WorkspaceRow => ({ id: r.id, name: r.name, slug: r.slug, ticketPrefix: r.ticket_prefix, repo: r.repo, teams: r.teams ?? [], demo: r.demo });
@@ -18,6 +18,15 @@ const invFrom = (r: InvRow): InviteRow => ({
 });
 
 const WS_COLS = "id,name,slug,ticket_prefix,repo,teams,demo";
+
+interface AgRow {
+  id: string; workspace_id: string; handle: string; name: string; description: string; instructions: string; tools: AgentRow["tools"];
+  kind: AgentRow["kind"]; color: string | null; token_hash: string | null; created_by: string | null; created_at: string;
+}
+const agFrom = (r: AgRow): AgentRow => ({
+  id: r.id, workspaceId: r.workspace_id, handle: r.handle, name: r.name, description: r.description, instructions: r.instructions,
+  tools: r.tools ?? ["read"], kind: r.kind, color: r.color, tokenHash: r.token_hash, createdBy: r.created_by, createdAt: r.created_at,
+});
 
 export const supabaseRegistry: Registry = {
   async upsertProfile(p) {
@@ -92,6 +101,48 @@ export const supabaseRegistry: Registry = {
   },
   async deleteChannel(workspaceId, id) {
     check(await sb().from("channels").delete().eq("workspace_id", workspaceId).eq("id", id), "delete channel");
+  },
+  async agents(workspaceId) {
+    const rows = check(await sb().from("agents").select("*").eq("workspace_id", workspaceId).order("created_at"), "agents") as AgRow[];
+    return rows.map(agFrom);
+  },
+  async agentByToken(tokenHash) {
+    const r = check(await sb().from("agents").select("*").eq("token_hash", tokenHash).maybeSingle(), "agent by token") as AgRow | null;
+    return r ? agFrom(r) : null;
+  },
+  async createAgent(a) {
+    check(
+      await sb().from("agents").insert({
+        id: a.id, workspace_id: a.workspaceId, handle: a.handle, name: a.name, description: a.description, instructions: a.instructions,
+        tools: a.tools, kind: a.kind, color: a.color, token_hash: a.tokenHash, created_by: a.createdBy, created_at: a.createdAt,
+      }),
+      "create agent",
+    );
+  },
+  async updateAgent(workspaceId, id, patch) {
+    const u: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) u[k === "tokenHash" ? "token_hash" : k] = v;
+    check(await sb().from("agents").update(u).eq("workspace_id", workspaceId).eq("id", id), "update agent");
+  },
+  async deleteAgent(workspaceId, id) {
+    check(await sb().from("channel_agents").delete().eq("workspace_id", workspaceId).eq("agent_id", id), "remove agent from channels");
+    check(await sb().from("agents").delete().eq("workspace_id", workspaceId).eq("id", id), "delete agent");
+  },
+  async channelAgents(workspaceId) {
+    const rows = check(await sb().from("channel_agents").select("chat_id,agent_id,mode").eq("workspace_id", workspaceId), "channel agents") as {
+      chat_id: string; agent_id: string; mode: ChannelAgentRow["mode"];
+    }[];
+    return rows.map((r) => ({ chatId: r.chat_id, agentId: r.agent_id, mode: r.mode }));
+  },
+  async setChannelAgent(workspaceId, chatId, agentId, mode, by) {
+    if (!mode) {
+      check(await sb().from("channel_agents").delete().eq("workspace_id", workspaceId).eq("chat_id", chatId).eq("agent_id", agentId), "remove channel agent");
+      return;
+    }
+    check(
+      await sb().from("channel_agents").upsert({ workspace_id: workspaceId, chat_id: chatId, agent_id: agentId, mode, added_by: by }, { onConflict: "workspace_id,chat_id,agent_id" }),
+      "set channel agent",
+    );
   },
   async createInvite(i) {
     check(

@@ -51,6 +51,10 @@ export interface Store {
    */
   claimRun(id: string): Promise<AgentRun | null>;
   finishRun(id: string, patch: { status: "done" | "failed"; error?: string | null; result?: AgentRun["result"]; trace?: unknown }): Promise<void>;
+  /** Agent runs started in a chat since `since` (rate limiting). */
+  countRunsSince(chatId: ChatId, since: string): Promise<number>;
+  /** Add or remove a reaction (emoji) by someone on a message. */
+  react(messageId: string, emoji: string, who: PersonId, on: boolean): Promise<void>;
   /** Runs that are queued/running, or finished within RUN_RECENT_MS. */
   listRecentRuns(): Promise<AgentRun[]>;
   /** Messages posted after `since` (ISO), oldest first, across the workspace. */
