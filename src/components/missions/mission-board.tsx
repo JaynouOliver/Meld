@@ -269,8 +269,9 @@ function Graph({ tasks, byTicket, launched }: { tasks: PlanTask[]; byTicket: Map
 function TaskCard({ t, ticket, hot, launched, all }: { t: PlanTask; ticket?: Ticket; hot: boolean; launched: boolean; all: Ticket[] }) {
   const dir = useDirectory();
   const owner = personOf(dir, ticket?.assignee ?? t.owner);
-  const blocked = ticket && ticket.status !== "Done" ? openBlockers(ticket, all).length > 0 : false;
-  const late = ticket && ticket.status !== "Done" && (ticket.due ?? t.due ?? "9999") < new Date().toISOString().slice(0, 10);
+  const live = !!ticket && ticket.status !== "Done" && ticket.status !== "Backburner";
+  const blocked = live ? openBlockers(ticket, all).length > 0 : false;
+  const late = live && (ticket.due ?? t.due ?? "9999") < new Date().toISOString().slice(0, 10);
   const open = () => ticket && useUiStore.setState({ ticketId: ticket.id, threadId: null });
   return (
     <button
@@ -282,7 +283,7 @@ function TaskCard({ t, ticket, hot, launched, all }: { t: PlanTask; ticket?: Tic
         "rounded-md border bg-card p-3 text-left transition-colors",
         ticket ? "cursor-pointer hover:border-subtle" : "cursor-default",
         hot && "border-l-[3px] border-l-brand",
-        ticket?.status === "Done" && "opacity-70",
+        (ticket?.status === "Done" || ticket?.status === "Backburner") && "opacity-70",
       )}
     >
       <div className="flex items-center justify-between gap-2">
