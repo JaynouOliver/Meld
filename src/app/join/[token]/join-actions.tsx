@@ -54,7 +54,7 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
         type="button"
         onClick={join}
         disabled={!!busy}
-        className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+        className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
       >
         {busy === "join" && <LoaderCircleIcon className="size-4 animate-spin" />}
         {props.alreadyMember ? `Open ${props.workspaceName}` : `Join ${props.workspaceName}`}

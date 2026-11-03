@@ -62,6 +62,10 @@ export interface Ticket {
   watch: { chat: ChatId; thread: string | null } | null;
   /** Tickets that must be done before this one can move (ids). */
   blockedBy?: string[];
+  /** The mission this ticket is part of, if any. */
+  missionId?: string | null;
+  /** Due date, YYYY-MM-DD. */
+  due?: string | null;
   activity: Activity[];
 }
 

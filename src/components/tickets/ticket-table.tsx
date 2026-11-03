@@ -68,15 +68,15 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   });
 
   return (
-    <div className="-mx-4 border-y bg-card sm:mx-0 sm:rounded-lg sm:border">
+    <div className="-mx-4 border-y bg-card sm:mx-0 sm:rounded-md sm:border">
       <div role="region" aria-label="Tickets">
-        <div aria-hidden className={cn("hidden border-b @min-[860px]:grid text-xs font-semibold text-muted-foreground", COLS)}>
-          <span className="px-3 py-2.5" />
-          <span className="px-3 py-2.5">Title</span>
-          <span className="border-l px-3 py-2.5">Assignee</span>
-          <span className="border-l px-3 py-2.5">Status</span>
-          <span className="border-l px-3 py-2.5">Team</span>
-          <span className="border-l px-3 py-2.5">Priority</span>
+        <div aria-hidden className={cn("hidden rounded-t-md border-b bg-muted @min-[860px]:grid text-xs font-medium text-muted-foreground", COLS)}>
+          <span className="px-3 py-2" />
+          <span className="px-3 py-2">Title</span>
+          <span className="border-l px-3 py-2">Assignee</span>
+          <span className="border-l px-3 py-2">Status</span>
+          <span className="border-l px-3 py-2">Team</span>
+          <span className="border-l px-3 py-2">Priority</span>
         </div>
 
         {loading && <div className="px-4 py-7 text-center text-sm text-muted-foreground">Loading tickets…</div>}
@@ -90,18 +90,18 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                 type="button"
                 onClick={() => toggleCollapsed(ck)}
                 aria-expanded={open}
-                className="sticky -top-3 z-[1] flex min-h-12 w-full cursor-pointer items-center gap-2.5 bg-muted px-3 py-2 text-left hover:bg-accent sm:-top-4 @min-[860px]:static"
+                className="sticky -top-3 z-[1] flex min-h-11 w-full cursor-pointer items-center gap-2.5 bg-canvas px-3 py-1.5 text-left hover:bg-accent @min-[860px]:min-h-9 sm:-top-4 @min-[860px]:static"
               >
                 <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} strokeWidth={2.4} />
                 <span
                   aria-hidden
-                  className={cn("flex size-6 shrink-0 items-center justify-center text-2xs font-bold text-white", g.round ? "rounded-full" : "rounded-md")}
+                  className={cn("flex size-5 shrink-0 items-center justify-center text-[10px] font-semibold text-white", g.round ? "rounded-full" : "rounded-[4px]")}
                   style={{ background: g.color }}
                 >
                   {g.badge}
                 </span>
-                <span className="text-body font-bold text-foreground">{g.label}</span>
-                <span className="rounded-full bg-border px-2 py-px text-xs font-semibold text-ink-2">{g.items.length}</span>
+                <span className="text-sm font-semibold text-foreground">{g.label}</span>
+                <span className="tabular text-xs text-muted-foreground">{g.items.length}</span>
               </button>
               {open && (
                 <>
@@ -118,7 +118,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                       <div
                         key={t.id}
                        
-                        className={cn("grid min-h-10 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-muted")}
+                        className={cn("grid min-h-9 items-center border-t border-line-soft text-sm", COLS, ticketId === t.id ? "bg-selected" : "hover:bg-muted")}
                       >
                         <span className="px-3 text-right text-xs text-muted-foreground">{rowNum.get(t.id)}</span>
                         <span className="flex min-w-0 items-center gap-2 px-3">
@@ -130,7 +130,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                           <button
                             type="button"
                             onClick={() => openTicket(t.id)}
-                            className={cn("min-w-0 cursor-pointer truncate py-2 text-left font-medium hover:underline", linked ? "text-foreground" : "text-ink-2")}
+                            className={cn("min-w-0 cursor-pointer truncate py-1.5 text-left font-medium hover:underline", linked ? "text-foreground" : "text-ink-2")}
                           >
                             {t.title || "Untitled ticket"}
                           </button>
@@ -159,7 +159,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                     <button
                       type="button"
                       onClick={() => create.mutate(g.preset)}
-                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-card pr-3 pl-4 text-left @min-[860px]:min-h-10 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-card pr-3 pl-4 text-left @min-[860px]:min-h-9 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <PlusIcon className="size-3.5" strokeWidth={2.2} />
                       Add item
@@ -225,7 +225,7 @@ function BlockedBadge({ t }: { t: Ticket }) {
   return (
     <span
       title={`Blocked by ${open.map((b) => b.id).join(", ")}`}
-      className="shrink-0 rounded-full bg-danger-soft px-2 py-px text-2xs font-semibold text-destructive"
+      className="shrink-0 rounded-sm bg-danger-soft px-1.5 py-px text-2xs font-medium text-destructive"
     >
       Blocked
     </span>

@@ -18,7 +18,7 @@ export const DEV_AUTH = process.env.AUTH_MODE === "dev";
 export const DEV_COOKIE = "meld_dev_user";
 
 /** Pages that need a signed-in user. */
-export const APP_PATHS = ["/app", "/home", "/chat", "/tickets", "/me", "/onboarding"];
+export const APP_PATHS = ["/app", "/home", "/chat", "/tickets", "/missions", "/me", "/onboarding"];
 export const isAppPath = (path: string) => APP_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
 
 /** Only same-site paths after sign-in (no open redirects). */

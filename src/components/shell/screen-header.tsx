@@ -44,18 +44,18 @@ export function ScreenHeader({
   };
   return (
     <header className={cn("shrink-0 border-b bg-background pt-safe", className)}>
-      <div className="flex h-14 items-center justify-between gap-3 px-3 md:h-[60px] md:px-5">
+      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           {back && (
             <Link
               href={back}
               onClick={goBack}
-              className="-ml-1.5 flex h-11 min-w-11 shrink-0 items-center gap-0.5 rounded-lg pr-1 text-brand no-underline hover:text-brand md:hidden"
+              className="-ml-1.5 flex h-11 min-w-11 shrink-0 items-center gap-0.5 rounded-md pr-1 text-brand no-underline hover:text-brand md:hidden"
             >
               <ChevronLeftIcon aria-hidden className="size-7" strokeWidth={2.2} />
               <span className="sr-only">Back to Home</span>
               {unread > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-bold text-white">
+                <span className="tabular flex h-[18px] min-w-[18px] items-center justify-center rounded-sm bg-brand px-1 text-2xs font-semibold text-white">
                   {unread}
                   <span className="sr-only"> unread</span>
                 </span>

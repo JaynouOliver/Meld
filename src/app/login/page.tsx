@@ -10,9 +10,9 @@ export const metadata: Metadata = { title: "Sign in" };
 export default function LoginPage() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
-      <header className="px-5 py-4 sm:px-10">
+      <header className="flex h-14 items-center border-b bg-background px-5 sm:px-8">
         <Link href="/" aria-label="Meld home" className="text-foreground">
-          <Logo className="text-lg" />
+          <Logo />
         </Link>
       </header>
       <main className="flex flex-1 items-center justify-center px-4 pb-16">

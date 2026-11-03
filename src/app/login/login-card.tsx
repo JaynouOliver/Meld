@@ -16,13 +16,13 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
   const error = params.get("error");
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border bg-card p-7 shadow-sm">
-      <h1 className="text-xl font-bold">{signup ? "Create your account" : "Sign in to Meld"}</h1>
-      <p className="mt-1.5 text-meta text-muted-foreground">
+    <div className="w-full max-w-sm rounded-lg border bg-card p-6">
+      <h1 className="text-lg font-semibold">{signup ? "Create your account" : "Sign in to Meld"}</h1>
+      <p className="mt-1 text-meta text-muted-foreground">
         {signup ? "Then set up your company's workspace and invite your team." : "Welcome back. Pick how you signed up."}
       </p>
 
-      <div className="mt-6">
+      <div className="mt-5">
         <ProviderButtons verb={signup ? "Sign up" : "Continue"} next={next} />
         <OrDivider />
         <EmailForm mode={signup ? "signup" : "signin"} next={next} />
@@ -38,12 +38,12 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
 
       <div className="mt-5 flex flex-col items-center border-t pt-4 text-center">
         <p className="mb-2 text-meta text-muted-foreground">Just looking? Try a demo company, no account needed.</p>
-        <TryDemo label="Try the live demo" className="px-4 py-2.5" />
+        <TryDemo label="Try the live demo" className="h-9 border border-input bg-background px-3.5 py-0 text-foreground hover:bg-muted hover:opacity-100" />
       </div>
 
-      <p className="mt-6 text-center text-meta text-muted-foreground">
+      <p className="mt-5 text-center text-meta text-muted-foreground">
         {signup ? "Already have an account? " : "New to Meld? "}
-        <Link className="font-semibold text-link hover:underline" href={signup ? `/login?next=${encodeURIComponent(next)}` : `/login?mode=signup&next=${encodeURIComponent(next)}`}>
+        <Link className="font-medium text-link hover:underline" href={signup ? `/login?next=${encodeURIComponent(next)}` : `/login?mode=signup&next=${encodeURIComponent(next)}`}>
           {signup ? "Sign in" : "Create an account"}
         </Link>
       </p>
@@ -57,12 +57,12 @@ function DevSignIn({ next }: { next: string }) {
   return (
     <form action="/auth/dev" method="get" className="mt-5 border-t pt-4">
       <input type="hidden" name="next" value={next} />
-      <label htmlFor="dev-name" className="text-meta font-semibold text-muted-foreground">
+      <label htmlFor="dev-name" className="text-xs font-medium text-muted-foreground">
         Dev sign-in (local only)
       </label>
       <div className="mt-1.5 flex gap-2">
-        <input id="dev-name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="h-10 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm" />
-        <button type="submit" className="h-10 cursor-pointer rounded-md bg-foreground px-3 text-sm font-semibold text-background">
+        <input id="dev-name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2.5 text-sm" />
+        <button type="submit" className="h-9 cursor-pointer rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground hover:bg-muted">
           Go
         </button>
       </div>

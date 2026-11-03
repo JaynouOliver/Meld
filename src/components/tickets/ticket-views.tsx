@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumnIcon } from "lucide-react";
+import { BotIcon, ChartColumnIcon } from "lucide-react";
 
 import { useDirectory } from "@/hooks/use-directory";
 import { matchQuery, DEFAULT_TICKET_QUERY } from "@/lib/query-language";
@@ -60,15 +60,15 @@ export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: Tick
               aria-pressed={active}
               onClick={() => setQuery(v.query)}
               className={cn(
-                "inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-meta font-semibold transition-colors",
+                "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-[13px]/5 font-medium transition-colors",
                 active
-                  ? "border-primary/40 bg-selected text-link"
-                  : "border-border bg-card text-ink-2 hover:border-input hover:text-foreground",
+                  ? "border-input bg-card text-foreground"
+                  : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
-              {v.atlas && <span aria-hidden className="size-2 rounded-full bg-atlas" />}
+              {v.atlas && <BotIcon aria-hidden className="size-3.5 text-muted-foreground" />}
               {v.label}
-              <span className={cn("tabular rounded-full px-1.5 text-xs", active ? "bg-primary/10" : "bg-accent text-muted-foreground")}>{count}</span>
+              <span className={cn("tabular text-xs", active ? "text-muted-foreground" : "text-subtle")}>{count}</span>
             </button>
           );
         })}
@@ -79,8 +79,8 @@ export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: Tick
         aria-label="Insights"
         onClick={() => setShowInsights(!showInsights)}
         className={cn(
-          "inline-flex size-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border text-meta font-semibold transition-colors sm:w-auto sm:px-3",
-          showInsights ? "border-primary/40 bg-selected text-link" : "bg-card text-ink-2 hover:border-input hover:text-foreground",
+          "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border text-[13px]/5 font-medium transition-colors sm:w-auto sm:px-2.5",
+          showInsights ? "border-input bg-accent text-foreground" : "border-input bg-card text-ink-2 hover:bg-muted hover:text-foreground",
         )}
       >
         <ChartColumnIcon aria-hidden className="size-4" />

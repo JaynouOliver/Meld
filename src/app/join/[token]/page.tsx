@@ -13,13 +13,13 @@ export const metadata: Metadata = { title: "Join a workspace" };
 export default function JoinPage(props: PageProps<"/join/[token]">) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
-      <header className="px-5 py-4 sm:px-10">
+      <header className="flex h-14 items-center border-b bg-background px-5 sm:px-8">
         <Link href="/" aria-label="Meld home" className="text-foreground">
-          <Logo className="text-lg" />
+          <Logo />
         </Link>
       </header>
       <main className="flex flex-1 items-center justify-center px-4 pb-16">
-        <div className="w-full max-w-sm rounded-2xl border bg-card p-7 shadow-sm">
+        <div className="w-full max-w-sm rounded-lg border bg-card p-6">
           <Suspense fallback={<p className="text-meta text-muted-foreground">Checking your invite…</p>}>
             <JoinCard params={props.params} />
           </Suspense>
@@ -36,7 +36,7 @@ async function JoinCard({ params }: { params: Promise<{ token: string }> }) {
   if (!invite.valid) {
     return (
       <>
-        <h1 className="text-xl font-bold">This invite link doesn&apos;t work</h1>
+        <h1 className="text-lg font-semibold">This invite link doesn&apos;t work</h1>
         <p className="mt-1.5 text-meta text-muted-foreground">It may have expired or been revoked. Ask whoever invited you for a new link.</p>
         <Link href="/" className="mt-6 inline-block text-meta font-semibold">
           Go to Meld
@@ -47,7 +47,7 @@ async function JoinCard({ params }: { params: Promise<{ token: string }> }) {
   return (
     <>
       <p className="text-meta text-muted-foreground">{invite.inviter ? `${invite.inviter} invited you to` : "You're invited to"}</p>
-      <h1 className="mt-1 text-2xl font-bold">{invite.workspaceName}</h1>
+      <h1 className="mt-1 text-xl font-semibold">{invite.workspaceName}</h1>
       <p className="mt-1.5 text-meta text-muted-foreground">
         Join as {invite.role === "owner" ? "an owner" : `a ${invite.role}`} · {invite.memberCount} {invite.memberCount === 1 ? "member" : "members"}
       </p>

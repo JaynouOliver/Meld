@@ -29,7 +29,7 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
       <ScreenHeader
         actions={
           role !== "guest" && (
-            <Button onClick={() => create.mutate({})} disabled={create.isPending} aria-label="New ticket" className="size-11 px-0 sm:h-10 sm:w-auto sm:px-3.5">
+            <Button onClick={() => create.mutate({})} disabled={create.isPending} aria-label="New ticket" className="size-10 px-0 sm:h-8 sm:w-auto sm:px-3">
               <PlusIcon strokeWidth={2.2} className="size-5 sm:size-4" />
               <span className="hidden sm:inline">New ticket</span>
             </Button>
@@ -37,7 +37,7 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         }
       >
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="text-2xl font-bold tracking-[-0.01em] md:text-base md:tracking-normal">
+          <h1 className="text-xl font-semibold md:text-[15px]">
             <span className="md:hidden">Tickets</span>
             <span className="hidden md:inline">{scope === "mine" ? "Assigned to me" : "All tickets"}</span>
           </h1>
@@ -66,7 +66,7 @@ function ScopeTabs({ scope }: { scope: TicketScope }) {
     { href: "/tickets/mine", label: "Assigned to me", value: "mine" },
   ] as const;
   return (
-    <div role="tablist" className="grid grid-cols-2 rounded-lg bg-accent p-1 md:hidden">
+    <div role="tablist" className="grid grid-cols-2 rounded-md border bg-muted p-0.5 md:hidden">
       {tabs.map((t) => (
         <Link
           key={t.value}
@@ -74,8 +74,8 @@ function ScopeTabs({ scope }: { scope: TicketScope }) {
           role="tab"
           aria-selected={scope === t.value}
           className={
-            "flex h-10 items-center justify-center rounded-md text-sm font-semibold no-underline " +
-            (scope === t.value ? "bg-card text-foreground shadow-xs hover:text-foreground" : "text-muted-foreground hover:text-muted-foreground")
+            "flex h-9 items-center justify-center rounded-[4px] text-sm font-medium no-underline " +
+            (scope === t.value ? "bg-card text-foreground ring-1 ring-border hover:text-foreground" : "text-muted-foreground hover:text-muted-foreground")
           }
         >
           {t.label}

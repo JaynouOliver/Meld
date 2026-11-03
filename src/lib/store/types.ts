@@ -1,5 +1,6 @@
 import type { ActionRecord } from "../agent/actions";
 import type { AgentRun } from "../agent/runs";
+import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 
 /** A message found by search, with the thread it belongs to (null when top-level). */
@@ -65,6 +66,13 @@ export interface Store {
   /** Cached summaries of a stretch of a chat, keyed by chat + first and last message id. */
   getSummary(key: string): Promise<string | null>;
   putSummary(key: string, chatId: ChatId, text: string): Promise<void>;
+  listMissions(): Promise<Mission[]>;
+  getMission(id: string): Promise<Mission | null>;
+  saveMission(m: Mission): Promise<void>;
+  listDecisions(filter?: { missionId?: string; status?: Decision["status"] }): Promise<Decision[]>;
+  saveDecision(d: Decision): Promise<void>;
+  addMissionEvent(e: MissionEvent): Promise<void>;
+  listMissionEvents(missionId: string): Promise<MissionEvent[]>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */

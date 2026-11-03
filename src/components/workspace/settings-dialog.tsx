@@ -46,7 +46,7 @@ function SettingsForm({ onDone }: { onDone: () => void }) {
     }
   };
 
-  const input = "mt-1.5 h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-subtle";
+  const input = "mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus:border-ring";
   return (
     <form onSubmit={submit}>
       <label htmlFor="ws-set-name" className="text-meta font-semibold">Name</label>
@@ -59,7 +59,7 @@ function SettingsForm({ onDone }: { onDone: () => void }) {
       <p className="mt-1 text-meta text-muted-foreground">Used for PR and issue links on tickets.</p>
       {error && <p role="alert" className="mt-4 rounded-md bg-danger-soft px-3 py-2 text-meta text-destructive">{error}</p>}
       <div className="mt-6 flex justify-end">
-        <button type="submit" disabled={busy} className="flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+        <button type="submit" disabled={busy} className="flex h-9 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
           {busy && <LoaderCircleIcon className="size-4 animate-spin" />} Save
         </button>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircleIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon, LoaderCircleIcon } from "lucide-react";
 import { useState } from "react";
 
 import { supabaseBrowser } from "@/lib/auth/browser";
@@ -37,10 +37,11 @@ export function TryDemo({ className, label = "Try the live demo" }: { className?
         type="button"
         onClick={go}
         disabled={busy}
-        className={cn("inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-70", className)}
+        className={cn("inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70", className)}
       >
-        {busy ? <LoaderCircleIcon className="size-4 animate-spin" /> : <SparklesIcon className="size-4" />}
+        {busy && <LoaderCircleIcon className="size-4 animate-spin" />}
         {busy ? "Setting up your demo company…" : label}
+        {!busy && <ArrowRightIcon className="size-4" />}
       </button>
       {error && <p role="alert" className="text-meta text-destructive">{error}</p>}
     </div>

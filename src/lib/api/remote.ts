@@ -3,6 +3,7 @@
  * which runs the same function server-side (see src/app/api/rpc/[method]/route.ts).
  */
 import { displayTime } from "../format";
+import type { Decision, Mission, MissionView } from "../missions";
 import type { Message, ReplyNode, Ticket } from "../types";
 import type * as Local from "./service";
 
@@ -102,3 +103,15 @@ export const deleteAgent = (id: string) => rpc<void>("deleteAgent", [id]);
 export const setChannelAgent = (input: { chatId: string; agentId: string; mode: "mention" | "lurk" | "active" | "off" }) =>
   rpc<void>("setChannelAgent", [input]);
 export const updateWorkspace = (input: { name?: string; teams?: string[]; repo?: string | null }) => rpc<void>("updateWorkspace", [input]);
+
+// Missions (server only; see src/server/missions).
+export type MissionSummary = Mission & { done: number; total: number; openDecisions: number };
+const localView = (v: MissionView): MissionView => ({ ...v, tickets: v.tickets.map(localTicket) });
+export const listMissions = () => rpc<MissionSummary[]>("listMissions", []);
+export const getMission = async (id: string) => localView(await rpc<MissionView>("getMission", [id]));
+export const openDecisions = () => rpc<(Decision & { missionTitle: string })[]>("openDecisions", []);
+export const createMission = (input: { goal: string; deadline?: string | null; chatId: string; role?: string }) => rpc<Mission>("createMission", [input]);
+export const launchMission = (id: string, role?: string) => rpc<Mission>("launchMission", [id, role]);
+export const cancelMission = (id: string) => rpc<Mission>("cancelMission", [id]);
+export const checkInMission = (id: string, role?: string) => rpc<{ summary: string }>("checkInMission", [id, role]);
+export const answerDecision = (decisionId: string, answer: string, role?: string) => rpc<void>("answerDecision", [decisionId, answer, role]);

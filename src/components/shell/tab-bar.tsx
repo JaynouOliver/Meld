@@ -1,6 +1,6 @@
 "use client";
 
-import { HomeIcon, TicketIcon, UserRoundIcon } from "lucide-react";
+import { FlagIcon, HomeIcon, TicketIcon, UserRoundIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,6 +11,7 @@ import { useUiStore } from "@/stores/ui-store";
 const TABS = [
   { href: "/home", label: "Home", icon: HomeIcon, match: (p: string) => p === "/home" },
   { href: "/tickets", label: "Tickets", icon: TicketIcon, match: (p: string) => p.startsWith("/tickets") },
+  { href: "/missions", label: "Missions", icon: FlagIcon, match: (p: string) => p.startsWith("/missions") },
   { href: "/me", label: "You", icon: UserRoundIcon, match: (p: string) => p === "/me" },
 ];
 
@@ -32,14 +33,14 @@ export function TabBar() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-14 flex-col items-center justify-center gap-0.5 text-2xs font-semibold no-underline",
+                  "flex h-14 flex-col items-center justify-center gap-0.5 text-[11px]/4 font-medium no-underline",
                   active ? "text-brand hover:text-brand" : "text-muted-foreground hover:text-muted-foreground",
                 )}
               >
                 <span className="relative">
                   <Icon className="size-[22px]" strokeWidth={active ? 2.3 : 1.9} />
                   {href === "/home" && unread > 0 && (
-                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-unread px-1 text-2xs font-bold text-white">
+                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-sm bg-unread px-1 text-2xs font-semibold text-white">
                       {unread}
                       <span className="sr-only"> unread</span>
                     </span>

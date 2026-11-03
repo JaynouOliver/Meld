@@ -97,3 +97,15 @@ any other member.
    proactive triage for lurk/active, delegation + loop governor, 👀 reactions, presence.
 2. **Phase 2**: MCP server + external agents with tokens.
 3. **Phase 3**: memory store, transcripts, bridges.
+
+## Missions
+
+A mission is a goal with a date that the agents drive to done (`src/server/missions`).
+
+1. **Plan** (`planner.ts`). From the goal, the channel's recent conversation, the people, the agents in the channel and the open tickets, Atlas drafts 3 to 9 tasks with owners, dates and dependencies (reusing open tickets), up to 2 decisions only a person can make, and the risks. The plan streams: each task appears on the board as soon as the model closes it. Everything the model returns is checked against the workspace (owners, dates clamped to the deadline, dependencies, ticket ids).
+2. **Launch.** Tasks become tickets (`mission_id`, `due`, dependencies as `blockedBy`, watching the mission thread). Owners are announced in the mission's thread; agent owners are handed their task there and start a run.
+3. **Check in** (button, or daily via `/api/cron/missions` with `CRON_SECRET`). Late work gets a new date and everything waiting on it moves after it; owners of late or ready work are nudged; the finish is forecast. If the forecast misses the deadline the mission goes *at risk* and the person who started it gets a date-or-scope decision. Only work that finishes past the deadline and that nothing waits on is offered as a cut.
+4. **Decide.** Slip decisions carry their effect (`actions`: move the deadline, cut a ticket, keep the date) and are applied directly. Product decisions from the plan are posted in the thread as the person's message and handed to Atlas to apply.
+5. **Done** when every remaining ticket is done; announced in the thread.
+
+Tests: `npm run test:missions` (no model). The demo sandbox seeds "Launch paid plans" with a day-late task, so one check-in shows the whole loop.

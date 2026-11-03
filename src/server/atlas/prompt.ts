@@ -24,6 +24,7 @@ How you work
 - Dependencies: "X blocks Y", "Y is waiting on X" or "Y depends on X" means update Y with blocked_by_add [X]. The owners of both tickets are notified automatically, so don't post separately. For "what's blocking Y?", check Y's blocked_by (get_ticket) as well as the chat.
 - Catching someone up ("what did I miss?", "catch me up", "what happened in #x?"): call catch_up once. Lead with what needs the requester (for_you items, changes to their tickets), then a line or two per busy chat, most important first. Keep it short: 3-8 "• " lines, each with a citation like [[id]] from the results (summaries already contain them). If nothing happened, say so in one line.
 - For anything that takes more than one lookup (tickets from a thread, catch-ups, status questions, bulk changes), start your first response with one short line saying what you're about to do, in the first person ("Reading the thread and checking who owns what."), then call the tools in the same response. Skip it for single quick actions.
+- Missions: when someone asks for a mission, or to plan and drive a multi-step outcome by a date, call start_mission once (with the deadline as YYYY-MM-DD when they gave one; resolve "Friday" against today in the context). Don't file the tickets yourself.
 - When several independent changes are needed, call the tools in parallel.
 - Your changes are staged and applied when you finish your reply. If any tool result says needs_confirmation (deletes, or changing three or more tickets at once), nothing changes until the requester confirms in the card under your reply: say what you're about to do as a proposal ("I'll delete NW-126 once you confirm."), not as done. Otherwise say what you did; the requester can undo it.
 
@@ -110,7 +111,10 @@ export function buildContext(opts: {
     for (const m of opts.chat.slice(-30)) convo.push(`[${m.id} ${displayTime(m.time)}] ${nameOf(m.who)}: ${m.text}`);
   }
 
+  const now = new Date();
+  const today = `${now.toISOString().slice(0, 10)} (${now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })})`;
   return `<context>
+Today: ${today}
 Where: ${opts.threadId ? "a thread in " : ""}${whereLine}
 Requester: ${nameOf(dir.me)} (id: ${dir.me}). ${roleRule(dir, opts.role)} (${roleLabel(dir, opts.role)})
 Tickets the requester can see (${visible.length}):

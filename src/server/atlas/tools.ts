@@ -21,7 +21,7 @@ const PEOPLE_ENUM = "__PEOPLE__";
 /** Which permission group each tool needs (an agent's `tools`). */
 const TOOL_GROUP: Record<string, AgentTool> = {
   list_tickets: "read", get_ticket: "read", ticket_discussion: "read", search_messages: "read", catch_up: "read",
-  create_ticket: "write", update_ticket: "write", delete_ticket: "delete",
+  create_ticket: "write", update_ticket: "write", delete_ticket: "delete", start_mission: "write",
 };
 export const toolAllowed = (name: string, allowed: AgentTool[] = ["read", "write", "delete"]) => allowed.includes(TOOL_GROUP[name] ?? "read");
 
@@ -116,6 +116,23 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           blocked_by_remove: { type: "array", items: { type: "string" }, description: "Ticket IDs that no longer block this one" },
         },
         required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_mission",
+      description:
+        'Start a mission: a goal with a deadline that you plan into owned, dated, dependent tasks the team can launch. Use when someone asks for a mission, or to plan and drive a multi-step outcome ("make sure the pricing page ships by Friday"). Not for single tickets.',
+      parameters: {
+        type: "object",
+        properties: {
+          goal: { type: "string", description: "The outcome, in the requester's words" },
+          deadline: { type: "string", description: "YYYY-MM-DD if the requester gave a date or day; omit otherwise" },
+        },
+        required: ["goal"],
         additionalProperties: false,
       },
     },
@@ -419,6 +436,17 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
       return { ok: true, deleting: `${t.id} "${t.title}"`, ...stage(ctx, t.id, t, null, []) };
+    }
+    case "start_mission": {
+      const goal = str(args.goal);
+      if (!goal) return err("Say what the mission should achieve.");
+      if (currentDir().chats[ctx.where]?.kind !== "channel") return err("Missions start in a channel, so the team can follow along. Ask in one.");
+      const { createMission } = await import("../missions");
+      const m = await createMission({ goal, deadline: str(args.deadline) ?? null, chatId: ctx.where, role });
+      return {
+        ok: true, mission: m.goal, deadline: m.deadline, board: `/missions/${m.id}`,
+        note: "The plan is being drafted now, live on the mission board and in the mission's own thread; someone reviews and launches it there. Tell the requester that in one sentence; don't invent tasks.",
+      };
     }
     case "catch_up":
       return catchUp({ role, sinceHours: typeof args.since_hours === "number" ? args.since_hours : undefined, chat: str(args.chat) });

@@ -28,7 +28,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       <ScreenHeader back="/home" actions={meta.who === ATLAS_ID ? <CatchUpButton compact className="max-sm:hidden" /> : undefined}>
         <Avatar person={p} size="md" />
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="truncate text-base font-bold">{p.name}</h1>
+          <h1 className="truncate text-[15px] font-semibold">{p.name}</h1>
           <span className="truncate text-meta text-muted-foreground">{topic}</span>
         </div>
       </ScreenHeader>
@@ -43,25 +43,25 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
         <ChannelAgents chatId={chatId} />
         {canEdit && (
           <>
-            <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettingsOpen(true)} className="flex size-9 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted hover:text-foreground">
+            <button type="button" aria-label="Channel settings" title="Channel settings" onClick={() => setSettingsOpen(true)} className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-muted hover:text-foreground">
               <SettingsIcon className="size-4" />
             </button>
             <ChannelSettingsDialog key={`${chatId}-${meta.label}`} chatId={chatId} open={settingsOpen} onOpenChange={setSettingsOpen} />
           </>
         )}
-        <div title="Channel members" className="flex shrink-0 items-center gap-2 rounded-lg border py-1 pr-2.5 pl-1.5">
+        <div title="Channel members" className="flex h-8 shrink-0 items-center gap-2 rounded-md border border-input pr-2.5 pl-1.5">
           <span aria-hidden className="flex pl-1 max-[360px]:hidden">
             {meta.members.slice(0, 3).map((k) => (
-              <Avatar key={k} person={personOf(dir, k)} size="sm" className="-ml-1 rounded-md border-2 border-white" />
+              <Avatar key={k} person={personOf(dir, k)} size="sm" className="-ml-1 rounded-[5px] border-2 border-background" />
             ))}
           </span>
-          <span className="text-meta font-semibold text-ink-2">{meta.members.length}</span>
+          <span className="tabular text-meta font-medium text-ink-2">{meta.members.length}</span>
         </div>
         </div>
       }
     >
       <div className="flex min-w-0 flex-col leading-[1.3]">
-        <h1 className="truncate text-base font-bold"># {meta.label}</h1>
+        <h1 className="truncate text-[15px] font-semibold"># {meta.label}</h1>
         <span className="truncate text-meta text-muted-foreground">{meta.topic}</span>
       </div>
     </ScreenHeader>

@@ -38,20 +38,20 @@ export function TicketCard({ id }: { id: string }) {
   }
 
   return (
-    <div className="mt-2 flex max-w-[460px] flex-col gap-1.5 rounded-lg border bg-card px-3.5 py-3 shadow-xs">
+    <div className="mt-2 flex max-w-[460px] flex-col gap-1.5 rounded-md border bg-card px-3 py-2.5">
       <div className="flex items-center gap-2">
-        <TicketIcon aria-hidden className="size-4 text-agent-foreground" />
-        <span className="text-xs font-bold tracking-[0.02em] text-muted-foreground">{id}</span>
-        <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: statusColors[0], color: statusColors[1] }}>
+        <TicketIcon aria-hidden className="size-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground">{id}</span>
+        <span className="rounded-sm px-1.5 py-px text-xs font-medium" style={{ background: statusColors[0], color: statusColors[1] }}>
           {status}
         </span>
         {team && <span className="text-xs text-muted-foreground">{team}</span>}
       </div>
-      <div className="text-body leading-[1.4] font-semibold">{title}</div>
+      <div className="text-body font-semibold">{title}</div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-meta text-muted-foreground">{meta}</span>
         {t && (
-          <Button variant="outline" size="sm" className="h-10 sm:h-9" onClick={() => openTicket(t.id)}>
+          <Button variant="outline" size="sm" className="h-9 sm:h-8" onClick={() => openTicket(t.id)}>
             Open ticket
           </Button>
         )}

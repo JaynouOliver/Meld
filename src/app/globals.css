@@ -4,179 +4,189 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Meld design tokens: "Meld Business" palette.
- *   - Cool slate neutrals for a calm, enterprise surface.
- *   - One Cobalt primary for actions (--brand, overridable per workspace).
- *   - Violet is reserved for Atlas (the agent) and nothing else.
- *   - Status / semantic colors carry meaning and never change with the accent.
+ * Meld design tokens: "Meld Graphite".
+ *   - Neutral graphite surfaces and ink; hairline borders instead of shadows.
+ *   - One blue (--brand, overridable per workspace) for primary actions, focus and selection.
+ *   - Agents get a quiet neutral treatment (graphite avatar, monochrome "Agent" tag), not a hue.
+ *   - Status / semantic colors carry meaning, muted, and never change with the accent.
  * shadcn semantic tokens map onto these, so shadcn components match.
  * All text/background pairs below meet WCAG 2.1 AA (4.5:1) in both themes.
  */
 :root {
   --brand: #2952e3;
-  --radius: 0.625rem;
+  --radius: 0.375rem; /* 6px: controls 4-6px, cards and dialogs 6-8px */
 
   /* Surfaces & text */
   --background: #ffffff;
-  --foreground: #151b28;
+  --foreground: #17191c;
   --card: #ffffff;
-  --card-foreground: #151b28;
+  --card-foreground: #17191c;
   --popover: #ffffff;
-  --popover-foreground: #151b28;
+  --popover-foreground: #17191c;
   --primary: var(--brand);
   --primary-foreground: #ffffff;
-  --secondary: #f7f8fa;
-  --secondary-foreground: #151b28;
-  --muted: #f7f8fa;
-  --muted-foreground: #5f6b7f;
-  --accent: #eef1f5;
-  --accent-foreground: #151b28;
-  --destructive: #b42318;
-  --border: #e3e7ed;
-  --input: #c9cfd8;
+  --secondary: #f5f6f7;
+  --secondary-foreground: #17191c;
+  --muted: #f5f6f7;
+  --muted-foreground: #5c6370;
+  --accent: #eceef1;
+  --accent-foreground: #17191c;
+  --destructive: #b3261e;
+  --border: #e2e4e8;
+  --input: #cdd1d7;
   --ring: var(--brand);
 
   /* Extended neutrals */
-  --ink-2: #374154;
-  --subtle: #8792a4;
-  --line-soft: #eef1f5;
-  --canvas: #f7f8fa;
+  --ink-2: #363b44;
+  --subtle: #8b919c;
+  --line-soft: #eef0f2;
+  --canvas: #f7f8f9;
 
   /* Primary family */
-  --link: #1f42b8;
-  --link-hover: #16318c;
-  --mention: #edf2ff;
-  --mention-foreground: #1f42b8;
-  --selected: #edf2ff;
+  --link: #2148b8;
+  --link-hover: #183890;
+  --mention: #eaf0fc;
+  --mention-foreground: #1f45ad;
+  --selected: #eef3fd;
 
-  /* Atlas (agent): violet, reserved */
-  --atlas: #6741d9;
-  --agent: #f3f0ff;
-  --agent-foreground: #5b34c7;
-  --agent-border: #ddd3ff;
-  --atlas-series: var(--atlas);
+  /* Agents: neutral graphite, deliberately not a "special" hue */
+  --atlas: #454b55;
+  --agent: #eef0f2;
+  --agent-foreground: #474d57;
+  --agent-border: #d5d8dd;
+  --atlas-series: #6b7280;
 
   /* Semantic */
-  --success: #0e7a52;
-  --success-soft: #e7f6ef;
-  --warning: #9a5300;
-  --warning-soft: #fff4e3;
-  --danger-soft: #feedec;
-  --unread: #d92d20; /* mention badge: 4.8:1 with white text */
-  --online: #12b76a;
+  --success: #17724c;
+  --success-soft: #eaf5ef;
+  --warning: #8f5207;
+  --warning-soft: #fbf3e4;
+  --danger-soft: #fcecea;
+  --unread: #c8321f; /* mention badge: 5.2:1 with white text */
+  --online: #1f9d63;
 
   /* Ticket status: [bg, fg, line, dot] */
-  --status-todo-bg: #eef1f5;
-  --status-todo-fg: #374154;
-  --status-todo-line: #c9cfd8;
-  --status-todo-dot: #8792a4;
-  --status-progress-bg: #edf2ff;
-  --status-progress-fg: #1f42b8;
-  --status-progress-line: #b9c9fb;
-  --status-progress-dot: #2952e3;
-  --status-review-bg: #fff4e3;
-  --status-review-fg: #9a5300;
-  --status-review-line: #f5cf8f;
-  --status-review-dot: #e08a00;
-  --status-done-bg: #e7f6ef;
-  --status-done-fg: #0e7a52;
-  --status-done-line: #9fdcbf;
-  --status-done-dot: #12a36b;
-  --status-later-bg: #f7f8fa;
-  --status-later-fg: #5f6b7f;
-  --status-later-line: #c9cfd8;
-  --status-later-dot: #b3bbc8;
+  --status-todo-bg: #f0f1f3;
+  --status-todo-fg: #3f4550;
+  --status-todo-line: #d3d6db;
+  --status-todo-dot: #8b919c;
+  --status-progress-bg: #ebf1fc;
+  --status-progress-fg: #1f45ad;
+  --status-progress-line: #bfd0f3;
+  --status-progress-dot: #3866d6;
+  --status-review-bg: #fbf3e4;
+  --status-review-fg: #85500c;
+  --status-review-line: #ecd3a3;
+  --status-review-dot: #c9871a;
+  --status-done-bg: #e9f4ee;
+  --status-done-fg: #17724c;
+  --status-done-line: #b5dcc6;
+  --status-done-dot: #2b9a64;
+  --status-later-bg: #f5f6f7;
+  --status-later-fg: #5c6370;
+  --status-later-line: #d3d6db;
+  --status-later-dot: #b0b5bd;
 
   /* Priority */
-  --priority-high: #b42318;
-  --priority-medium: #9a5300;
-  --priority-low: #5f6b7f;
+  --priority-high: #b3261e;
+  --priority-medium: #8f5207;
+  --priority-low: #5c6370;
 
-  /* Sidebar (always dark) */
-  --sidebar: #111827;
-  --sidebar-foreground: #c5cdd8;
-  --sidebar-muted: #8792a4;
-  --sidebar-border: #1f2937;
-  --sidebar-input: #1b2433;
-  --sidebar-input-border: #2e3a4d;
-  --sidebar-hover: rgb(255 255 255 / 0.06);
-  --sidebar-agent: #cfc2ff;
-  --sidebar-agent-border: #6b56c9;
+  /* Sidebar: a quiet neutral rail, one step off the canvas */
+  --sidebar: #f7f8f9;
+  --sidebar-foreground: #3c414a;
+  --sidebar-strong: #17191c;
+  --sidebar-muted: #646a75;
+  --sidebar-border: #e2e4e8;
+  --sidebar-input: #ffffff;
+  --sidebar-input-border: #cdd1d7;
+  --sidebar-hover: rgb(23 25 28 / 0.05);
+  --sidebar-active: #e6e8ec;
+  --sidebar-agent: #5c6370;
+  --sidebar-agent-border: #cdd1d7;
 
-  /* Elevation */
-  --shadow-color: 21 27 40;
+  /* Elevation (overlays only) */
+  --shadow-color: 23 25 28;
 }
 
 /* Dark theme. --brand stays the same so the workspace accent still applies. */
 .dark {
-  --background: #12161f;
-  --foreground: #e6e9ef;
-  --card: #171c26;
-  --card-foreground: #e6e9ef;
-  --popover: #1b212c;
-  --popover-foreground: #e6e9ef;
+  --background: #141518;
+  --foreground: #e7e9ec;
+  --card: #18191d;
+  --card-foreground: #e7e9ec;
+  --popover: #1d1f23;
+  --popover-foreground: #e7e9ec;
   --primary-foreground: #ffffff;
-  --secondary: #1b212c;
-  --secondary-foreground: #e6e9ef;
-  --muted: #1a1f2a;
-  --muted-foreground: #98a2b3;
-  --accent: #232a37;
-  --accent-foreground: #e6e9ef;
-  --destructive: #f97066;
-  --border: #2a3240;
-  --input: #3a4352;
+  --secondary: #1c1e22;
+  --secondary-foreground: #e7e9ec;
+  --muted: #1c1e22;
+  --muted-foreground: #9aa0aa;
+  --accent: #26292e;
+  --accent-foreground: #e7e9ec;
+  --destructive: #f2766b;
+  --border: #2a2d33;
+  --input: #3a3e45;
 
-  --ink-2: #c5cdd8;
-  --subtle: #6f7a8c;
-  --line-soft: #222937;
-  --canvas: #0e1219;
+  --ink-2: #c6cad1;
+  --subtle: #6e747e;
+  --line-soft: #212328;
+  --canvas: #101114;
 
-  --link: #8aa8ff;
-  --link-hover: #b3c6ff;
-  --mention: #1d2a4d;
-  --mention-foreground: #a9bfff;
-  --selected: #1a2440;
+  --link: #8eaaf5;
+  --link-hover: #b6c8fa;
+  --mention: #1d2740;
+  --mention-foreground: #a9bdf5;
+  --selected: #1b2236;
 
-  --atlas: #8b6cf0;
-  --agent: #241d3f;
-  --agent-foreground: #c4b5fd;
-  --agent-border: #3d3170;
+  --atlas: #4b515b;
+  --agent: #25282d;
+  --agent-foreground: #b9bec7;
+  --agent-border: #383c43;
+  --atlas-series: #9aa0aa;
 
-  --success: #4ad295;
-  --success-soft: #11291f;
-  --warning: #f5b454;
-  --warning-soft: #2e2210;
-  --danger-soft: #2f1615;
+  --success: #5cc795;
+  --success-soft: #142a20;
+  --warning: #e0a84f;
+  --warning-soft: #2c2314;
+  --danger-soft: #2e1816;
 
-  --status-todo-bg: #232a37;
-  --status-todo-fg: #c5cdd8;
-  --status-todo-line: #3a4352;
-  --status-todo-dot: #8792a4;
-  --status-progress-bg: #1a2440;
-  --status-progress-fg: #a9bfff;
-  --status-progress-line: #2f4280;
-  --status-progress-dot: #5b80f5;
-  --status-review-bg: #2e2210;
-  --status-review-fg: #f5b454;
-  --status-review-line: #5c4318;
-  --status-review-dot: #f0a020;
-  --status-done-bg: #11291f;
-  --status-done-fg: #4ad295;
-  --status-done-line: #1f5a40;
-  --status-done-dot: #2fbf7f;
-  --status-later-bg: #1a1f2a;
-  --status-later-fg: #98a2b3;
-  --status-later-line: #3a4352;
-  --status-later-dot: #6f7a8c;
+  --status-todo-bg: #25282d;
+  --status-todo-fg: #c6cad1;
+  --status-todo-line: #3a3e45;
+  --status-todo-dot: #8b919c;
+  --status-progress-bg: #1b2440;
+  --status-progress-fg: #a9bdf5;
+  --status-progress-line: #2f4178;
+  --status-progress-dot: #6489eb;
+  --status-review-bg: #2c2314;
+  --status-review-fg: #e0a84f;
+  --status-review-line: #5a4420;
+  --status-review-dot: #d8962e;
+  --status-done-bg: #142a20;
+  --status-done-fg: #5cc795;
+  --status-done-line: #24533d;
+  --status-done-dot: #3cb07a;
+  --status-later-bg: #1c1e22;
+  --status-later-fg: #9aa0aa;
+  --status-later-line: #3a3e45;
+  --status-later-dot: #6e747e;
 
-  --priority-high: #f97066;
-  --priority-medium: #f5b454;
-  --priority-low: #98a2b3;
+  --priority-high: #f2766b;
+  --priority-medium: #e0a84f;
+  --priority-low: #9aa0aa;
 
-  --sidebar: #0b0f15;
-  --sidebar-border: #1a202b;
-  --sidebar-input: #151b25;
-  --sidebar-input-border: #273142;
+  --sidebar: #111214;
+  --sidebar-foreground: #b9bec6;
+  --sidebar-strong: #f1f2f4;
+  --sidebar-muted: #8a909a;
+  --sidebar-border: #24262b;
+  --sidebar-input: #1b1d21;
+  --sidebar-input-border: #33363c;
+  --sidebar-hover: rgb(255 255 255 / 0.05);
+  --sidebar-active: rgb(255 255 255 / 0.08);
+  --sidebar-agent: #a3a9b2;
+  --sidebar-agent-border: #3a3e45;
 
   --shadow-color: 0 0 0;
   color-scheme: dark;
@@ -191,18 +201,22 @@
   --text-2xs--line-height: 1rem;
   --text-meta: 0.8125rem; /* 13px: metadata, secondary UI */
   --text-meta--line-height: 1.25rem;
-  --text-body: 0.9375rem; /* 15px: chat message body */
-  --text-body--line-height: 1.5rem;
+  --text-body: 0.875rem; /* 14px: chat message body */
+  --text-body--line-height: 1.375rem;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 2px); /* capped: nothing in the product is pillowy */
+  --radius-3xl: calc(var(--radius) + 2px);
 
-  /* Elevation: flat → sm (popovers, hover toolbars) → lg (sheets, menus) */
-  --shadow-xs: 0 1px 2px rgb(var(--shadow-color) / 0.05);
-  --shadow-sm: 0 1px 2px rgb(var(--shadow-color) / 0.06), 0 2px 6px rgb(var(--shadow-color) / 0.06);
-  --shadow-lg: 0 4px 8px rgb(var(--shadow-color) / 0.06), 0 12px 32px rgb(var(--shadow-color) / 0.14);
+  /* Elevation: surfaces are flat (hairlines); only overlays cast a small shadow. */
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 1px 2px rgb(var(--shadow-color) / 0.08);
+  --shadow-md: 0 2px 6px rgb(var(--shadow-color) / 0.08), 0 1px 2px rgb(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 6px 16px rgb(var(--shadow-color) / 0.10), 0 1px 3px rgb(var(--shadow-color) / 0.08);
+  --shadow-xl: 0 10px 28px rgb(var(--shadow-color) / 0.14), 0 1px 3px rgb(var(--shadow-color) / 0.08);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -251,6 +265,8 @@
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-strong: var(--sidebar-strong);
+  --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-input: var(--sidebar-input);
@@ -320,19 +336,33 @@
   }
 }
 
-/* Atlas working: a soft sweep across "On it" (the live answer bubble). */
-@keyframes atlas-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+/*
+ * Agent working: a thin indeterminate bar (used by the live answer bubble).
+ * .atlas-shimmer is kept as a plain, neutral no-op for any older markup.
+ */
 .atlas-shimmer {
-  background: linear-gradient(90deg, var(--muted-foreground) 25%, var(--atlas) 50%, var(--muted-foreground) 75%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: atlas-shimmer 1.6s linear infinite;
+  color: var(--muted-foreground);
+}
+@keyframes agent-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.agent-progress {
+  position: relative;
+  overflow: hidden;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-soft);
+}
+.agent-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: var(--brand);
+  opacity: 0.85;
+  animation: agent-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .atlas-shimmer { animation: none; color: var(--atlas); }
+  .agent-progress::after { animation: none; width: 100%; opacity: 0.35; }
 }

@@ -28,12 +28,12 @@ export function CatchUpButton({ className, compact }: { className?: string; comp
       disabled={send.isPending}
       title="Ask Atlas to catch you up"
       className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-meta font-semibold text-ink-2 hover:bg-muted disabled:opacity-60",
-        compact ? "h-9" : "h-10",
+        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-[13px]/5 font-medium text-ink-2 hover:bg-muted disabled:opacity-60",
+        compact ? "h-8" : "h-9",
         className,
       )}
     >
-      <HistoryIcon className="size-4 text-atlas" />
+      <HistoryIcon className="size-4 text-muted-foreground" />
       What did I miss?
     </button>
   );

@@ -78,6 +78,8 @@ export function stepLabel(name: string, args: Record<string, unknown>) {
       return `Preparing to delete ${id || "a ticket"}`;
     case "catch_up":
       return "Catching up on what you missed";
+    case "start_mission":
+      return "Planning the mission: tasks, owners, dates";
     default:
       return "Working on it";
   }

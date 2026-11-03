@@ -13,6 +13,7 @@ import { getSessionUser } from "@/server/auth";
 import { runInCtx } from "@/server/context";
 import { llm } from "@/server/llm";
 import { pingChanges } from "@/server/realtime";
+import * as missions from "@/server/missions";
 import * as ws from "@/server/workspace";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
@@ -81,6 +82,14 @@ const methods: Record<string, Method> = {
   updateChannel: async (input: Parameters<typeof ws.updateChannel>[1]) => ws.updateChannel(currentCtx(), input),
   deleteChannel: async (id: string) => ws.deleteChannel(currentCtx(), id),
   openDm: async (userId: string) => ws.openDm(currentCtx(), userId),
+  listMissions: async () => missions.listMissions(),
+  getMission: async (id: string) => missions.getMission(id),
+  openDecisions: async () => missions.openDecisions(),
+  createMission: async (input: Parameters<typeof missions.createMission>[0]) => missions.createMission(input),
+  launchMission: async (id: string, role?: string) => missions.launchMission(id, role),
+  cancelMission: async (id: string) => missions.cancelMission(id),
+  checkInMission: async (id: string, role?: string) => missions.checkInMission(id, role),
+  answerDecision: async (decisionId: string, answer: string, role?: string) => missions.answerDecision(decisionId, answer, role),
   createAgent: async (input: ws.AgentInput) => ws.createAgent(currentCtx(), input),
   updateAgent: async (input: ws.AgentInput & { id: string }) => ws.updateAgent(currentCtx(), input),
   deleteAgent: async (id: string) => ws.deleteAgent(currentCtx(), id),
