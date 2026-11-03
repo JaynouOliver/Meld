@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { EmailForm, OrDivider } from "@/components/auth/email-form";
 import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { safeNext } from "@/lib/auth/shared";
 
@@ -22,6 +23,8 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
 
       <div className="mt-6">
         <ProviderButtons verb={signup ? "Sign up" : "Continue"} next={next} />
+        <OrDivider />
+        <EmailForm mode={signup ? "signup" : "signin"} next={next} />
       </div>
 
       {error && (

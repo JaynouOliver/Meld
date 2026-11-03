@@ -3,6 +3,7 @@
 import { LoaderCircleIcon } from "lucide-react";
 import { useState } from "react";
 
+import { EmailForm, OrDivider } from "@/components/auth/email-form";
 import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { acceptInvite } from "@/lib/api/remote";
 import { clearLocalCache } from "@/lib/cache";
@@ -12,6 +13,7 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const back = `/join/${props.token}`;
+  const [emailMode, setEmailMode] = useState<"signin" | "signup">("signup");
 
   const run = async (key: string, fn: () => Promise<unknown>) => {
     setBusy(key);
@@ -36,6 +38,11 @@ export function JoinActions(props: { token: string; signedInAs: string | null; a
     return (
       <div className="mt-6">
         <ProviderButtons verb="Continue" next={back} />
+        <OrDivider />
+        <EmailForm mode={emailMode} next={back} />
+        <button type="button" onClick={() => setEmailMode(emailMode === "signup" ? "signin" : "signup")} className="mt-3 w-full cursor-pointer text-center text-meta font-semibold text-link hover:underline">
+          {emailMode === "signup" ? "Already have an account? Sign in with email" : "New here? Sign up with email"}
+        </button>
       </div>
     );
   }
