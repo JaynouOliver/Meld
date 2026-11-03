@@ -17,12 +17,9 @@ import { MODE_OPTIONS } from "./agent-modes";
 
 type Open = { open: boolean; onOpenChange: (o: boolean) => void };
 
+// Built-in agents only: connecting your own agent over MCP exists (docs/mcp.md) but is
+// kept out of the UI so trying Meld needs no setup.
 const TEMPLATES: { name: string; handle: string; description: string; instructions: string; tools: AgentTool[]; kind?: "external" }[] = [
-  {
-    name: "Your own agent (MCP)", handle: "coder", tools: ["read", "write"], kind: "external",
-    description: "A coding agent (Claude Code, Codex, your own) connected over MCP.",
-    instructions: "",
-  },
   {
     name: "Triage", handle: "triage", tools: ["read", "write"],
     description: "Turns bug reports into well-formed tickets with the right owner.",

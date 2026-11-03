@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { EmailForm, OrDivider } from "@/components/auth/email-form";
+import { TryDemo } from "@/components/marketing/try-demo";
 import { ProviderButtons } from "@/components/auth/provider-buttons";
 import { safeNext } from "@/lib/auth/shared";
 
@@ -34,6 +35,11 @@ export function LoginCard({ devAuth }: { devAuth: boolean }) {
       )}
 
       {devAuth && <DevSignIn next={next} />}
+
+      <div className="mt-5 flex flex-col items-center border-t pt-4 text-center">
+        <p className="mb-2 text-meta text-muted-foreground">Just looking? Try a demo company, no account needed.</p>
+        <TryDemo label="Try the live demo" className="px-4 py-2.5" />
+      </div>
 
       <p className="mt-6 text-center text-meta text-muted-foreground">
         {signup ? "Already have an account? " : "New to Meld? "}

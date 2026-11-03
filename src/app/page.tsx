@@ -2,6 +2,7 @@ import { HashIcon, MessagesSquareIcon, ShieldCheckIcon, TicketIcon } from "lucid
 import Link from "next/link";
 
 import { Logo } from "@/components/marketing/logo";
+import { TryDemo } from "@/components/marketing/try-demo";
 
 /** Public landing page: one screen, no scrolling. */
 export default function Landing() {
@@ -33,14 +34,13 @@ export default function Landing() {
             Channels, threads and DMs for your company, with tickets built in. Tag @Atlas to create, update or
             close tickets, ask where things stand, or turn a thread into tasks. It acts with your permissions.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/login?mode=signup" className="rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-white hover:opacity-90">
+          <div className="mt-8 flex flex-wrap items-start gap-3">
+            <TryDemo />
+            <Link href="/login?mode=signup" className="rounded-lg border px-5 py-3 text-sm font-semibold text-foreground hover:bg-muted">
               Create your workspace
             </Link>
-            <Link href="/login" className="rounded-lg border px-5 py-3 text-sm font-semibold text-foreground hover:bg-muted">
-              Sign in
-            </Link>
           </div>
+          <p className="mt-2 text-meta text-muted-foreground">No sign-up: your own copy of a team with agents already at work.</p>
           <ul className="mt-10 grid max-w-md grid-cols-2 gap-x-6 gap-y-3 text-meta text-muted-foreground">
             <li className="flex items-center gap-2"><HashIcon className="size-4 text-foreground" /> Channels and threads</li>
             <li className="flex items-center gap-2"><TicketIcon className="size-4 text-foreground" /> Tickets in the chat</li>
