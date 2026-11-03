@@ -6,8 +6,9 @@ import { useMemo } from "react";
 
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { Button } from "@/components/ui/button";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useCreateTicket, useVisibleTickets } from "@/hooks/use-tickets";
-import { ROLE_SCOPE } from "@/lib/rbac";
+import { roleScope } from "@/lib/rbac";
 import type { TicketScope } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { TicketCharts } from "./ticket-charts";
@@ -16,11 +17,12 @@ import { TicketTable } from "./ticket-table";
 import { TicketViews } from "./ticket-views";
 
 export function TicketsScreen({ scope }: { scope: TicketScope }) {
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const role = useRole();
   const { visible, isPending } = useVisibleTickets();
   const create = useCreateTicket();
   const showInsights = useUiStore((s) => s.showInsights);
-  const scoped = useMemo(() => visible.filter((t) => scope === "all" || t.assignee === "me"), [visible, scope]);
+  const scoped = useMemo(() => visible.filter((t) => scope === "all" || t.assignee === dir.me), [visible, scope, dir.me]);
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-background">
@@ -39,12 +41,12 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
             <span className="md:hidden">Tickets</span>
             <span className="hidden md:inline">{scope === "mine" ? "Assigned to me" : "All tickets"}</span>
           </h1>
-          <span className="hidden truncate text-meta text-muted-foreground md:block">{ROLE_SCOPE[role]}</span>
+          <span className="hidden truncate text-meta text-muted-foreground md:block">{roleScope(dir, role)}</span>
         </div>
       </ScreenHeader>
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-canvas *:shrink-0 px-4 pt-3 pb-6 sm:px-5 sm:pt-4 sm:pb-7">
         <ScopeTabs scope={scope} />
-        <p className="-mt-1 text-meta text-muted-foreground md:hidden">{ROLE_SCOPE[role]}</p>
+        <p className="-mt-1 text-meta text-muted-foreground md:hidden">{roleScope(dir, role)}</p>
         {/* List first: views and filter sit directly above it, charts are opt-in. */}
         <TicketViews tickets={scoped} scope={scope} />
         {showInsights && <TicketCharts tickets={scoped} scope={scope} />}

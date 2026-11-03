@@ -9,7 +9,8 @@ import { useEffect } from "react";
 
 import { useFlash } from "@/hooks/use-flash";
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
-import { PEOPLE } from "@/lib/constants";
+import { useDirectory } from "@/hooks/use-directory";
+import { personOf } from "@/lib/directory";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message, Person } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -48,11 +49,12 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
 function MessageRow({ message: m }: { message: Message }) {
   const threadId = useUiStore((s) => s.threadId);
   const openThread = useUiStore((s) => s.openThread);
-  const p = PEOPLE[m.who];
+  const dir = useDirectory();
+  const p = personOf(dir, m.who);
   const n = countReplies(m.replies);
   const participants: Person[] = [];
   m.replies.forEach((r) => {
-    if (!participants.some((x) => x.id === r.who)) participants.push(PEOPLE[r.who]);
+    if (!participants.some((x) => x.id === r.who)) participants.push(personOf(dir, r.who));
   });
   const pending = m.id.startsWith("pending-");
   const { ref, flashing } = useFlash<HTMLDivElement>(m.id);

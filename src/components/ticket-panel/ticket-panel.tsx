@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useDeleteTicket, useUpdateTicket, useVisibleTickets } from "@/hooks/use-tickets";
-import { DEFAULT_REPO, PEOPLE, PERSON_ORDER, PRIORITIES, STATUSES, teamName } from "@/lib/constants";
+import { PRIORITIES, STATUSES } from "@/lib/constants";
+import { personOf, teamName } from "@/lib/directory";
 import { canDelete } from "@/lib/rbac";
 import type { PersonId, Priority, Ticket, TicketStatus } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
@@ -35,7 +37,8 @@ export function TicketPanel() {
 const sectionLabel = "text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase";
 
 function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => void }) {
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const role = useRole();
   const linkKind = useUiStore((s) => s.linkKind);
   const setLinkKind = useUiStore((s) => s.setLinkKind);
   const update = useUpdateTicket();
@@ -58,7 +61,9 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [title]);
-  const reporter = PEOPLE[t.reporter];
+  const reporter = personOf(dir, t.reporter);
+  // A former member stays selectable as the current assignee.
+  const assignees = dir.personOrder.includes(t.assignee) ? dir.personOrder : [...dir.personOrder, t.assignee];
 
   const commitTitle = () => title !== t.title && update.mutate({ id: t.id, patch: { title } });
   const commitDesc = () => desc !== t.description && update.mutate({ id: t.id, patch: { description: desc } });
@@ -106,7 +111,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
         <TicketIcon aria-hidden className="hidden size-[18px] text-agent-foreground sm:block" />
         <h2 className="text-base font-bold whitespace-nowrap">{t.id}</h2>
         <StatusPill status={t.status} />
-        <span className="hidden truncate text-xs text-muted-foreground sm:inline">{teamName(t.team)}</span>
+        <span className="hidden truncate text-xs text-muted-foreground sm:inline">{teamName(dir, t.team)}</span>
       </PanelHeader>
 
       <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-4 pt-4 pb-[max(24px,env(safe-area-inset-bottom))] sm:px-5">
@@ -169,13 +174,16 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PERSON_ORDER.map((k) => (
-                  <SelectItem key={k} value={k}>
-                    <Avatar person={PEOPLE[k]} size="xs" className="mr-2 align-middle" />
-                    {PEOPLE[k].name}
-                    {PEOPLE[k].isAgent ? " (agent)" : ""}
-                  </SelectItem>
-                ))}
+                {assignees.map((k) => {
+                  const p = personOf(dir, k);
+                  return (
+                    <SelectItem key={k} value={k}>
+                      <Avatar person={p} size="xs" className="mr-2 align-middle" />
+                      {p.name}
+                      {p.isAgent ? " (agent)" : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </Field>
@@ -292,7 +300,7 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               Link
             </Button>
           </div>
-          <span className="text-xs text-muted-foreground">Repository: {DEFAULT_REPO}</span>
+          <span className="text-xs text-muted-foreground">{dir.workspace.repo ? `Repository: ${dir.workspace.repo}` : "No default repository set for this workspace"}</span>
         </div>
 
         <div className="flex flex-col gap-2">

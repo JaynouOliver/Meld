@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import * as api from "@/lib/api";
-import { canSee } from "@/lib/rbac";
+import { canCreateIn, canSee } from "@/lib/rbac";
 import type { Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { useDirectory, useRole, useViewer } from "./use-directory";
 import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
@@ -22,31 +23,39 @@ function hydrationSafe<T extends { data: unknown; isPending: boolean }>(q: T, hy
 
 /** Tickets the current role can see, plus a lookup that knows about restricted ones. */
 export function useVisibleTickets() {
-  const role = useUiStore((s) => s.role);
+  const viewer = useViewer();
   const q = useTickets();
   return useMemo(() => {
     const all = q.data ?? [];
-    const visible = all.filter((t) => canSee(role, t));
+    const visible = all.filter((t) => canSee(viewer, t));
     const byId = new Map(all.map((t) => [t.id, t]));
     const lookup = (id: string): { ticket: Ticket | null; locked: boolean } => {
       const t = byId.get(id);
       if (!t) return { ticket: null, locked: false };
-      return canSee(role, t) ? { ticket: t, locked: false } : { ticket: null, locked: true };
+      return canSee(viewer, t) ? { ticket: t, locked: false } : { ticket: null, locked: true };
     };
     return { ...q, all, visible, lookup };
-  }, [q, role]);
+  }, [q, viewer]);
 }
 
 export function useWeekActivity() {
   return hydrationSafe(useQuery({ queryKey: queryKeys.week, queryFn: api.getWeekActivity }), useHydrated());
 }
 
+/**
+ * New ticket from the UI. Its team is the preset's when the viewer may file there,
+ * otherwise the viewer's own team, else the workspace's first team.
+ */
 export function useCreateTicket() {
   const qc = useQueryClient();
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const viewer = useViewer();
   const openTicket = useUiStore((s) => s.openTicket);
   return useMutation({
-    mutationFn: (preset: Partial<Ticket> = {}) => api.createTicket(preset, role),
+    mutationFn: (preset: Partial<Ticket> = {}) => {
+      const team = preset.team && canCreateIn(viewer, preset.team) ? preset.team : (viewer.team ?? dir.teams[0]?.id);
+      return api.createTicket(team ? { ...preset, team } : preset, viewer.role);
+    },
     onSuccess: (t) => {
       qc.setQueryData<Ticket[]>(queryKeys.tickets, (old) => (old ? [...old, t] : [t]));
       qc.invalidateQueries({ queryKey: queryKeys.week });
@@ -58,7 +67,7 @@ export function useCreateTicket() {
 
 export function useUpdateTicket() {
   const qc = useQueryClient();
-  const role = useUiStore((s) => s.role);
+  const role = useRole();
   const notify = useNotifyChat();
   return useMutation({
     mutationFn: (input: Omit<api.UpdateTicketInput, "role">) => api.updateTicket({ ...input, role }),
@@ -85,7 +94,7 @@ export function useUpdateTicket() {
 
 export function useDeleteTicket() {
   const qc = useQueryClient();
-  const role = useUiStore((s) => s.role);
+  const role = useRole();
   return useMutation({
     mutationFn: (id: string) => api.deleteTicket(id, role),
     onSuccess: (_d, id) => {

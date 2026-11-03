@@ -4,8 +4,9 @@ import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { ActionCard } from "@/components/chat/action-card";
 import { RichText } from "@/components/common/rich-text";
+import { useDirectory } from "@/hooks/use-directory";
 import { useFlash } from "@/hooks/use-flash";
-import { PEOPLE } from "@/lib/constants";
+import { personOf } from "@/lib/directory";
 import type { ReplyNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,7 @@ export function ThreadNodes({ nodes }: { nodes: ReplyNode[] }) {
 }
 
 function ThreadReply({ node }: { node: ReplyNode }) {
-  const p = PEOPLE[node.who];
+  const p = personOf(useDirectory(), node.who);
   const { ref, flashing } = useFlash<HTMLDivElement>(node.id);
   return (
     <div ref={ref} className={cn("px-4 transition-colors duration-700 hover:bg-muted sm:px-5", flashing && "bg-mention")}>

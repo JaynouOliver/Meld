@@ -76,7 +76,7 @@ export const useUiStore = create<UiState>()(
       groupBy: "assignee",
       showInsights: false,
 
-      // Desktop opens on the design thread (see Providers); phones start clean.
+      // In the sample workspace, desktop opens on the home channel's invite thread (see ChatScreen); phones start clean.
       threadId: null,
       ticketId: null,
 

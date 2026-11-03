@@ -2,15 +2,16 @@ import "server-only";
 
 import type OpenAI from "openai";
 
-import { CHAT_META, PEOPLE } from "@/lib/constants";
+import { currentDir } from "@/lib/context";
+import { ATLAS_ID, personOf } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
 import { applyOps, needsConfirmation, summarize as summarizeOps, UNDO_WINDOW_MS, type ActionRecord, type TicketOp } from "@/lib/agent/actions";
 import { getStore, type Store } from "@/lib/store";
 import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
 import type { ChatId } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
-import { buildContext, SYSTEM_PROMPT } from "./prompt";
-import { planToOps, runTool, TOOLS, type Effects } from "./tools";
+import { buildContext, SYSTEM_PROMPT, workspaceBlock } from "./prompt";
+import { planToOps, runTool, toolsFor, type Effects } from "./tools";
 
 const MAX_STEPS = 8;
 
@@ -50,15 +51,16 @@ export async function runAtlasAgent(input: AskAtlasInput & { replyId?: string })
 
   const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where)]);
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: `${SYSTEM_PROMPT}\n\n${workspaceBlock(currentDir())}` },
     {
       role: "user",
       content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}
 
-Request from ${PEOPLE.me.name}: ${input.text}`,
+Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
     },
   ];
 
+  const tools = toolsFor(currentDir());
   let reply = "";
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
@@ -67,9 +69,9 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
         model: ATLAS_MODEL,
         reasoning_effort: ATLAS_EFFORT,
         messages,
-        tools: TOOLS,
+        tools,
         // Same prefix (system prompt + tools) for every Atlas call: route to a warm cache.
-        prompt_cache_key: "meld-atlas-v1",
+        prompt_cache_key: `meld-atlas-v2-${currentDir().workspace.id}`,
       });
       const u = res.usage;
       trace.usage.prompt += u?.prompt_tokens ?? 0;
@@ -132,12 +134,12 @@ Request from ${PEOPLE.me.name}: ${input.text}`,
   const created = ops.flatMap((o) => (o.type === "create" ? [o.after.id] : []));
   const updated = ops.flatMap((o) => (o.type === "update" ? [o.after.id] : []));
   const card = hold ? null : single(created) ?? (created.length ? null : single(updated) ?? single([...new Set(effects.read)]));
-  await store.appendMessage(where, { id: messageId, who: "atlas", time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null }, input.threadId);
+  await store.appendMessage(where, { id: messageId, who: ATLAS_ID, time: stamp(), text: reply, ticket: card, actionId: action?.id ?? null }, input.threadId);
 
   trace.reply = reply;
   trace.ms = Date.now() - started;
   console.log(
-    `[atlas] ${CHAT_META[where].id} ${trace.model}/${trace.effort} steps=${trace.steps} tools=${trace.tools.map((t) => t.name).join(",") || "-"} ` +
+    `[atlas] ${currentDir().workspace.id}/${where} ${trace.model}/${trace.effort} steps=${trace.steps} tools=${trace.tools.map((t) => t.name).join(",") || "-"} ` +
       `tokens in=${trace.usage.prompt} (cached ${trace.usage.cached}) out=${trace.usage.completion} (reasoning ${trace.usage.reasoning}) ${trace.ms}ms${trace.error ? ` ERROR ${trace.error}` : ""}`,
   );
 
@@ -159,7 +161,9 @@ const MAX_CITATIONS = 3;
 async function resolveCitations(text: string, store: Store, log: AtlasTrace["citations"]) {
   const ids = [...new Set([...text.matchAll(/\[\[([A-Za-z0-9_-]{1,40})\]\]/g)].map((m) => m[1]))];
   if (!ids.length) return text;
-  const refs = await store.getMessageRefs(ids);
+  const all = await store.getMessageRefs(ids);
+  // Only messages the requester can open (not someone else's DM).
+  const refs = Object.fromEntries(Object.entries(all).filter(([, r]) => !!currentDir().chats[r.chatId]));
   const kept = new Set(ids.filter((id) => refs[id]).slice(0, MAX_CITATIONS));
   for (const id of ids) (kept.has(id) ? log.kept : refs[id] ? log.overLimit : log.invalid).push(id);
   return text

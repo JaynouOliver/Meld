@@ -1,44 +1,60 @@
-import type { ChatId, Message, ReplyNode, Ticket, WeekDay } from "../types";
+import type { ActionRecord } from "../agent/actions";
+import type { AgentRun } from "../agent/runs";
 import { todayIndex } from "../format";
+import type { ChatId, Message, ReplyNode, Ticket, WeekDay } from "../types";
+import { DEMO_WORKSPACE_ID } from "./demo";
 import { SEED_CHATS, SEED_NEXT_NUM, SEED_TICKETS, SEED_WEEK } from "./seed";
 
 /**
- * In-memory database for the hackathon build. Runs in the Next.js server process
- * (or in the browser for the single-file preview). Restarting resets it.
- * Only src/lib/api and src/server talk to this module.
+ * In-memory databases, one per workspace, for local dev, evals and the browser preview.
+ * Runs in the Next.js server process (or in the browser for the preview). Restarting
+ * resets everything. Only src/lib/store/memory.ts talks to this module.
  */
 export interface Db {
   tickets: Ticket[];
   chats: Record<ChatId, Message[]>;
   week: WeekDay[];
   nextNum: number;
+  actions: Map<string, ActionRecord>;
+  runs: Map<string, AgentRun>;
 }
 
-function seed(): Db {
+const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));
+
+function seed(workspaceId: string): Db {
+  const demo = workspaceId === DEMO_WORKSPACE_ID;
   return {
-    tickets: structuredClone(SEED_TICKETS),
-    chats: structuredClone(SEED_CHATS),
-    week: structuredClone(SEED_WEEK),
-    nextNum: SEED_NEXT_NUM,
+    tickets: demo ? structuredClone(SEED_TICKETS) : [],
+    chats: demo ? structuredClone(SEED_CHATS) : {},
+    week: structuredClone(demo ? SEED_WEEK : EMPTY_WEEK),
+    nextNum: demo ? SEED_NEXT_NUM : 1,
+    actions: new Map(),
+    runs: new Map(),
   };
 }
 
-// One instance per process: Next may load this module in several route bundles.
-const g = globalThis as typeof globalThis & { __meldDb?: Db };
-export const db: Db = (g.__meldDb ??= seed());
+// One map per process: Next may load this module in several route bundles.
+const g = globalThis as typeof globalThis & { __meldDbs?: Map<string, Db> };
+const dbs = (g.__meldDbs ??= new Map());
 
-/** Back to seed data (used by evals and the demo reset). */
-export function resetDb() {
-  Object.assign(db, seed());
+export function dbFor(workspaceId: string): Db {
+  let d = dbs.get(workspaceId);
+  if (!d) dbs.set(workspaceId, (d = seed(workspaceId)));
+  return d;
 }
 
-export function bumpWeek(kind: "p" | "a") {
+/** Back to seed data (used by evals and the demo reset). */
+export function resetDb(workspaceId: string) {
+  dbs.set(workspaceId, seed(workspaceId));
+}
+
+export function bumpWeek(db: Db, kind: "p" | "a") {
   db.week[todayIndex()][kind] += 1;
 }
 
 /** Append a message to a chat, or a reply to a thread (threads are flat). */
-export function appendMessage(chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null) {
-  const chat = db.chats[chatId];
+export function appendMessage(db: Db, chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null) {
+  const chat = (db.chats[chatId] ??= []);
   if (threadId) {
     const root = chat.find((x) => x.id === threadId);
     if (root) {

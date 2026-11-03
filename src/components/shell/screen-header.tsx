@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { CHANNELS, DMS } from "@/lib/constants";
+import { useDirectory } from "@/hooks/use-directory";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -24,7 +24,8 @@ export function ScreenHeader({
   back?: string;
   className?: string;
 }) {
-  const unread = useUiStore((s) => [...CHANNELS, ...DMS].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
+  const dir = useDirectory();
+  const unread = useUiStore((s) => [...dir.channels, ...dir.dms].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
   const router = useRouter();
   const pathname = usePathname();
   const leaving = useRef(false);

@@ -3,13 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "@/lib/api";
-import { PEOPLE, CHAT_META } from "@/lib/constants";
+import { ATLAS_ID, atlasDmOf, personOf } from "@/lib/directory";
 import { clock, displayTime } from "@/lib/format";
 import { mentionsAgent } from "@/lib/text";
 import type { PostMessageInput } from "@/lib/api";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { trackRun, useAtlasAnswered } from "./use-agent-runs";
+import { useDirectory, useRole } from "./use-directory";
 import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
@@ -32,6 +33,8 @@ export function useMessages(chatId: ChatId | null) {
 export function useSendMessage() {
   const qc = useQueryClient();
   const notify = useNotifyChat();
+  const dir = useDirectory();
+  const role = useRole();
 
   const answered = useAtlasAnswered();
 
@@ -48,34 +51,39 @@ export function useSendMessage() {
   const teammate = useMutation({
     mutationFn: api.teammateReply,
     onMutate: (chatId) => {
-      const meta = CHAT_META[chatId];
-      if (meta.kind === "dm") {
-        setTimeout(() => useUiStore.getState().setTyping({ chat: chatId, thread: null, label: `${PEOPLE[meta.who].first} is typing…` }), 500);
+      const meta = dir.chats[chatId];
+      if (meta?.kind === "dm") {
+        setTimeout(() => useUiStore.getState().setTyping({ chat: chatId, thread: null, label: `${personOf(dir, meta.who).first} is typing…` }), 500);
       }
     },
     onSuccess: (_d, chatId) => notify(chatId),
     onSettled: () => useUiStore.getState().setTyping(null),
   });
 
+  // The sample workspace's teammates answer their DMs (see api.teammateReply).
+  const isDemoTeammateDm = (chatId: ChatId) => {
+    const meta = dir.chats[chatId];
+    return dir.demo && meta?.kind === "dm" && meta.who !== ATLAS_ID;
+  };
+
   return useMutation({
-    mutationFn: (input: PostMessageInput) => api.postMessage({ ...input, role: useUiStore.getState().role }),
+    mutationFn: (input: PostMessageInput) => api.postMessage({ ...input, role }),
     // Show the message instantly (top-level or in a thread); the server's copy replaces it.
     onMutate: async (input) => {
       const key = queryKeys.messages(input.chatId);
       await qc.cancelQueries({ queryKey: key });
       const pendingId = `pending-${Date.now()}`;
-      const node = { id: pendingId, who: "me" as const, time: clock(), text: input.text };
+      const node = { id: pendingId, who: dir.me, time: clock(), text: input.text };
       qc.setQueryData<Message[]>(key, (old) => insertMessage(old ?? [], node, input.threadId));
       return { pendingId };
     },
     onSuccess: (saved, input, ctx) => {
       const real = { ...saved, time: displayTime(saved.time) };
       qc.setQueryData<Message[]>(queryKeys.messages(input.chatId), (old) => replaceMessage(old ?? [], ctx.pendingId, real));
-      const role = useUiStore.getState().role;
       // The server queued an Atlas run: its reply arrives when the run finishes.
       if (saved.runId) trackRun(qc, { id: saved.runId, chatId: input.chatId, threadId: input.threadId ?? null, status: "queued", result: null });
-      else if (mentionsAgent(input.text, input.chatId)) agent.mutate({ ...input, role });
-      else if (input.chatId === "aiko" || input.chatId === "ravi") teammate.mutate(input.chatId);
+      else if (mentionsAgent(input.text, input.chatId, atlasDmOf(dir))) agent.mutate({ ...input, role });
+      else if (isDemoTeammateDm(input.chatId)) teammate.mutate(input.chatId);
     },
     // On failure, drop the optimistic copy by reloading the chat from the server.
     onError: (_e, input) => qc.invalidateQueries({ queryKey: queryKeys.messages(input.chatId) }),

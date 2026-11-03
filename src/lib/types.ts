@@ -1,11 +1,14 @@
-export type PersonId = "me" | "aiko" | "ravi" | "lena" | "diego" | "atlas";
-export type TeamId = "design" | "payments" | "platform";
+/** A workspace member's user id ("atlas" for the agent; short ids like "aiko" in the demo). */
+export type PersonId = string;
+/** A team inside a workspace (workspace.teams). */
+export type TeamId = string;
 export type Role = "owner" | "member" | "guest";
 export type TicketStatus = "To do" | "In progress" | "In review" | "Done" | "Backburner";
 export type Priority = "Low" | "Medium" | "High";
-export type ChannelId = "general" | "design" | "payments" | "platform";
-export type DmId = "aiko" | "ravi" | "atlas";
-export type ChatId = ChannelId | DmId;
+export type ChannelId = string;
+export type DmId = string;
+/** A channel or DM id. Unique across workspaces. */
+export type ChatId = string;
 export type GroupBy = "assignee" | "status" | "team";
 export type TicketScope = "all" | "mine";
 
@@ -17,6 +20,9 @@ export interface Person {
   color: string;
   team: TeamId | null;
   isAgent?: boolean;
+  avatarUrl?: string | null;
+  /** Job title shown in DMs, e.g. "Product designer". */
+  title?: string | null;
 }
 
 export interface GitHubLink {

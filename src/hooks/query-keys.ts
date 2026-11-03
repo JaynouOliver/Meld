@@ -6,4 +6,5 @@ export const queryKeys = {
   tickets: ["tickets"] as const,
   week: ["week"] as const,
   agentRuns: ["agent-runs"] as const,
+  directory: ["directory"] as const,
 };

@@ -5,8 +5,10 @@ import { ChevronDownIcon, CircleDashedIcon, CircleDotIcon, PlusIcon } from "luci
 import { Avatar } from "@/components/common/avatar";
 import { PriorityLabel } from "@/components/common/priority-label";
 import { StatusPill } from "@/components/common/status-pill";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useCreateTicket } from "@/hooks/use-tickets";
-import { PEOPLE, PERSON_ORDER, STATUS_COLORS, STATUS_ORDER, TEAMS, teamName } from "@/lib/constants";
+import { STATUS_COLORS, STATUS_ORDER } from "@/lib/constants";
+import { personOf, teamName } from "@/lib/directory";
 import { matchQuery } from "@/lib/query-language";
 import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -29,23 +31,30 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
   const groupBy = useUiStore((s) => s.groupBy);
   const collapsed = useUiStore((s) => s.collapsed);
   const toggleCollapsed = useUiStore((s) => s.toggleCollapsed);
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const role = useRole();
   const ticketId = useUiStore((s) => s.ticketId);
   const openTicket = useUiStore((s) => s.openTicket);
   const create = useCreateTicket();
 
-  const filtered = tickets.filter((t) => matchQuery(t, query));
+  const filtered = tickets.filter((t) => matchQuery(t, query, dir));
 
   let defs: GroupDef[];
   if (groupBy === "status") {
     defs = STATUS_ORDER.map((k) => ({ key: k, label: k, badge: "", color: STATUS_COLORS[k][3], round: true, test: (t) => t.status === k, preset: { status: k } }));
   } else if (groupBy === "team") {
-    defs = TEAMS.map((k) => ({ key: k, label: teamName(k), badge: teamName(k).charAt(0), color: "var(--status-todo-dot)", round: false, test: (t) => t.team === k, preset: { team: k } }));
+    defs = dir.teams.map(({ id: k, name }) => ({ key: k, label: name, badge: name.charAt(0), color: "var(--status-todo-dot)", round: false, test: (t) => t.team === k, preset: { team: k } }));
   } else {
-    defs = PERSON_ORDER.map((k) => ({
-      key: k, label: k === "me" ? "Suvra Das (you)" : PEOPLE[k].name, badge: PEOPLE[k].initials, color: PEOPLE[k].color, round: true,
-      test: (t) => t.assignee === k, preset: { assignee: k, team: PEOPLE[k].team ?? "design" },
-    }));
+    // Tickets assigned to someone who left still get a group.
+    const ids = [...dir.personOrder, ...new Set(filtered.map((t) => t.assignee).filter((a) => !dir.personOrder.includes(a)))];
+    defs = ids.map((k) => {
+      const p = personOf(dir, k);
+      return {
+        key: k, label: k === dir.me ? `${p.name} (you)` : p.name, badge: p.initials, color: p.color, round: true,
+        // useCreateTicket falls back to a team the viewer can file into.
+        test: (t) => t.assignee === k, preset: { assignee: k, ...(p.team ? { team: p.team } : {}) },
+      };
+    });
   }
 
   const groups = defs
@@ -74,7 +83,6 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
         {groups.map((g) => {
           const ck = `${groupBy}:${g.key}`;
           const open = !collapsed[ck];
-          const preset = { ...g.preset, ...(role === "member" ? { team: "design" as const } : {}) };
           return (
             <div key={g.key} className="border-b last:border-b-0">
               <button
@@ -103,7 +111,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                   </ul>
                   <div className="hidden @min-[860px]:block">
                   {g.items.map((t) => {
-                    const a = PEOPLE[t.assignee];
+                    const a = personOf(dir, t.assignee);
                     const linked = t.links.length > 0;
                     return (
                       <div
@@ -137,7 +145,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                         <span className="flex h-full items-center border-l border-line-soft px-3">
                           <StatusPill status={t.status} bordered className="py-px" />
                         </span>
-                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta text-ink-2">{teamName(t.team)}</span>
+                        <span className="flex h-full items-center border-l border-line-soft px-3 text-meta text-ink-2">{teamName(dir, t.team)}</span>
                         <span className="flex h-full items-center border-l border-line-soft px-3 text-meta">
                           <PriorityLabel priority={t.priority} />
                         </span>
@@ -148,7 +156,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                   {role !== "guest" && (
                     <button
                       type="button"
-                      onClick={() => create.mutate(preset)}
+                      onClick={() => create.mutate(g.preset)}
                       className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-t border-line-soft bg-card pr-3 pl-4 text-left @min-[860px]:min-h-10 @min-[860px]:pl-5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <PlusIcon className="size-3.5" strokeWidth={2.2} />
@@ -171,7 +179,8 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
 
 /** Phone layout for one ticket: a tappable card instead of a six-column row. */
 function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; onOpen: () => void }) {
-  const a = PEOPLE[t.assignee];
+  const dir = useDirectory();
+  const a = personOf(dir, t.assignee);
   const link = t.links[0];
   return (
     <li className="border-t border-line-soft">
@@ -196,7 +205,7 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
           {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}
           <span className="ml-auto flex items-center gap-1.5">
             <Avatar person={a} size="xs" />
-            <span className="max-w-[110px] truncate">{t.assignee === "me" ? "You" : a.first}</span>
+            <span className="max-w-[110px] truncate">{t.assignee === dir.me ? "You" : a.first}</span>
           </span>
         </span>
       </button>

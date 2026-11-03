@@ -1,10 +1,14 @@
 import "server-only";
 
+import { ATLAS_ID } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
+import { currentCtx } from "@/lib/context";
 import { getStore } from "@/lib/store";
 import { replyIdFor, RUN_PICKUP_MS, RUN_STALE_MS, type AgentRun } from "@/lib/agent/runs";
 import type { AskAtlasInput } from "@/lib/api/service";
+import { runInCtx } from "../context";
 import { pingChanges } from "../realtime";
+import { contextAs } from "../workspace";
 import { runAtlasAgent } from "./run";
 
 /**
@@ -17,7 +21,7 @@ export async function enqueueAtlas(input: AskAtlasInput & { triggerMessageId: st
   const store = await getStore();
   return store.enqueueRun({
     id: `run${uid()}`, triggerMessageId: input.triggerMessageId, chatId: input.chatId,
-    threadId: input.threadId ?? null, role: input.role, text: input.text,
+    threadId: input.threadId ?? null, requester: currentCtx().dir.me, role: input.role, text: input.text,
     status: "queued", attempts: 0, error: null, result: null, trace: null,
     createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
   });
@@ -28,13 +32,22 @@ export async function processRun(id: string): Promise<void> {
   const store = await getStore();
   const run = await store.claimRun(id);
   if (!run) return; // someone else has it, or it's finished
-  await pingChanges({ chats: [], tickets: false, runs: true, origin: null });
+  // Run as the person who asked (the sweep may be triggered by someone else's browser).
+  const workspaceId = currentCtx().dir.workspace.id;
+  const ctx = currentCtx().dir.me === run.requester ? currentCtx() : await contextAs(workspaceId, run.requester);
+  await runInCtx(ctx, () => execute(run, workspaceId));
+}
+
+async function execute(run: AgentRun, workspaceId: string) {
+  const store = await getStore();
+  const ping = (p: { chats: string[]; tickets: boolean }) => pingChanges({ ...p, runs: true, origin: null, workspaceId });
+  await ping({ chats: [], tickets: false });
   const replyId = replyIdFor(run.id);
 
   // A retried run (its first worker died) may have replied already: don't do it twice.
   if (run.attempts > 1 && (await store.getMessageRefs([replyId]))[replyId]) {
     await store.finishRun(run.id, { status: "done", result: { touchedChats: [run.chatId], openTicket: null, deleted: [] } });
-    await pingChanges({ chats: [run.chatId], tickets: true, runs: true, origin: null });
+    await ping({ chats: [run.chatId], tickets: true });
     return;
   }
 
@@ -43,16 +56,16 @@ export async function processRun(id: string): Promise<void> {
       chatId: run.chatId, text: run.text, threadId: run.threadId, role: run.role, replyId,
     });
     await store.finishRun(run.id, { status: "done", result, trace, error: trace.error ?? null });
-    await pingChanges({ chats: result.touchedChats, tickets: true, runs: true, origin: null });
+    await ping({ chats: result.touchedChats, tickets: true });
   } catch (e) {
     const error = (e as Error).message;
     console.error(`[atlas] run ${run.id} failed:`, e);
     // Tell the person instead of leaving them waiting.
     await store
-      .appendMessage(run.chatId, { id: replyId, who: "atlas", time: stamp(), text: "Sorry, something went wrong on my side and nothing was changed. Please try again." }, run.threadId)
+      .appendMessage(run.chatId, { id: replyId, who: ATLAS_ID, time: stamp(), text: "Sorry, something went wrong on my side and nothing was changed. Please try again." }, run.threadId)
       .catch(() => {});
     await store.finishRun(run.id, { status: "failed", error, result: { touchedChats: [run.chatId], openTicket: null, deleted: [] } });
-    await pingChanges({ chats: [run.chatId], tickets: false, runs: true, origin: null });
+    await ping({ chats: [run.chatId], tickets: false });
   }
 }
 

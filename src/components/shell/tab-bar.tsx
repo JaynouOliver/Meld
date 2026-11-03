@@ -4,7 +4,7 @@ import { HomeIcon, TicketIcon, UserRoundIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { CHANNELS, DMS } from "@/lib/constants";
+import { useDirectory } from "@/hooks/use-directory";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -17,7 +17,8 @@ const TABS = [
 /** Phone-only bottom navigation, shown on top-level screens (not inside a conversation). */
 export function TabBar() {
   const pathname = usePathname();
-  const unread = useUiStore((s) => [...CHANNELS, ...DMS].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
+  const dir = useDirectory();
+  const unread = useUiStore((s) => [...dir.channels, ...dir.dms].reduce((a, c) => a + (s.unread[c] ?? 0), 0));
   if (!TABS.some((t) => t.match(pathname))) return null;
 
   return (

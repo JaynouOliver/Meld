@@ -7,9 +7,10 @@
 import { runAtlas } from "../agent/atlas";
 import { applyOps, permissionProblem, revertOps, UNDO_WINDOW_MS } from "../agent/actions";
 import { toRunView, type RunResult, type RunView } from "../agent/runs";
-import { CHAT_META, DEFAULT_REPO, PEOPLE } from "../constants";
+import { currentDir } from "../context";
+import { ATLAS_ID, personOf, type Directory } from "../directory";
 import { stamp, uid } from "../format";
-import { canDelete, canSee } from "../rbac";
+import { canCreateIn, canDelete, canSee, clampRole, viewerOf } from "../rbac";
 import { getStore } from "../store";
 import type { ChatId, GitHubLink, Message, PersonId, ReplyNode, Role, Ticket, TicketImage, WeekDay } from "../types";
 
@@ -22,10 +23,35 @@ export class ApiError extends Error {
   }
 }
 
+/** The role to act with: what the UI asked for ("view as"), never above the real role. */
+export function effectiveRole(requested?: Role): Role {
+  return clampRole(requested, currentDir().role);
+}
+
+const viewer = (role?: Role) => viewerOf(currentDir(), effectiveRole(role));
+const myName = () => personOf(currentDir(), currentDir().me).name;
+
+/** Only chats this person can see (their workspace's channels, their own DMs). */
+function requireChat(chatId: ChatId) {
+  if (!currentDir().chats[chatId]) throw new ApiError("That conversation doesn't exist", 404);
+}
+
+// ---------------------------------------------------------------- workspace
+
+/**
+ * The signed-in person's workspace directory, or null if they haven't joined or created
+ * one yet (the app then sends them to onboarding). The server version lives in the RPC
+ * route; this one serves the browser preview (the Northwind demo).
+ */
+export async function getDirectory(): Promise<Directory | null> {
+  return currentDir();
+}
+
 // ---------------------------------------------------------------- reads
 
 export async function getMessages(chatId: ChatId): Promise<Message[]> {
   await wait();
+  requireChat(chatId);
   return (await getStore()).listMessages(chatId);
 }
 
@@ -55,11 +81,15 @@ export type PostedMessage = (Message | ReplyNode) & { runId?: string | null };
 
 export async function postMessage(input: PostMessageInput): Promise<PostedMessage> {
   await wait(60);
+  requireChat(input.chatId);
+  const text = input.text.trim().slice(0, 8000);
+  if (!text) throw new ApiError("Message is empty");
   const store = await getStore();
-  const msg = { id: uid(), who: "me" as PersonId, time: stamp(), text: input.text };
+  const me = currentDir().me;
+  const msg = { id: uid(), who: me as PersonId, time: stamp(), text };
   const [saved] = await Promise.all([
     store.appendMessage(input.chatId, msg, input.threadId),
-    store.logEvent({ kind: "message.posted", actor: "me", chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId } }),
+    store.logEvent({ kind: "message.posted", actor: me, chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId } }),
   ]);
   return saved;
 }
@@ -86,8 +116,8 @@ export async function askAtlas(input: AskAtlasInput): Promise<AskAtlasResult> {
   const before = await store.listTickets();
   const reserved = await store.nextTicketId(); // a number for a ticket it may create
   const out = runAtlas({
-    text: input.text, where: input.chatId, role: input.role, tickets: before,
-    nextNum: Number(reserved.slice(3)), now: stamp(), uid,
+    text: input.text, where: input.chatId, role: effectiveRole(input.role), tickets: before,
+    nextNum: Number(reserved.split("-").pop()), now: stamp(), uid,
   });
   const deleted = before.filter((t) => !out.tickets.some((x) => x.id === t.id)).map((t) => t.id);
   for (const id of deleted) await store.deleteTicket(id);
@@ -96,10 +126,10 @@ export async function askAtlas(input: AskAtlasInput): Promise<AskAtlasResult> {
     if (!prev) await store.insertTicket(t);
     else if (JSON.stringify(prev) !== JSON.stringify(t)) await store.saveTicket(t);
   }
-  await store.appendMessage(input.chatId, { id: uid(), who: "atlas", time: stamp(), text: out.reply, ticket: out.ticket }, input.threadId);
+  await store.appendMessage(input.chatId, { id: uid(), who: ATLAS_ID, time: stamp(), text: out.reply, ticket: out.ticket }, input.threadId);
   const touched: ChatId[] = [input.chatId];
   if (out.broadcast) {
-    await store.appendMessage(out.broadcast.chat, { id: uid(), who: "atlas", time: stamp(), text: out.broadcast.text }, out.broadcast.thread);
+    await store.appendMessage(out.broadcast.chat, { id: uid(), who: ATLAS_ID, time: stamp(), text: out.broadcast.text }, out.broadcast.thread);
     touched.push(out.broadcast.chat);
   }
   if (out.reply) await store.bumpWeek("a");
@@ -109,10 +139,11 @@ export async function askAtlas(input: AskAtlasInput): Promise<AskAtlasResult> {
 const TEAMMATE_LINES = ["Sounds good.", "Got it, I'll take a look.", "Makes sense. Let's talk it through on Thursday.", "Perfect, thanks!"];
 let replyIdx = 0;
 
-/** Demo-only: a teammate answers in a DM. */
+/** Demo workspace only: a sample teammate answers in a DM. */
 export async function teammateReply(chatId: ChatId): Promise<void> {
-  const meta = CHAT_META[chatId];
-  if (meta.kind !== "dm" || meta.who === "atlas") return;
+  const dir = currentDir();
+  const meta = dir.chats[chatId];
+  if (!dir.demo || !meta || meta.kind !== "dm" || meta.who === ATLAS_ID) return;
   await new Promise((r) => setTimeout(r, 1600));
   const text = TEAMMATE_LINES[replyIdx++ % TEAMMATE_LINES.length];
   await (await getStore()).appendMessage(chatId, { id: uid(), who: meta.who, time: stamp(), text });
@@ -123,25 +154,31 @@ export async function teammateReply(chatId: ChatId): Promise<void> {
 async function requireTicket(id: string, role: Role) {
   const t = await (await getStore()).getTicket(id);
   if (!t) throw new ApiError(`${id} not found`, 404);
-  if (!canSee(role, t)) throw new ApiError(`No access to ${id}`, 403);
+  if (!canSee(viewer(role), t)) throw new ApiError(`No access to ${id}`, 403);
   return t;
 }
 
 export async function createTicket(preset: Partial<Ticket>, role: Role): Promise<Ticket> {
   await wait(80);
-  if (role === "guest") throw new ApiError("Guests can't create tickets", 403);
+  const v = viewer(role);
+  if (v.role === "guest") throw new ApiError("Guests can't create tickets", 403);
+  const dir = currentDir();
+  const team = preset.team && dir.teams.some((x) => x.id === preset.team) ? preset.team : v.team ?? dir.teams[0]?.id ?? "general";
+  if (!canCreateIn(v, team)) throw new ApiError("Your role can only create tickets in your team", 403);
+  if (preset.assignee && !dir.people[preset.assignee]) throw new ApiError("Assignee isn't in this workspace");
   const store = await getStore();
   const id = await store.nextTicketId();
   const t: Ticket = {
-    id, team: "design", title: "", description: "", status: "To do", priority: "Medium", assignee: "me", reporter: "me",
+    id, team, title: "", description: "", status: "To do", priority: "Medium", assignee: dir.me, reporter: dir.me,
     updated: "Just now", images: [], links: [], watch: null,
-    activity: [{ who: PEOPLE.me.name, text: "created this ticket", time: stamp() }],
+    activity: [{ who: myName(), text: "created this ticket", time: stamp() }],
     ...preset,
   };
   t.id = id;
-  if (role === "member") t.team = "design";
+  t.team = team;
+  t.reporter = dir.me;
   await store.insertTicket(t);
-  await Promise.all([store.bumpWeek("p"), store.logEvent({ kind: "ticket.created", actor: "me", ticketId: id })]);
+  await Promise.all([store.bumpWeek("p"), store.logEvent({ kind: "ticket.created", actor: dir.me, ticketId: id })]);
   return t;
 }
 
@@ -185,13 +222,14 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
     note = `set priority to ${p.priority}`;
   }
   if (p.assignee && p.assignee !== t.assignee) {
+    if (!currentDir().people[p.assignee]) throw new ApiError("Assignee isn't in this workspace");
     t.assignee = p.assignee;
-    note = announce = `assigned it to ${PEOPLE[p.assignee].name}`;
+    note = announce = `assigned it to ${personOf(currentDir(), p.assignee).name}`;
   }
   if (input.addLink) {
     const num = input.addLink.num.replace(/[^0-9]/g, "");
     if (!num) throw new ApiError("Link number is required");
-    t.links.push({ id: uid(), kind: input.addLink.kind, num, repo: DEFAULT_REPO });
+    t.links.push({ id: uid(), kind: input.addLink.kind, num, repo: currentDir().workspace.repo ?? "github" });
     note = announce = `linked ${input.addLink.kind} #${num}`;
   }
   if (input.removeLinkId) {
@@ -208,12 +246,12 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
     note = "removed an image";
   }
   t.updated = "Just now";
-  if (note) t.activity.push({ who: PEOPLE.me.name, text: note, time: stamp() });
+  if (note) t.activity.push({ who: myName(), text: note, time: stamp() });
   const writes: Promise<unknown>[] = [store.saveTicket(t)];
-  if (note) writes.push(store.bumpWeek("p"), store.logEvent({ kind: "ticket.updated", actor: "me", ticketId: t.id, payload: { note } }));
+  if (note) writes.push(store.bumpWeek("p"), store.logEvent({ kind: "ticket.updated", actor: currentDir().me, ticketId: t.id, payload: { note } }));
   let broadcastChat: ChatId | null = null;
   if (announce && t.watch) {
-    writes.push(store.appendMessage(t.watch.chat, { id: uid(), who: "atlas", time: stamp(), text: `Update on ${t.id}: Suvra Das ${announce}.` }, t.watch.thread));
+    writes.push(store.appendMessage(t.watch.chat, { id: uid(), who: ATLAS_ID, time: stamp(), text: `Update on ${t.id}: ${myName()} ${announce}.` }, t.watch.thread));
     broadcastChat = t.watch.chat;
   }
   await Promise.all(writes);
@@ -222,14 +260,16 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
 
 export async function deleteTicket(id: string, role: Role): Promise<void> {
   await wait(80);
-  if (!canDelete(role)) throw new ApiError("Only org owners can delete tickets", 403);
+  if (!canDelete(effectiveRole(role))) throw new ApiError("Only org owners can delete tickets", 403);
   await requireTicket(id, role);
   const store = await getStore();
-  await Promise.all([store.deleteTicket(id), store.bumpWeek("p"), store.logEvent({ kind: "ticket.deleted", actor: "me", ticketId: id })]);
+  await Promise.all([store.deleteTicket(id), store.bumpWeek("p"), store.logEvent({ kind: "ticket.deleted", actor: currentDir().me, ticketId: id })]);
 }
 
 /** Demo: put the workspace back to its seed state. */
 export async function resetWorkspace(): Promise<void> {
+  if (!currentDir().demo) throw new ApiError("Only the sample workspace can be reset", 403);
+  if (effectiveRole() !== "owner") throw new ApiError("Only owners can reset the workspace", 403);
   await (await getStore()).reset();
 }
 
@@ -257,7 +297,7 @@ export async function decideAction(input: DecideActionInput): Promise<DecideActi
   const a = await store.getAction(input.id);
   if (!a) throw new ApiError("That action no longer exists", 404);
   if (input.decision !== "cancel") {
-    const problem = permissionProblem(a.ops, input.role);
+    const problem = permissionProblem(a.ops, viewer(input.role));
     if (problem) throw new ApiError(problem, 403);
   }
   const taken = () => new ApiError("Someone already decided this one", 409);

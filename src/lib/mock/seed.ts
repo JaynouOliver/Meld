@@ -1,4 +1,6 @@
-import { DEFAULT_REPO, PEOPLE } from "../constants";
+import { DEMO_PEOPLE } from "./demo";
+
+const DEFAULT_REPO = "northwind/web";
 import type { ChatId, GitHubLink, Message, PersonId, Ticket, WeekDay } from "../types";
 
 const L = (kind: GitHubLink["kind"], num: number): GitHubLink => ({ id: kind + num, kind, num: String(num), repo: DEFAULT_REPO });
@@ -17,7 +19,7 @@ function T(
   return {
     id, team, title, status, assignee, priority, reporter, links,
     images: [], updated: "Today", description: "", watch: null,
-    activity: [{ who: PEOPLE[reporter].name, text: "created this ticket", time: "Oct 28" }],
+    activity: [{ who: DEMO_PEOPLE[reporter].name, text: "created this ticket", time: "Oct 28" }],
     ...extra,
   };
 }

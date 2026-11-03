@@ -14,10 +14,12 @@ import { Avatar } from "@/components/common/avatar";
 import { PriorityLabel } from "@/components/common/priority-label";
 import { StatusPill } from "@/components/common/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDirectory } from "@/hooks/use-directory";
 import { useWeekActivity } from "@/hooks/use-tickets";
-import { OPEN_STATUSES, PEOPLE, PERSON_ORDER, STATUSES, TEAMS, teamName } from "@/lib/constants";
+import { OPEN_STATUSES, STATUSES } from "@/lib/constants";
+import { ATLAS_ID, personOf, teamName } from "@/lib/directory";
 import { todayIndex } from "@/lib/format";
-import type { Priority, TeamId, Ticket, TicketScope } from "@/lib/types";
+import type { Priority, Ticket, TicketScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -27,6 +29,7 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
   const [timeframe, setTimeframe] = useState<"7D" | "30D" | "QTD">("7D");
   const openTicket = useUiStore((s) => s.openTicket);
   const setTicketQuery = useUiStore((s) => s.setTicketQuery);
+  const dir = useDirectory();
 
   // Reference list: either scoped or passed allTickets
   const activeTickets = tickets;
@@ -36,12 +39,12 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
   const inProgressCount = activeTickets.filter((t) => t.status === "In progress").length;
   const todoCount = activeTickets.filter((t) => t.status === "To do").length;
   const linkedCount = activeTickets.filter((t) => t.links.length > 0).length;
-  const atlasFiledCount = activeTickets.filter((t) => t.reporter === "atlas").length;
+  const atlasFiledCount = activeTickets.filter((t) => t.reporter === ATLAS_ID).length;
   const prPercent = total > 0 ? Math.round((linkedCount / total) * 100) : 0;
 
   // Stalled or attention items: In review tickets or high-priority unstarted
   const attentionTickets = activeTickets.filter(
-    (t) => t.status === "In review" || (t.priority === "High" && t.status === "To do") || t.reporter === "atlas",
+    (t) => t.status === "In review" || (t.priority === "High" && t.status === "To do") || t.reporter === ATLAS_ID,
   );
 
   return (
@@ -220,8 +223,8 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
 
             {scope === "all" ? (
               <div className="mt-2.5 flex flex-col gap-2">
-                {PERSON_ORDER.filter((k) => k !== "atlas").map((k) => {
-                  const p = PEOPLE[k];
+                {dir.personOrder.filter((k) => k !== ATLAS_ID).map((k) => {
+                  const p = personOf(dir, k);
                   const openCount = activeTickets.filter((t) => t.assignee === k && OPEN_STATUSES.includes(t.status)).length;
                   const capacityBadge =
                     openCount > 3 ? (
@@ -236,13 +239,13 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
                     <button
                       key={k}
                       type="button"
-                      onClick={() => setTicketQuery(`assignee:${k}`)}
+                      onClick={() => setTicketQuery(`assignee:${p.first.toLowerCase()}`)}
                       className="flex items-center justify-between rounded p-1 hover:bg-card transition-colors cursor-pointer text-left"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <Avatar person={p} size="xs" />
                         <span className="truncate text-xs font-medium text-foreground">{p.name}</span>
-                        <span className="text-2xs text-muted-foreground capitalize hidden sm:inline">{p.team}</span>
+                        {p.team && <span className="text-2xs text-muted-foreground hidden sm:inline">{teamName(dir, p.team)}</span>}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs font-bold text-foreground tabular">{openCount} active</span>
@@ -272,12 +275,12 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
                 <div className="rounded border border-line-soft bg-card p-2">
                   <div className="text-2xs font-semibold text-muted-foreground uppercase pb-1.5">Team Distribution</div>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    {TEAMS.map((tm) => {
+                    {dir.teams.map(({ id: tm, name }) => {
                       const count = activeTickets.filter((t) => t.team === tm).length;
                       if (count === 0) return null;
                       return (
                         <span key={tm} className="rounded bg-accent px-2 py-0.5 text-2xs font-semibold text-ink-2">
-                          {teamName(tm as TeamId)}: {count}
+                          {name}: {count}
                         </span>
                       );
                     })}
@@ -307,7 +310,7 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
 
           <div className="mt-2 grid grid-cols-1 divide-y divide-line-soft">
             {attentionTickets.slice(0, 3).map((t) => {
-              const a = PEOPLE[t.assignee];
+              const a = personOf(dir, t.assignee);
               const isReview = t.status === "In review";
               return (
                 <div key={t.id} className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0 text-xs">
@@ -321,7 +324,7 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
                       {t.title}
                     </button>
                     <StatusPill status={t.status} className="py-px text-2xs shrink-0" />
-                    {t.reporter === "atlas" && (
+                    {t.reporter === ATLAS_ID && (
                       <span className="hidden sm:inline-flex items-center gap-0.5 rounded bg-agent px-1 text-2xs font-semibold text-agent-foreground">
                         <SparklesIcon className="size-2.5" />
                         AI Filed
@@ -330,7 +333,7 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-2xs text-muted-foreground hidden sm:inline">
-                      {isReview ? "Waiting on review" : `Assigned to ${t.assignee === "me" ? "you" : a.first}`}
+                      {isReview ? "Waiting on review" : `Assigned to ${t.assignee === dir.me ? "you" : a.first}`}
                     </span>
                     <button
                       type="button"

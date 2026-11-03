@@ -6,9 +6,10 @@ import { useRef, useState } from "react";
 import { Avatar } from "@/components/common/avatar";
 import { RichText } from "@/components/common/rich-text";
 import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
+import { useDirectory } from "@/hooks/use-directory";
 import { useSendMessage } from "@/hooks/use-messages";
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
-import { CHAT_META, PEOPLE } from "@/lib/constants";
+import { personOf } from "@/lib/directory";
 import { countReplies } from "@/lib/text";
 import type { ChatId, Message } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
@@ -22,8 +23,9 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
   const send = useSendMessage();
   const { scrollRef, contentRef, pin } = useStickToBottom(root.id);
   const inputRef = useRef<HTMLInputElement>(null);
-  const meta = CHAT_META[chatId];
-  const p = PEOPLE[root.who];
+  const dir = useDirectory();
+  const meta = dir.chats[chatId];
+  const p = personOf(dir, root.who);
   const n = countReplies(root.replies);
   const atlasWorking = useAtlasWorking(chatId, root.id);
   const typingLabel = typing && typing.thread === root.id ? typing.label : atlasWorking ? "Atlas is working…" : null;
@@ -42,7 +44,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
       <PanelHeader onClose={closeThread} closeLabel="Close thread">
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="text-base font-bold">Thread</h2>
-          <span className="truncate text-meta text-muted-foreground">{meta.kind === "channel" ? `# ${meta.label}` : PEOPLE[meta.who].name}</span>
+          <span className="truncate text-meta text-muted-foreground">{!meta ? "" : meta.kind === "channel" ? `# ${meta.label}` : personOf(dir, meta.who).name}</span>
         </div>
       </PanelHeader>
 
@@ -86,7 +88,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
                 submit();
               }
             }}
-            placeholder="Reply… (@Atlas and NW- IDs work)"
+            placeholder={`Reply… (@Atlas and ${dir.workspace.ticketPrefix}- IDs work)`}
             autoComplete="off"
             className="min-w-0 flex-1 border-none bg-transparent py-[9px] text-base outline-none placeholder:text-muted-foreground md:text-body"
           />

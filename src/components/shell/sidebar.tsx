@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, SquarePenIcon, SunIcon, TicketIcon } from "lucide-react";
+import { ChevronDownIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import {
@@ -17,16 +18,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActiveChat } from "@/hooks/use-active-chat";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
+import { switchWorkspace } from "@/lib/api/remote";
 import { signOut } from "@/lib/auth/browser";
-import { ACCENTS, CHANNELS, CHAT_META, DMS, PEOPLE, WORKSPACE_NAME } from "@/lib/constants";
+import { PeopleDialog } from "@/components/workspace/people-dialog";
+import { ACCENTS } from "@/lib/constants";
+import { personOf } from "@/lib/directory";
 import { THEME_OPTIONS } from "@/lib/theme";
-import { ROLE_LABEL, ROLE_OPTION_LABEL } from "@/lib/rbac";
+import { canManage, clampRole, roleLabel, roleOptionLabel } from "@/lib/rbac";
 import type { ChatId, Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { type ThemePref, useUiStore } from "@/stores/ui-store";
 
 const THEME_ICON = { system: MonitorIcon, light: SunIcon, dark: MoonIcon } as const;
+const ROLES: Role[] = ["owner", "member", "guest"];
 
 function SectionLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
   return (
@@ -84,7 +90,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const activeChat = useActiveChat();
   const unread = useUiStore((s) => s.unread);
   const markRead = useUiStore((s) => s.markRead);
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const role = useRole();
   const setRole = useUiStore((s) => s.setRole);
   const accent = useUiStore((s) => s.accent);
   const theme = useUiStore((s) => s.theme);
@@ -97,17 +104,48 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     useUiStore.setState({ threadId: null });
   };
 
-  const me = PEOPLE.me;
+  const me = personOf(dir, dir.me);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const openWorkspace = async (id: string) => {
+    if (id === dir.workspace.id) return;
+    await switchWorkspace(id);
+    // Full load: every cached query belongs to the old workspace.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign("/app");
+  };
+  // You can preview the app as your own role or a lower one.
+  const viewAs = ROLES.filter((r) => clampRole(r, dir.role) === r);
 
   return (
     <nav aria-label="Workspace" className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
+      <PeopleDialog open={peopleOpen} onOpenChange={setPeopleOpen} />
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 py-1.5 text-base font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {WORKSPACE_NAME}
+            {dir.workspace.name}
             <ChevronDownIcon className="size-3.5" strokeWidth={2.2} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuItem onSelect={() => setPeopleOpen(true)}>
+              <UsersIcon className="size-4 text-muted-foreground" />
+              {canManage(dir.role) ? "Invite people" : "People"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={dir.workspace.id} onValueChange={(id) => void openWorkspace(id)}>
+              {dir.memberships.map((m) => (
+                <DropdownMenuRadioItem key={m.id} value={m.id}>
+                  {m.name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuItem asChild>
+              <Link href="/onboarding">
+                <PlusIcon className="size-4 text-muted-foreground" />
+                Create a workspace
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuLabel>Appearance</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as ThemePref)}>
               {THEME_OPTIONS.map((o) => {
@@ -149,8 +187,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
         <SectionLabel first>Channels</SectionLabel>
-        {CHANNELS.map((id) => {
-          const meta = CHAT_META[id];
+        {dir.channels.map((id) => {
+          const meta = dir.chats[id];
+          if (!meta) return null;
           const active = activeChat === id;
           const n = unread[id] ?? 0;
           return (
@@ -163,9 +202,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         })}
 
         <SectionLabel>Direct messages</SectionLabel>
-        {DMS.map((id) => {
-          const meta = CHAT_META[id];
-          const p = PEOPLE[meta.kind === "dm" ? meta.who : "me"];
+        {dir.dms.map((id) => {
+          const meta = dir.chats[id];
+          if (!meta) return null;
+          const p = personOf(dir, meta.kind === "dm" ? meta.who : dir.me);
           const active = activeChat === id;
           const n = unread[id] ?? 0;
           return (
@@ -183,7 +223,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <SectionLabel>Tickets</SectionLabel>
         {[
           { href: "/tickets", label: "All tickets", count: visible.length },
-          { href: "/tickets/mine", label: "Assigned to me", count: visible.filter((t) => t.assignee === "me").length },
+          { href: "/tickets/mine", label: "Assigned to me", count: visible.filter((t) => t.assignee === dir.me).length },
         ].map((n) => (
           <NavLink key={n.href} href={n.href} active={pathname === n.href} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
             <TicketIcon aria-hidden className="size-[18px] w-5 opacity-80" />
@@ -198,24 +238,28 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Avatar person={me} size="lg" presence className="text-xs" ringClassName="border-sidebar size-2.5" />
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold text-white">{me.name}</span>
-            <span className="text-xs text-sidebar-muted">{ROLE_LABEL[role]}</span>
+            <span className="text-xs text-sidebar-muted">{roleLabel(dir, role)}</span>
           </div>
         </div>
-        <label htmlFor="role-select" className="text-2xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase">
-          View as role (RBAC demo)
-        </label>
-        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-          <SelectTrigger id="role-select" className="h-9 border-sidebar-input-border bg-sidebar-input text-meta text-white [&_svg]:text-white">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(ROLE_OPTION_LABEL) as Role[]).map((r) => (
-              <SelectItem key={r} value={r}>
-                {ROLE_OPTION_LABEL[r]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {viewAs.length > 1 && (
+          <>
+            <label htmlFor="role-select" className="text-2xs font-semibold tracking-[0.04em] text-sidebar-muted uppercase">
+              View as role
+            </label>
+            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+              <SelectTrigger id="role-select" className="h-9 border-sidebar-input-border bg-sidebar-input text-meta text-white [&_svg]:text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {viewAs.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {roleOptionLabel(dir, r)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </div>
     </nav>
   );

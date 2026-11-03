@@ -2,6 +2,7 @@
 
 import { ChartColumnIcon } from "lucide-react";
 
+import { useDirectory } from "@/hooks/use-directory";
 import { matchQuery, DEFAULT_TICKET_QUERY } from "@/lib/query-language";
 import type { Ticket, TicketScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ const VIEWS: View[] = [
 const norm = (q: string) => q.trim().toLowerCase().split(/\s+/).sort().join(" ");
 
 export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: TicketScope }) {
+  const dir = useDirectory();
   const query = useUiStore((s) => s.ticketQuery);
   const setQuery = useUiStore((s) => s.setTicketQuery);
   const showInsights = useUiStore((s) => s.showInsights);
@@ -50,7 +52,7 @@ export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: Tick
       >
         {views.map((v) => {
           const active = current === norm(v.query);
-          const count = tickets.filter((t) => matchQuery(t, v.query)).length;
+          const count = tickets.filter((t) => matchQuery(t, v.query, dir)).length;
           return (
             <button
               key={v.id}

@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "@/lib/api";
-import { useUiStore } from "@/stores/ui-store";
+import { useRole } from "./use-directory";
 import { useNotifyChat } from "./use-notify-chat";
 import { queryKeys } from "./query-keys";
 
@@ -11,8 +11,9 @@ import { queryKeys } from "./query-keys";
 export function useDecideAction() {
   const qc = useQueryClient();
   const notify = useNotifyChat();
+  const role = useRole();
   return useMutation({
-    mutationFn: (input: Omit<api.DecideActionInput, "role">) => api.decideAction({ ...input, role: useUiStore.getState().role }),
+    mutationFn: (input: Omit<api.DecideActionInput, "role">) => api.decideAction({ ...input, role }),
     onSuccess: (res) => {
       res.chats.forEach((c) => notify(c));
       qc.invalidateQueries({ queryKey: queryKeys.tickets });

@@ -1,5 +1,6 @@
-import { CHAT_META, DEFAULT_REPO, PEOPLE, teamName } from "../constants";
-import { canDelete, canSee, ROLE_LABEL } from "../rbac";
+import { currentDir } from "../context";
+import { ATLAS_ID, personOf, teamName as teamNameIn } from "../directory";
+import { canCreateIn, canDelete, canSee, roleLabel, viewerOf } from "../rbac";
 import type { ChatId, PersonId, Role, Ticket, TicketStatus } from "../types";
 
 /**
@@ -32,11 +33,16 @@ export interface AtlasResult {
   broadcast: { chat: ChatId; thread: string | null; text: string } | null;
 }
 
+/** "me", a member's first name, or "atlas" → their id. */
 function personFrom(word: string | undefined): PersonId | null {
+  const dir = currentDir();
   const w = String(word || "").toLowerCase();
-  if (["me", "myself", "suvra"].includes(w)) return "me";
-  return (["aiko", "ravi", "lena", "diego", "atlas"] as PersonId[]).find((k) => k === w) || null;
+  if (["me", "myself"].includes(w)) return dir.me;
+  return dir.personOrder.find((id) => id.toLowerCase() === w || personOf(dir, id).first.toLowerCase() === w) || null;
 }
+
+const teamName = (id: string | null | undefined) => teamNameIn(currentDir(), id);
+const repo = () => currentDir().workspace.repo ?? "github";
 
 function statusFrom(lower: string): TicketStatus | null {
   if (/review/.test(lower)) return "In review";
@@ -47,18 +53,22 @@ function statusFrom(lower: string): TicketStatus | null {
   return null;
 }
 
-const nameOf = (p: PersonId) => (p === "me" ? "you" : PEOPLE[p].name);
+const nameOf = (p: PersonId) => (p === currentDir().me ? "you" : personOf(currentDir(), p).name);
 
 export function runAtlas(input: AtlasInput): AtlasResult {
   const { where, role, now, uid } = input;
-  const meta = CHAT_META[where];
-  const roleTxt = ROLE_LABEL[role];
+  const dir = currentDir();
+  const me = dir.me;
+  const prefix = dir.workspace.ticketPrefix;
+  const meta = dir.chats[where];
+  const roleTxt = roleLabel(dir, role);
+  const viewer = viewerOf(dir, role);
   const tickets: Ticket[] = structuredClone(input.tickets);
   const clean = input.text.replace(/@\w+/g, "").replace(/\s+/g, " ").trim();
   const lower = clean.toLowerCase();
-  const ids = (clean.match(/\bNW-\d+\b/gi) || []).map((x) => x.toUpperCase());
+  const ids = (clean.match(new RegExp(`\\b${prefix}-\\d+\\b`, "gi")) || []).map((x) => x.toUpperCase());
   const out: AtlasResult = { reply: "", ticket: null, tickets, open: null, broadcast: null, nextNum: input.nextNum };
-  const visible = (t: Ticket) => canSee(role, t);
+  const visible = (t: Ticket) => canSee(viewer, t);
 
   // ---- create ----
   const wantsCreate =
@@ -69,11 +79,11 @@ export function runAtlas(input: AtlasInput): AtlasResult {
       return out;
     }
     const am = clean.match(/assign(?:ed)?(?:\s+it)?\s+to\s+(\w+)/i);
-    const assignee = (am && personFrom(am[1])) || "me";
+    const assignee = (am && personFrom(am[1])) || me;
     const team =
-      (meta.kind === "channel" && meta.team) || (assignee !== "me" && PEOPLE[assignee].team) || "design";
-    if (role === "member" && team !== "design") {
-      out.reply = `Your role (${roleTxt}) can only create Design tickets, and this would land in ${teamName(team)}. Ask a ${teamName(team)} member or an org owner.`;
+      (meta?.kind === "channel" && meta.team) || personOf(dir, assignee).team || viewer.team || dir.teams[0]?.id || "general";
+    if (!canCreateIn(viewer, team)) {
+      out.reply = `Your role (${roleTxt}) can only create ${teamName(viewer.team)} tickets, and this would land in ${teamName(team)}. Ask a ${teamName(team)} member or an org owner.`;
       return out;
     }
     const tm = clean.match(/\b(?:ticket|issue|task|bug)\b\s*(?:for|to|about|on|regarding|:)?\s*(.+)$/i);
@@ -87,8 +97,8 @@ export function runAtlas(input: AtlasInput): AtlasResult {
     if (title.length > 80) title = title.slice(0, 77) + "…";
     const links: Ticket["links"] = [];
     const pr = clean.match(/\bPR\s*#?(\d+)/i);
-    if (pr) links.push({ id: uid(), kind: "PR", num: pr[1], repo: DEFAULT_REPO });
-    const id = `NW-${out.nextNum}`;
+    if (pr) links.push({ id: uid(), kind: "PR", num: pr[1], repo: repo() });
+    const id = `${prefix}-${out.nextNum}`;
     out.nextNum += 1;
     const src = meta.kind === "channel" ? `#${meta.label}` : "a DM with Atlas";
     tickets.push({
@@ -98,7 +108,7 @@ export function runAtlas(input: AtlasInput): AtlasResult {
       status: "To do",
       priority: /\b(urgent|high priority|asap)\b/.test(lower) ? "High" : "Medium",
       assignee,
-      reporter: "atlas",
+      reporter: ATLAS_ID,
       updated: "Just now",
       images: [],
       links,
@@ -143,10 +153,10 @@ export function runAtlas(input: AtlasInput): AtlasResult {
         changes.push(`status ${t.status} → ${st}`);
         t.status = st;
       }
-      const am = clean.match(/assign(?:ed)?(?:\s+it)?(?:\s+NW-\d+)?\s+to\s+(\w+)/i);
+      const am = clean.match(/assign(?:ed)?(?:\s+it)?(?:\s+[A-Z]+-\d+)?\s+to\s+(\w+)/i);
       const who = am && personFrom(am[1]);
       if (who && who !== t.assignee) {
-        changes.push(`assignee → ${PEOPLE[who].name}`);
+        changes.push(`assignee → ${personOf(dir, who).name}`);
         t.assignee = who;
       }
       const pm = lower.match(/\b(high|medium|low)\b/);
@@ -160,17 +170,17 @@ export function runAtlas(input: AtlasInput): AtlasResult {
       const pr = clean.match(/\bPR\s*#?(\d+)/i);
       if (pr && !t.links.some((l) => l.kind === "PR" && l.num === pr[1])) {
         changes.push(`linked PR #${pr[1]}`);
-        t.links.push({ id: uid(), kind: "PR", num: pr[1], repo: DEFAULT_REPO });
+        t.links.push({ id: uid(), kind: "PR", num: pr[1], repo: repo() });
       }
       const im = clean.match(/\bissue\s*#?(\d+)/i);
       if (im && !t.links.some((l) => l.kind === "Issue" && l.num === im[1])) {
         changes.push(`linked Issue #${im[1]}`);
-        t.links.push({ id: uid(), kind: "Issue", num: im[1], repo: DEFAULT_REPO });
+        t.links.push({ id: uid(), kind: "Issue", num: im[1], repo: repo() });
       }
     }
     if (changes.length) {
       t.updated = "Just now";
-      t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by Suvra Das)`, time: now });
+      t.activity.push({ who: "Atlas", text: `${changes.join(", ")} (asked by ${personOf(dir, me).name})`, time: now });
       out.reply = `Updated ${id}: ${changes.join(", ")}.`;
       out.ticket = id;
       if (t.watch && t.watch.chat !== where) {
@@ -179,7 +189,7 @@ export function runAtlas(input: AtlasInput): AtlasResult {
           thread: t.watch.thread,
           text: `Update on ${id}: ${changes.join(", ")} (via Atlas, asked by Suvra Das).`,
         };
-        const wm = CHAT_META[t.watch.chat];
+        const wm = dir.chats[t.watch.chat];
         out.reply += ` I posted the update in #${wm.kind === "channel" ? wm.label : wm.id}.`;
       }
       return out;
@@ -199,7 +209,7 @@ export function runAtlas(input: AtlasInput): AtlasResult {
   // ---- my work ----
   if (/\b(my|plate|mine|assigned to me|on me)\b/.test(lower) || /what.*(do i have|should i)/.test(lower)) {
     const mine = tickets.filter(
-      (t) => visible(t) && t.assignee === "me" && t.status !== "Done" && t.status !== "Backburner",
+      (t) => visible(t) && t.assignee === me && t.status !== "Done" && t.status !== "Backburner",
     );
     out.reply = mine.length
       ? `You have ${mine.length} open ticket${mine.length === 1 ? "" : "s"}:\n` +
@@ -208,6 +218,6 @@ export function runAtlas(input: AtlasInput): AtlasResult {
     return out;
   }
 
-  out.reply = `I can create, show, update and delete tickets, with the same access as your role (${roleTxt}). Try:\n• create a ticket for … and assign it to Ravi\n• move NW-122 to In progress\n• what’s on my plate?\n• delete NW-126`;
+  out.reply = `I can create, show, update and delete tickets, with the same access as your role (${roleTxt}). Try:\n• create a ticket for … and assign it to Ravi\n• move ${prefix}-12 to In progress\n• what’s on my plate?\n• delete ${prefix}-12`;
   return out;
 }

@@ -1,19 +1,31 @@
 import type OpenAI from "openai";
 
-import { CHAT_META, DEFAULT_REPO, PEOPLE, STATUSES, PRIORITIES, TEAMS, teamName } from "@/lib/constants";
+import { PRIORITIES, STATUSES } from "@/lib/constants";
+import { currentDir } from "@/lib/context";
+import { ATLAS_ID, personOf, type Directory } from "@/lib/directory";
 import { displayTime, stamp, uid } from "@/lib/format";
 import type { Store } from "@/lib/store";
 import type { MessageHit } from "@/lib/store/types";
 import { needsConfirmation, type TicketOp } from "@/lib/agent/actions";
 import { matchQuery } from "@/lib/query-language";
-import { canDelete, canSee } from "@/lib/rbac";
+import { canCreateIn, canDelete, canSee, viewerOf } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
 import { ticketLine } from "./prompt";
 
 /** Atlas's tools. Permissions are enforced here, in code; the prompt only explains them. */
-const PERSON_IDS = ["me", "aiko", "ravi", "lena", "diego"] as const;
+const TEAMS_ENUM = "__TEAMS__";
+const PEOPLE_ENUM = "__PEOPLE__";
 
-export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+/** The tools with this workspace's teams and people filled into the enums. */
+export function toolsFor(dir: Directory): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  const teams = dir.teams.map((t) => t.id);
+  const people = dir.personOrder.filter((id) => id !== ATLAS_ID);
+  return JSON.parse(
+    JSON.stringify(TOOLS).replaceAll(`["${TEAMS_ENUM}"]`, JSON.stringify(teams)).replaceAll(`["${PEOPLE_ENUM}"]`, JSON.stringify(people)),
+  );
+}
+
+const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
@@ -59,8 +71,8 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: "boolean",
             description: "Only set true when the requester explicitly wants a new ticket despite a similar existing one.",
           },
-          team: { type: "string", enum: [...TEAMS] },
-          assignee: { type: "string", enum: [...PERSON_IDS] },
+          team: { type: "string", enum: [TEAMS_ENUM] },
+          assignee: { type: "string", enum: [PEOPLE_ENUM] },
           priority: { type: "string", enum: [...PRIORITIES] },
           description: { type: "string", description: "Optional: context, acceptance criteria" },
           pr_number: { type: "string", description: "Optional GitHub pull request number to link" },
@@ -80,7 +92,7 @@ export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         properties: {
           id: { type: "string" },
           status: { type: "string", enum: [...STATUSES] },
-          assignee: { type: "string", enum: [...PERSON_IDS] },
+          assignee: { type: "string", enum: [PEOPLE_ENUM] },
           priority: { type: "string", enum: [...PRIORITIES] },
           title: { type: "string" },
           description: { type: "string" },
@@ -199,7 +211,7 @@ async function findVisible(ctx: ToolCtx, id: unknown): Promise<Ticket | { ok: fa
   const key = String(id ?? "").toUpperCase().trim();
   const t = key ? await current(ctx, key) : null;
   // Same answer for missing and hidden tickets, so Atlas can't leak that a hidden one exists.
-  if (!t || !canSee(ctx.role, t)) return err(`${key || "That ticket"} doesn't exist or the requester can't see it.`);
+  if (!t || !canSee(viewer(ctx.role), t)) return err(`${key || "That ticket"} doesn't exist or the requester can't see it.`);
   return t;
 }
 
@@ -218,14 +230,22 @@ function stage(ctx: ToolCtx, id: string, before: Ticket | null, after: Ticket | 
 }
 
 function srcLabel(where: ChatId) {
-  const m = CHAT_META[where];
-  return m.kind === "channel" ? `#${m.label}` : "a DM with Atlas";
+  const dir = currentDir();
+  const m = dir.chats[where];
+  if (!m) return "a chat";
+  return m.kind === "channel" ? `#${m.label}` : m.who === ATLAS_ID ? "a DM with Atlas" : `a DM with ${personOf(dir, m.who).name}`;
 }
+
+const repo = () => currentDir().workspace.repo ?? "github";
+const viewer = (role: Role) => viewerOf(currentDir(), role);
+const isMember = (id: string) => id !== ATLAS_ID && !!currentDir().people[id];
+/** Only messages from chats the requester can see (channels, their own DMs). */
+const visibleHits = (hits: MessageHit[]) => hits.filter((m) => !!currentDir().chats[m.chatId]);
 
 /** One search hit for the model: where, message id (for citations), when, who, what. */
 function hitLine(m: MessageHit) {
   const where = srcLabel(m.chatId).replace("a DM with Atlas", "DM with Atlas");
-  return `${where}${m.threadId ? " (thread reply)" : ""} [${m.id} ${displayTime(m.time)}] ${PEOPLE[m.who].name}: ${m.text.slice(0, 280)}`;
+  return `${where}${m.threadId ? " (thread reply)" : ""} [${m.id} ${displayTime(m.time)}] ${personOf(currentDir(), m.who).name}: ${m.text.slice(0, 280)}`;
 }
 
 export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<unknown> {
@@ -236,7 +256,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       // Store tickets with this run's staged changes on top.
       const byId = new Map((await store.listTickets()).map((t) => [t.id, t] as [string, Ticket | null]));
       for (const [id, { after }] of effects.plan) byId.set(id, after);
-      const rows = [...byId.values()].filter((t): t is Ticket => !!t && canSee(role, t) && matchQuery(t, q));
+      const rows = [...byId.values()].filter((t): t is Ticket => !!t && canSee(viewer(role), t) && matchQuery(t, q, currentDir()));
       return { ok: true, count: rows.length, tickets: rows.slice(0, 40).map(ticketLine) };
     }
     case "get_ticket": {
@@ -247,24 +267,24 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         ok: true,
         ticket: ticketLine(t),
         description: t.description || "(none)",
-        reporter: PEOPLE[t.reporter].name,
+        reporter: personOf(currentDir(), t.reporter).name,
         recent_activity: t.activity.slice(-5).map((a) => `${a.who} ${a.text} (${displayTime(a.time)})`),
       };
     }
     case "create_ticket": {
       if (role === "guest") return err("Guests can't create tickets.");
       const team = args.team as TeamId;
-      if (!TEAMS.includes(team)) return err(`Unknown team ${String(args.team)}.`);
-      if (role === "member" && team !== "design") return err("Team members can only create Design tickets.");
+      if (!currentDir().teams.some((x) => x.id === team)) return err(`Unknown team ${String(args.team)}.`);
+      if (!canCreateIn(viewer(role), team)) return err("Team members can only create tickets in their own team.");
       const title = str(args.title);
       if (!title) return err("A title is required.");
-      const assignee = (PERSON_IDS as readonly string[]).includes(String(args.assignee)) ? (args.assignee as PersonId) : "me";
+      const assignee = isMember(String(args.assignee)) ? (args.assignee as PersonId) : currentDir().me;
       const priority = PRIORITIES.includes(args.priority as Priority) ? (args.priority as Priority) : "Medium";
       // Duplicate check against what the requester can see (including this run's staged tickets).
       if (args.allow_duplicate !== true) {
         const byId = new Map((await store.listTickets()).map((t) => [t.id, t] as [string, Ticket | null]));
         for (const [sid, { after }] of effects.plan) byId.set(sid, after);
-        const visible = [...byId.values()].filter((t): t is Ticket => !!t && canSee(role, t) && t.status !== "Done");
+        const visible = [...byId.values()].filter((t): t is Ticket => !!t && canSee(viewer(role), t) && t.status !== "Done");
         const dup = likelyDuplicate(title, visible);
         if (dup) {
           return err(
@@ -273,16 +293,16 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         }
       }
       const id = await store.nextTicketId();
-      const meta = CHAT_META[ctx.where];
+      const meta = currentDir().chats[ctx.where];
       const pr = str(args.pr_number)?.replace(/\D/g, "");
       const t: Ticket = {
-        id, team, assignee, priority, title: title.slice(0, 120), status: "To do", reporter: "atlas",
-        description: str(args.description) ?? `Requested by ${PEOPLE.me.name} in ${srcLabel(ctx.where)}.`,
-        links: pr ? [{ id: uid(), kind: "PR", num: pr, repo: DEFAULT_REPO }] : [],
+        id, team, assignee, priority, title: title.slice(0, 120), status: "To do", reporter: ATLAS_ID,
+        description: str(args.description) ?? `Requested by ${personOf(currentDir(), currentDir().me).name} in ${srcLabel(ctx.where)}.`,
+        links: pr ? [{ id: uid(), kind: "PR", num: pr, repo: repo() }] : [],
         images: [], updated: "Just now",
         // Atlas posts later updates about this ticket where it was asked for.
-        watch: meta.kind === "channel" ? { chat: ctx.where, thread: ctx.threadId ?? null } : null,
-        activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${PEOPLE.me.name})`, time: stamp() }],
+        watch: meta?.kind === "channel" ? { chat: ctx.where, thread: ctx.threadId ?? null } : null,
+        activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() }],
       };
       return { ok: true, created: ticketLine(t), ...stage(ctx, id, null, t, []) };
     }
@@ -298,8 +318,8 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         t.status = status;
       }
       const who = args.assignee as PersonId | undefined;
-      if (who && (PERSON_IDS as readonly string[]).includes(who) && who !== t.assignee) {
-        changes.push(`assignee → ${PEOPLE[who].name}`);
+      if (who && isMember(who) && who !== t.assignee) {
+        changes.push(`assignee → ${personOf(currentDir(), who).name}`);
         t.assignee = who;
       }
       const pr = args.priority as Priority | undefined;
@@ -320,7 +340,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       for (const [key, kind] of [["link_pr", "PR"], ["link_issue", "Issue"]] as const) {
         const num = str(args[key])?.replace(/\D/g, "");
         if (num && !t.links.some((l) => l.kind === kind && l.num === num)) {
-          t.links.push({ id: uid(), kind, num, repo: DEFAULT_REPO });
+          t.links.push({ id: uid(), kind, num, repo: repo() });
           changes.push(`linked ${kind} #${num}`);
         }
       }
@@ -336,7 +356,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
     case "search_messages": {
       const terms = (str(args.query) ?? "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
       if (!terms.length) return err("Give a few keywords to search for.");
-      const found = await store.searchMessages(terms, 8);
+      const found = visibleHits(await store.searchMessages(terms, 8));
       const hits = found.map((m) => {
         const lower = m.text.toLowerCase();
         return { score: terms.filter((w) => lower.includes(w)).length, line: hitLine(m) };
@@ -347,7 +367,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
     case "ticket_discussion": {
       const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
-      const found = await store.messagesMentioning(t.id, 12);
+      const found = visibleHits(await store.messagesMentioning(t.id, 12));
       return { ok: true, ticket: ticketLine(t), messages: found.reverse().map(hitLine) };
     }
     default:
@@ -355,4 +375,3 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
   }
 }
 
-export { teamName };

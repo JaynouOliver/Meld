@@ -7,10 +7,12 @@ import assert from "node:assert/strict";
 
 import { RUN_MAX_ATTEMPTS, RUN_PICKUP_MS, RUN_STALE_MS, type AgentRun } from "../src/lib/agent/runs";
 import { getStore } from "../src/lib/store";
+import { dbFor } from "../src/lib/mock/db";
+import { DEMO_WORKSPACE_ID } from "../src/lib/mock/demo";
 import { dueRuns } from "../src/server/atlas/queue";
 
 const run = (id: string, trigger: string): AgentRun => ({
-  id, triggerMessageId: trigger, chatId: "design", threadId: null, role: "owner", text: "@Atlas hi",
+  id, triggerMessageId: trigger, chatId: "design", threadId: null, requester: "me", role: "owner", text: "@Atlas hi",
   status: "queued", attempts: 0, error: null, result: null, trace: null,
   createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
 });
@@ -56,8 +58,7 @@ async function main() {
     const c = await store.claimRun("runC");
     if (c) claims++;
     // Simulate its worker dying: make the run look stale.
-    const g = globalThis as typeof globalThis & { __meldRuns?: Map<string, AgentRun> };
-    const r = g.__meldRuns!.get("runC")!;
+    const r = dbFor(DEMO_WORKSPACE_ID).runs.get("runC")!;
     r.startedAt = new Date(Date.now() - RUN_STALE_MS - 1000).toISOString();
   }
   assert.equal(claims, RUN_MAX_ATTEMPTS);

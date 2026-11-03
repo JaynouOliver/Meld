@@ -1,0 +1,280 @@
+import "server-only";
+
+import { cookies } from "next/headers";
+
+import type { SessionUser } from "@/lib/auth/shared";
+import type { RequestCtx } from "@/lib/context";
+import { ATLAS, ATLAS_ID, makePerson, type Directory, type Team } from "@/lib/directory";
+import { stamp, uid } from "@/lib/format";
+import { DEMO_PEOPLE } from "@/lib/mock/demo";
+import { canManage } from "@/lib/rbac";
+import { storeFor, usingSupabase } from "@/lib/store";
+import type { ChatId, ChatMeta, Role } from "@/lib/types";
+import { memoryRegistry } from "./registry/memory";
+import type { ChannelRow, Registry, WorkspaceRow } from "./registry/types";
+
+export const ACTIVE_WS_COOKIE = "meld_ws";
+const INVITE_TTL_DAYS = 14;
+
+export class WorkspaceError extends Error {
+  constructor(message: string, public status = 400) {
+    super(message);
+  }
+}
+
+export async function registry(): Promise<Registry> {
+  return usingSupabase() ? (await import("./registry/supabase")).supabaseRegistry : memoryRegistry;
+}
+
+// ---------------------------------------------------------------- resolving the workspace
+
+/** The workspace this person is working in: the one in their cookie, else their first. */
+async function activeMembership(user: SessionUser) {
+  const reg = await registry();
+  const all = await reg.memberships(user.id);
+  if (!all.length) return null;
+  const wanted = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
+  const current = all.find((m) => m.workspace.id === wanted) ?? all.find((m) => !m.workspace.demo) ?? all[0];
+  return { ...current, all };
+}
+
+/** Request context for this person's active workspace, or null if they have none yet. */
+export async function contextFor(user: SessionUser): Promise<RequestCtx | null> {
+  const m = await activeMembership(user);
+  if (!m) return null;
+  const dir = await buildDirectory(user.id, m.workspace, m.role, m.all);
+  return { dir, store: await storeFor(m.workspace) };
+}
+
+/** Context for background work (an Atlas run) on behalf of a member. */
+export async function contextAs(workspaceId: string, userId: string): Promise<RequestCtx> {
+  const reg = await registry();
+  const ms = await reg.memberships(userId);
+  const m = ms.find((x) => x.workspace.id === workspaceId);
+  if (!m) throw new WorkspaceError("Not a member of this workspace", 403);
+  return { dir: await buildDirectory(userId, m.workspace, m.role, ms), store: await storeFor(m.workspace) };
+}
+
+export async function buildDirectory(
+  me: string,
+  ws: WorkspaceRow,
+  role: Role,
+  memberships: { workspace: WorkspaceRow; role: Role }[],
+): Promise<Directory> {
+  const reg = await registry();
+  const [members, channelRows] = await Promise.all([reg.members(ws.id), reg.channels(ws.id)]);
+  let channels = channelRows;
+
+  // Everyone has a DM with Atlas; make it the first time it's needed.
+  if (!channels.some((c) => c.kind === "dm" && c.members?.includes(me) && c.members.includes(ATLAS_ID))) {
+    const dm: ChannelRow = {
+      id: `dm${uid()}`, workspaceId: ws.id, kind: "dm", name: null, topic: ATLAS.title ?? "", team: null,
+      members: [me, ATLAS_ID], createdBy: me, createdAt: new Date().toISOString(),
+    };
+    await reg.createChannel(dm);
+    channels = [...channels, dm];
+  }
+
+  const people: Directory["people"] = { [ATLAS_ID]: ATLAS };
+  for (const m of members) {
+    // Demo teammates keep their designed colors.
+    people[m.id] = ws.demo && DEMO_PEOPLE[m.id] ? DEMO_PEOPLE[m.id] : makePerson({ id: m.id, name: m.name, team: m.team, avatarUrl: m.avatarUrl, title: m.title }, m.id === me);
+  }
+  const everyone = [...members.map((m) => m.id), ATLAS_ID];
+  const teamOf = (id: string | null) => ws.teams.find((t) => t.id === id)?.name;
+
+  const chats: Record<ChatId, ChatMeta> = {};
+  const channelIds: ChatId[] = [];
+  const dmIds: ChatId[] = [];
+  for (const c of channels) {
+    if (c.kind === "channel") {
+      chats[c.id] = { id: c.id, kind: "channel", label: c.name ?? "channel", topic: c.topic, team: c.team, members: everyone };
+      channelIds.push(c.id);
+    } else if (c.members?.includes(me)) {
+      const who = c.members.find((x) => x !== me) ?? me;
+      const p = people[who];
+      const topic = who === ATLAS_ID ? c.topic : [p?.title, teamOf(p?.team ?? null)].filter(Boolean).join(" · ");
+      chats[c.id] = { id: c.id, kind: "dm", who, topic };
+      dmIds.push(c.id);
+    }
+  }
+  // Teammate DMs by name, Atlas last (as in the design).
+  dmIds.sort((a, b) => {
+    const wa = (chats[a] as { who: string }).who, wb = (chats[b] as { who: string }).who;
+    if (wa === ATLAS_ID) return 1;
+    if (wb === ATLAS_ID) return -1;
+    return (people[wa]?.name ?? "").localeCompare(people[wb]?.name ?? "");
+  });
+
+  const others = members.filter((m) => m.id !== me).sort((a, b) => a.name.localeCompare(b.name)).map((m) => m.id);
+  const general = channelIds.find((id) => chats[id].kind === "channel" && (chats[id] as { label: string }).label === "general");
+  return {
+    workspace: { id: ws.id, name: ws.name, slug: ws.slug, ticketPrefix: ws.ticketPrefix, repo: ws.repo },
+    me,
+    role,
+    roles: Object.fromEntries(members.map((m) => [m.id, m.role])),
+    people,
+    personOrder: [me, ...others, ATLAS_ID],
+    teams: ws.teams,
+    chats,
+    channels: channelIds,
+    dms: dmIds,
+    home: ws.demo ? "design" : general ?? channelIds[0] ?? dmIds[0],
+    memberships: memberships.map((x) => ({ id: x.workspace.id, name: x.workspace.name, role: x.role })),
+    demo: ws.demo,
+  };
+}
+
+// ---------------------------------------------------------------- creating and joining
+
+export interface CreateWorkspaceInput {
+  name: string;
+  ticketPrefix?: string;
+  teams?: string[];
+}
+
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "workspace";
+
+/** "Acme Robotics" → "AR"; "Northwind" → "NOR". */
+export function suggestPrefix(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const p = words.length > 1 ? words.map((w) => w[0]).join("") : (words[0] ?? "T").slice(0, 3);
+  return p.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5) || "T";
+}
+
+async function setActive(workspaceId: string) {
+  (await cookies()).set(ACTIVE_WS_COOKIE, workspaceId, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+}
+
+/**
+ * Set up a company: the workspace, its teams, #general and #random, and a welcome from
+ * Atlas. The creator becomes its owner.
+ */
+export async function createWorkspace(user: SessionUser, input: CreateWorkspaceInput) {
+  const name = input.name.trim().slice(0, 60);
+  if (!name) throw new WorkspaceError("Give your workspace a name");
+  const prefix = (input.ticketPrefix?.trim() || suggestPrefix(name)).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
+  if (!prefix) throw new WorkspaceError("Ticket prefix needs letters or numbers");
+  const teams: Team[] = [];
+  for (const t of input.teams ?? []) {
+    const n = t.trim().slice(0, 40);
+    const id = slugify(n);
+    if (n && !teams.some((x) => x.id === id)) teams.push({ id, name: n });
+  }
+  if (!teams.length) teams.push({ id: "general", name: "General" });
+
+  const reg = await registry();
+  await reg.upsertProfile({ id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl });
+  let slug = slugify(name);
+  for (let i = 2; await reg.slugTaken(slug); i++) slug = `${slugify(name)}-${i}`;
+  const ws: Omit<WorkspaceRow, "demo"> = { id: `ws${uid()}`, name, slug, ticketPrefix: prefix, repo: null, teams };
+  await reg.createWorkspace(ws, user.id);
+
+  const now = new Date().toISOString();
+  const general: ChannelRow = { id: `ch${uid()}`, workspaceId: ws.id, kind: "channel", name: "general", topic: "Company-wide announcements", team: null, members: null, createdBy: user.id, createdAt: now };
+  const random: ChannelRow = { ...general, id: `ch${uid()}`, name: "random", topic: "Anything goes", createdAt: new Date(Date.now() + 1).toISOString() };
+  await reg.createChannel(general);
+  await reg.createChannel(random);
+
+  const store = await storeFor(ws);
+  await store.appendMessage(general.id, {
+    id: uid(), who: ATLAS_ID, time: stamp(),
+    text: `Welcome to ${name}! I'm Atlas. Tag @Atlas in any channel to create or update tickets (their ids start with ${prefix}-), ask where things stand, or turn a thread into tasks. I act with the permissions of whoever asks.`,
+  });
+  await setActive(ws.id);
+  return { workspaceId: ws.id, home: general.id };
+}
+
+export async function switchWorkspace(user: SessionUser, workspaceId: string) {
+  const ms = await (await registry()).memberships(user.id);
+  if (!ms.some((m) => m.workspace.id === workspaceId)) throw new WorkspaceError("You're not a member of that workspace", 403);
+  await setActive(workspaceId);
+}
+
+export async function createInvite(ctx: RequestCtx, role: Role) {
+  if (!canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can invite people", 403);
+  const token = `${uid()}${uid()}`.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
+  const now = Date.now();
+  await (await registry()).createInvite({
+    token, workspaceId: ctx.dir.workspace.id, role, createdBy: ctx.dir.me,
+    createdAt: new Date(now).toISOString(), expiresAt: new Date(now + INVITE_TTL_DAYS * 86400_000).toISOString(), revoked: false,
+  });
+  return { token, role, expiresAt: new Date(now + INVITE_TTL_DAYS * 86400_000).toISOString() };
+}
+
+export async function listInvites(ctx: RequestCtx) {
+  if (!canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can see invites", 403);
+  const all = await (await registry()).invites(ctx.dir.workspace.id);
+  return all.filter((i) => !i.revoked && Date.parse(i.expiresAt) > Date.now()).map((i) => ({ token: i.token, role: i.role, expiresAt: i.expiresAt }));
+}
+
+export async function revokeInvite(ctx: RequestCtx, token: string) {
+  if (!canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can revoke invites", 403);
+  await (await registry()).revokeInvite(ctx.dir.workspace.id, token);
+}
+
+/** What the join page shows for an invite link. */
+export async function describeInvite(token: string, user: SessionUser | null) {
+  const reg = await registry();
+  const inv = await reg.invite(token);
+  const valid = !!inv && !inv.revoked && Date.parse(inv.expiresAt) > Date.now();
+  if (!inv || !valid) return { valid: false as const };
+  const ws = await reg.workspace(inv.workspaceId);
+  if (!ws) return { valid: false as const };
+  const members = await reg.members(ws.id);
+  const inviter = members.find((m) => m.id === inv.createdBy)?.name ?? null;
+  const alreadyMember = !!user && members.some((m) => m.id === user.id);
+  return { valid: true as const, workspaceName: ws.name, role: inv.role, inviter, memberCount: members.length, alreadyMember };
+}
+
+export async function acceptInvite(user: SessionUser, token: string) {
+  const reg = await registry();
+  const inv = await reg.invite(token);
+  if (!inv || inv.revoked || Date.parse(inv.expiresAt) < Date.now()) throw new WorkspaceError("This invite link has expired or was revoked", 410);
+  await reg.upsertProfile({ id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl });
+  await reg.addMember(inv.workspaceId, user.id, inv.role);
+  await setActive(inv.workspaceId);
+  return { workspaceId: inv.workspaceId };
+}
+
+// ---------------------------------------------------------------- members
+
+export async function updateMember(ctx: RequestCtx, input: { userId: string; role?: Role; team?: string | null; title?: string | null }) {
+  const self = input.userId === ctx.dir.me;
+  // Anyone can set their own team and title; owners can change anyone, including roles.
+  if (!self && !canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can change other members", 403);
+  if (input.role && !canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can change roles", 403);
+  if (input.team && !ctx.dir.teams.some((t) => t.id === input.team)) throw new WorkspaceError("Unknown team");
+  const reg = await registry();
+  if (input.role && input.role !== "owner" && self) {
+    const owners = (await reg.members(ctx.dir.workspace.id)).filter((m) => m.role === "owner");
+    if (owners.length <= 1) throw new WorkspaceError("A workspace needs at least one owner");
+  }
+  const patch: { role?: Role; team?: string | null; title?: string | null } = {};
+  if (input.role) patch.role = input.role;
+  if (input.team !== undefined) patch.team = input.team;
+  if (input.title !== undefined) patch.title = input.title?.slice(0, 60) ?? null;
+  await reg.updateMember(ctx.dir.workspace.id, input.userId, patch);
+}
+
+export async function removeMember(ctx: RequestCtx, userId: string) {
+  if (!canManage(ctx.dir.role) && userId !== ctx.dir.me) throw new WorkspaceError("Only owners can remove members", 403);
+  const reg = await registry();
+  const members = await reg.members(ctx.dir.workspace.id);
+  if (members.find((m) => m.id === userId)?.role === "owner" && members.filter((m) => m.role === "owner").length <= 1) {
+    throw new WorkspaceError("A workspace needs at least one owner");
+  }
+  await reg.removeMember(ctx.dir.workspace.id, userId);
+}
+
+export async function updateWorkspaceSettings(ctx: RequestCtx, input: { name?: string; teams?: string[]; repo?: string | null }) {
+  if (!canManage(ctx.dir.role)) throw new WorkspaceError("Only owners can change workspace settings", 403);
+  const patch: { name?: string; teams?: Team[]; repo?: string | null } = {};
+  if (input.name?.trim()) patch.name = input.name.trim().slice(0, 60);
+  if (input.repo !== undefined) patch.repo = input.repo?.trim() || null;
+  if (input.teams) {
+    // Keep ids of teams that still exist so tickets stay attached.
+    patch.teams = input.teams.map((n) => n.trim()).filter(Boolean).map((n) => ctx.dir.teams.find((t) => t.name === n) ?? { id: slugify(n), name: n });
+  }
+  await (await registry()).updateWorkspace(ctx.dir.workspace.id, patch);
+}

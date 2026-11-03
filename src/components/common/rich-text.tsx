@@ -4,8 +4,10 @@ import { CornerDownRightIcon, LockIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
 
+import { useDirectory } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
-import { CHAT_META, isChatId, PEOPLE, STATUS_COLORS } from "@/lib/constants";
+import { STATUS_COLORS } from "@/lib/constants";
+import { personOf } from "@/lib/directory";
 import { splitText, type TextPart } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -14,14 +16,15 @@ import { useUiStore } from "@/stores/ui-store";
 const HIT = "relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-['']";
 
 /**
- * Message body: highlights @mentions and turns NW- ids into ticket chips.
+ * Message body: highlights @mentions and turns ticket ids (NW-121) into ticket chips.
  * Chips respect RBAC: tickets the role can't see render as "Restricted",
  * deleted tickets render as plain text.
  */
 export function RichText({ text, className }: { text: string; className?: string }) {
   const { lookup } = useVisibleTickets();
   const openTicket = useUiStore((s) => s.openTicket);
-  const parts = splitText(text);
+  const dir = useDirectory();
+  const parts = splitText(text, dir.workspace.ticketPrefix);
 
   const out: React.ReactNode[] = [];
   for (let i = 0; i < parts.length; i++) {
@@ -121,9 +124,10 @@ function LockedChip({ id }: { id: string }) {
 /** A verified source Atlas cited. Tapping jumps to the message (opening its thread). */
 function CiteChip({ chatId, threadId, id }: { chatId: string; threadId: string | null; id: string }) {
   const router = useRouter();
-  if (!isChatId(chatId)) return null;
-  const meta = CHAT_META[chatId];
-  const label = meta.kind === "channel" ? `#${meta.label}` : PEOPLE[meta.who].first;
+  const dir = useDirectory();
+  const meta = dir.chats[chatId];
+  if (!meta) return null;
+  const label = meta.kind === "channel" ? `#${meta.label}` : personOf(dir, meta.who).first;
   return (
     <button
       type="button"

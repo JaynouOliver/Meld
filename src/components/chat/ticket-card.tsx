@@ -3,15 +3,18 @@
 import { TicketIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
-import { PEOPLE, STATUS_COLORS, teamName } from "@/lib/constants";
-import { ROLE_LABEL } from "@/lib/rbac";
+import { STATUS_COLORS } from "@/lib/constants";
+import { personOf, teamName } from "@/lib/directory";
+import { roleLabel } from "@/lib/rbac";
 import { useUiStore } from "@/stores/ui-store";
 
 /** Ticket card under Atlas confirmations. Handles deleted and restricted tickets. */
 export function TicketCard({ id }: { id: string }) {
   const { lookup } = useVisibleTickets();
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const role = useRole();
   const openTicket = useUiStore((s) => s.openTicket);
   const { ticket: t, locked } = lookup(id);
 
@@ -23,14 +26,14 @@ export function TicketCard({ id }: { id: string }) {
   if (locked) {
     status = "No access";
     title = "Restricted ticket";
-    meta = `Your role (${ROLE_LABEL[role]}) can’t see this ticket.`;
+    meta = `Your role (${roleLabel(dir, role)}) can’t see this ticket.`;
   } else if (t) {
     status = t.status;
     statusColors = [STATUS_COLORS[t.status][0], STATUS_COLORS[t.status][1]];
     title = t.title || "Untitled ticket";
-    team = teamName(t.team);
+    team = teamName(dir, t.team);
     meta =
-      `Assigned to ${t.assignee === "me" ? "you" : PEOPLE[t.assignee].name} · ` +
+      `Assigned to ${t.assignee === dir.me ? "you" : personOf(dir, t.assignee).name} · ` +
       (t.links.length ? t.links.map((l) => `${l.kind} #${l.num}`).join(", ") : "No GitHub links");
   }
 

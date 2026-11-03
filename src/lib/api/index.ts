@@ -22,6 +22,7 @@ export const deleteTicket = impl.deleteTicket;
 export const resetWorkspace = impl.resetWorkspace;
 export const decideAction = impl.decideAction;
 export const getAgentRuns = impl.getAgentRuns;
+export const getDirectory = impl.getDirectory;
 
 export type {
   AskAtlasInput,

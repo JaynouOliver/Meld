@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   }
   if (signedIn && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = request.nextUrl.searchParams.get("next")?.startsWith("/") ? request.nextUrl.searchParams.get("next")! : "/home";
+    url.pathname = request.nextUrl.searchParams.get("next")?.startsWith("/") ? request.nextUrl.searchParams.get("next")! : "/app";
     url.search = "";
     return NextResponse.redirect(url);
   }

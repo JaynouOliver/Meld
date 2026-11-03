@@ -2,9 +2,11 @@
 
 import { SearchIcon, XIcon } from "lucide-react";
 
+import { useDirectory } from "@/hooks/use-directory";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ATLAS_ID, personOf } from "@/lib/directory";
 import type { GroupBy } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -14,6 +16,15 @@ export function TicketFilterBar() {
   const groupBy = useUiStore((s) => s.groupBy);
   const setGroupBy = useUiStore((s) => s.setGroupBy);
   const wide = useMediaQuery("(min-width: 768px)", true);
+  const dir = useDirectory();
+  // Example filter built from this workspace's people and teams.
+  const teammate = dir.personOrder.find((k) => k !== dir.me && k !== ATLAS_ID);
+  const example = [
+    "status:review",
+    teammate && `assignee:${personOf(dir, teammate).first.toLowerCase()}`,
+    dir.teams[0] && `team:${dir.teams[0].name.toLowerCase().replace(/\s+/g, "-")}`,
+    "-status:done",
+  ].filter(Boolean).join(" ");
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -26,7 +37,7 @@ export function TicketFilterBar() {
           id="tq"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={wide ? "Filter: status:review assignee:ravi team:payments -status:done" : "e.g. status:review"}
+          placeholder={wide ? `Filter: ${example}` : "e.g. status:review"}
           autoComplete="off"
           spellCheck={false}
           className="min-w-0 flex-1 border-none bg-transparent py-[9px] font-mono text-base text-foreground md:text-sm outline-none placeholder:text-muted-foreground"

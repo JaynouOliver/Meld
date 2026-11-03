@@ -1,4 +1,4 @@
-import type { ChatId, Role } from "../types";
+import type { ChatId, PersonId, Role } from "../types";
 
 /**
  * Atlas runs as queued jobs. Posting an @Atlas message saves the message and enqueues
@@ -22,6 +22,8 @@ export interface AgentRun {
   triggerMessageId: string;
   chatId: ChatId;
   threadId: string | null;
+  /** Who asked, and with what role: the run acts with their permissions. */
+  requester: PersonId;
   role: Role;
   text: string;
   status: RunStatus;

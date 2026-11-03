@@ -7,7 +7,8 @@
  *
  * Needs MODEL_API_KEY in .env.local. Each case costs well under a cent on muse-spark-1.3.
  */
-import { db, resetDb } from "@/lib/mock/db";
+import { dbFor, resetDb as resetWs, type Db } from "@/lib/mock/db";
+import { DEMO_WORKSPACE_ID } from "@/lib/mock/demo";
 import type { ChatId, Role } from "@/lib/types";
 import { decideAction } from "@/lib/api/service";
 import { runAtlasAgent, type AtlasTrace } from "@/server/atlas/run";
@@ -20,6 +21,10 @@ interface Case {
   text: string;
   check: (r: { reply: string; trace: AtlasTrace; before: typeof db.tickets }) => string | true | Promise<string | true>;
 }
+
+// The Northwind demo workspace's in-memory database (re-read after each reset).
+const db = new Proxy({} as Db, { get: (_t, k) => dbFor(DEMO_WORKSPACE_ID)[k as keyof Db] });
+const resetDb = () => resetWs(DEMO_WORKSPACE_ID);
 
 const T = (id: string) => db.tickets.find((t) => t.id === id);
 const newTickets = (before: typeof db.tickets) => db.tickets.filter((t) => !before.some((b) => b.id === t.id));

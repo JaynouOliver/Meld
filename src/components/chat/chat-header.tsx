@@ -2,18 +2,20 @@
 
 import { Avatar } from "@/components/common/avatar";
 import { ScreenHeader } from "@/components/shell/screen-header";
-import { CHAT_META, PEOPLE } from "@/lib/constants";
-import { ROLE_LABEL } from "@/lib/rbac";
+import { useDirectory, useRole } from "@/hooks/use-directory";
+import { ATLAS_ID, personOf } from "@/lib/directory";
+import { roleLabel } from "@/lib/rbac";
 import type { ChatId } from "@/lib/types";
-import { useUiStore } from "@/stores/ui-store";
 
 export function ChatHeader({ chatId }: { chatId: ChatId }) {
-  const meta = CHAT_META[chatId];
-  const role = useUiStore((s) => s.role);
+  const dir = useDirectory();
+  const meta = dir.chats[chatId];
+  const role = useRole();
+  if (!meta) return null;
 
   if (meta.kind === "dm") {
-    const p = PEOPLE[meta.who];
-    const topic = meta.who === "atlas" ? `Agent · works on tickets with your permissions (${ROLE_LABEL[role]})` : meta.topic;
+    const p = personOf(dir, meta.who);
+    const topic = meta.who === ATLAS_ID ? `Agent · works on tickets with your permissions (${roleLabel(dir, role)})` : meta.topic;
     return (
       <ScreenHeader back="/home">
         <Avatar person={p} size="md" />
@@ -32,7 +34,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
         <div title="Channel members" className="flex shrink-0 items-center gap-2 rounded-lg border py-1 pr-2.5 pl-1.5">
           <span aria-hidden className="flex pl-1 max-[360px]:hidden">
             {meta.members.slice(0, 3).map((k) => (
-              <Avatar key={k} person={PEOPLE[k]} size="sm" className="-ml-1 rounded-md border-2 border-white" />
+              <Avatar key={k} person={personOf(dir, k)} size="sm" className="-ml-1 rounded-md border-2 border-white" />
             ))}
           </span>
           <span className="text-meta font-semibold text-ink-2">{meta.members.length}</span>

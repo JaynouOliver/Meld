@@ -3,10 +3,12 @@
 import { AtSignIcon, SendIcon, TicketIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
+import { useDirectory } from "@/hooks/use-directory";
 import { useSendMessage } from "@/hooks/use-messages";
 import { useUiStore } from "@/stores/ui-store";
 import { useVisibleTickets } from "@/hooks/use-tickets";
-import { CHAT_META, MENTIONABLE, PEOPLE, STATUS_COLORS, teamName } from "@/lib/constants";
+import { STATUS_COLORS } from "@/lib/constants";
+import { ATLAS_ID, personOf, teamName } from "@/lib/directory";
 import type { ChatId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,17 +24,23 @@ interface Option {
   ink: string;
 }
 
-function detectPop(val: string): Pop {
+/** The partial ticket id being typed, e.g. "NW-12" (prefix from the workspace). */
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ticketToken = (prefix: string) => `${escapeRe(prefix)}-?\\d*`;
+
+function detectPop(val: string, prefix: string): Pop {
   const m1 = val.match(/(^|\s)@(\w*)$/);
   if (m1) return { kind: "people", q: m1[2] };
-  const m2 = val.match(/(^|\s)#([\w-]*)$/) || val.match(/(^|\s)(NW-?\d*)$/i);
+  const m2 = val.match(/(^|\s)#([\w-]*)$/) || val.match(new RegExp(`(^|\\s)(${ticketToken(prefix)})$`, "i"));
   if (m2) return { kind: "tickets", q: m2[2] };
   return null;
 }
 
-/** Main chat composer: @ mentions people/Atlas, # or NW- mentions tickets the role can see. */
+/** Main chat composer: @ mentions people/Atlas, # or a ticket id (NW-) mentions tickets the role can see. */
 export function Composer({ chatId }: { chatId: ChatId }) {
-  const meta = CHAT_META[chatId];
+  const dir = useDirectory();
+  const meta = dir.chats[chatId];
+  const prefix = dir.workspace.ticketPrefix;
   const [draft, setDraft] = useState("");
   const [pop, setPop] = useState<Pop>(null);
   const [sel, setSel] = useState(0);
@@ -44,32 +52,34 @@ export function Composer({ chatId }: { chatId: ChatId }) {
     if (!pop) return [];
     const q = pop.q.toLowerCase();
     if (pop.kind === "people") {
-      return MENTIONABLE.filter((k) => PEOPLE[k].first.toLowerCase().startsWith(q)).map((k) => {
-        const p = PEOPLE[k];
+      // Atlas first, then the other members.
+      const mentionable = [ATLAS_ID, ...dir.personOrder.filter((k) => k !== ATLAS_ID && k !== dir.me)];
+      return mentionable.map((k) => personOf(dir, k)).filter((p) => p.first.toLowerCase().startsWith(q)).map((p) => {
         return {
           insert: "@" + p.first, name: p.name, handle: "@" + p.first, badge: p.initials, color: p.color, ink: "#FFFFFF",
-          sub: p.isAgent ? "Agent · create, read, update, delete tickets" : teamName(p.team),
+          sub: p.isAgent ? "Agent · create, read, update, delete tickets" : teamName(dir, p.team),
         };
       });
     }
-    const key = q.replace(/^nw-?/, "");
+    const key = q.replace(new RegExp(`^${escapeRe(prefix)}-?`, "i"), "");
+    const num = (id: string) => id.slice(prefix.length + 1);
     return visible
-      .filter((t) => !q || t.id.toLowerCase().includes(q) || t.id.slice(3).startsWith(key) || t.title.toLowerCase().includes(q))
+      .filter((t) => !q || t.id.toLowerCase().includes(q) || num(t.id).startsWith(key) || t.title.toLowerCase().includes(q))
       .slice(0, 6)
       .map((t) => {
         const [bg, fg] = STATUS_COLORS[t.status];
-        return { insert: t.id, name: t.id, handle: t.title || "Untitled ticket", badge: t.id.slice(3), color: bg, ink: fg, sub: `${t.status} · ${teamName(t.team)}` };
+        return { insert: t.id, name: t.id, handle: t.title || "Untitled ticket", badge: num(t.id), color: bg, ink: fg, sub: `${t.status} · ${teamName(dir, t.team)}` };
       });
-  }, [pop, visible]);
+  }, [pop, visible, dir, prefix]);
 
   const update = (val: string) => {
     setDraft(val);
-    setPop(detectPop(val));
+    setPop(detectPop(val, prefix));
     setSel(0);
   };
 
   const pick = (insert: string) => {
-    setDraft((d) => d.replace(/(@\w*|#[\w-]*|NW-?\d*)$/i, insert + " "));
+    setDraft((d) => d.replace(new RegExp(`(@\\w*|#[\\w-]*|${ticketToken(prefix)})$`, "i"), insert + " "));
     setPop(null);
     inputRef.current?.focus();
   };
@@ -116,11 +126,12 @@ export function Composer({ chatId }: { chatId: ChatId }) {
     }
   };
 
-  const placeholder = meta.kind === "channel" ? `Message #${meta.label}` : `Message ${PEOPLE[meta.who].name}`;
+  if (!meta) return null;
+  const placeholder = meta.kind === "channel" ? `Message #${meta.label}` : `Message ${personOf(dir, meta.who).name}`;
   const hint =
-    chatId === "atlas"
+    meta.kind === "dm" && meta.who === ATLAS_ID
       ? "Just ask: no @ needed in this DM. Atlas only sees what your role can see."
-      : "Type @ to tag Atlas or a teammate, # or NW- to mention a ticket · Enter to send";
+      : `Type @ to tag Atlas or a teammate, # or ${prefix}- to mention a ticket · Enter to send`;
   const isPeople = pop?.kind === "people";
 
   return (

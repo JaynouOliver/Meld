@@ -1,8 +1,9 @@
-import { CHAT_META, PEOPLE, teamName } from "../constants";
+import { currentDir } from "../context";
+import { ATLAS_ID, chatTitle, personOf, teamName as teamNameIn } from "../directory";
 import { stamp } from "../format";
-import { canDelete, canSee } from "../rbac";
+import { canCreateIn, canDelete, canSee, type Viewer } from "../rbac";
 import type { Store } from "../store/types";
-import type { ActionView, ChatId, Role, Ticket } from "../types";
+import type { ActionView, ChatId, Ticket } from "../types";
 
 /**
  * Atlas's ticket changes as data, so they can be held for confirmation, applied
@@ -43,7 +44,7 @@ const title = (t: Ticket) => `“${t.title || "Untitled"}”`;
 
 export function summarize(ops: TicketOp[]): string[] {
   return ops.map((o) => {
-    if (o.type === "create") return `Create ${o.after.id} ${title(o.after)} in ${teamName(o.after.team)}, assigned to ${PEOPLE[o.after.assignee].name}`;
+    if (o.type === "create") return `Create ${o.after.id} ${title(o.after)} in ${teamNameIn(currentDir(), o.after.team)}, assigned to ${personOf(currentDir(), o.after.assignee).name}`;
     if (o.type === "delete") return `Delete ${o.before.id} ${title(o.before)}`;
     return `${o.after.id} ${title(o.after)}: ${o.changes.join(", ")}`;
   });
@@ -54,12 +55,13 @@ export function toView(a: ActionRecord): ActionView {
 }
 
 /** Can this role carry out (or undo) these changes? Re-checked at decision time. */
-export function permissionProblem(ops: TicketOp[], role: Role): string | null {
+export function permissionProblem(ops: TicketOp[], v: Viewer): string | null {
+  const role = v.role;
   for (const o of ops) {
     if (role === "guest" && o.type !== "update") return "Guests can't create or delete tickets.";
     if (o.type === "delete" && !canDelete(role)) return "Only org owners can delete tickets.";
     const t = o.type === "create" ? o.after : o.before;
-    if (o.type === "create" ? role === "member" && t.team !== "design" : !canSee(role, t)) return `Your role can't change ${t.id}.`;
+    if (o.type === "create" ? !canCreateIn(v, t.team) : !canSee(v, t)) return `Your role can't change ${t.id}.`;
   }
   return null;
 }
@@ -76,10 +78,10 @@ export async function applyOps(store: Store, ops: TicketOp[], where: ChatId): Pr
   for (const o of ops) {
     if (o.type === "create") {
       if (!(await store.getTicket(o.after.id))) await store.insertTicket(o.after);
-      await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.created", actor: "atlas", chatId: where, ticketId: o.after.id })]);
+      await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.created", actor: ATLAS_ID, chatId: where, ticketId: o.after.id })]);
     } else if (o.type === "delete") {
       await store.deleteTicket(o.before.id);
-      await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.deleted", actor: "atlas", chatId: where, ticketId: o.before.id })]);
+      await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.deleted", actor: ATLAS_ID, chatId: where, ticketId: o.before.id })]);
     } else {
       const cur = await store.getTicket(o.after.id);
       if (!cur) continue;
@@ -87,17 +89,17 @@ export async function applyOps(store: Store, ops: TicketOp[], where: ChatId): Pr
         if (JSON.stringify(o.before[f]) !== JSON.stringify(o.after[f])) (cur as unknown as Record<string, unknown>)[f] = o.after[f];
       }
       cur.updated = "Just now";
-      cur.activity.push({ who: "Atlas", text: `${o.changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: stamp() });
+      cur.activity.push({ who: "Atlas", text: `${o.changes.join(", ")} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() });
       await Promise.all([
         store.saveTicket(cur),
         store.bumpWeek("a"),
-        store.logEvent({ kind: "ticket.updated", actor: "atlas", chatId: where, ticketId: cur.id, payload: { changes: o.changes } }),
+        store.logEvent({ kind: "ticket.updated", actor: ATLAS_ID, chatId: where, ticketId: cur.id, payload: { changes: o.changes } }),
       ]);
       // Tell the channel that follows this ticket, when that's not where we are.
       if (cur.watch && cur.watch.chat !== where) {
         await store.appendMessage(
           cur.watch.chat,
-          { id: `x${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, who: "atlas", time: stamp(), text: `Update on ${cur.id}: ${o.changes.join(", ")} (via Atlas, asked by ${PEOPLE.me.name}).` },
+          { id: `x${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, who: ATLAS_ID, time: stamp(), text: `Update on ${cur.id}: ${o.changes.join(", ")} (via Atlas, asked by ${personOf(currentDir(), currentDir().me).name}).` },
           cur.watch.thread,
         );
         posted.add(cur.watch.chat);
@@ -120,14 +122,16 @@ export async function revertOps(store: Store, ops: TicketOp[], where: ChatId) {
         if (JSON.stringify(o.before[f]) !== JSON.stringify(o.after[f])) (cur as unknown as Record<string, unknown>)[f] = o.before[f];
       }
       cur.updated = "Just now";
-      cur.activity.push({ who: "Atlas", text: `undid: ${o.changes.join(", ")} (asked by ${PEOPLE.me.name})`, time: stamp() });
+      cur.activity.push({ who: "Atlas", text: `undid: ${o.changes.join(", ")} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() });
       await store.saveTicket(cur);
     }
-    await store.logEvent({ kind: "ticket.undone", actor: "me", chatId: where, ticketId: o.type === "create" ? o.after.id : o.before.id });
+    await store.logEvent({ kind: "ticket.undone", actor: currentDir().me, chatId: where, ticketId: o.type === "create" ? o.after.id : o.before.id });
   }
 }
 
 export function chatLabel(chatId: ChatId) {
-  const m = CHAT_META[chatId];
-  return m.kind === "channel" ? `#${m.label}` : "a DM with Atlas";
+  const dir = currentDir();
+  const m = dir.chats[chatId];
+  if (!m) return "a deleted chat";
+  return m.kind === "channel" ? chatTitle(dir, chatId) : m.who === ATLAS_ID ? "a DM with Atlas" : `a DM with ${personOf(dir, m.who).name}`;
 }

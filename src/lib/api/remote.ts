@@ -55,3 +55,19 @@ export const deleteTicket = call("deleteTicket");
 export const resetWorkspace = call("resetWorkspace");
 export const decideAction = call("decideAction");
 export const getAgentRuns = call("getAgentRuns");
+export const getDirectory = call("getDirectory");
+
+// Accounts and workspaces (server only; see src/server/workspace.ts).
+type Invite = { token: string; role: import("../types").Role; expiresAt: string };
+export const createWorkspace = (input: { name: string; ticketPrefix?: string; teams?: string[] }) =>
+  rpc<{ workspaceId: string; home: string }>("createWorkspace", [input]);
+export const switchWorkspace = (id: string) => rpc<void>("switchWorkspace", [id]);
+export const acceptInvite = (token: string) => rpc<{ workspaceId: string }>("acceptInvite", [token]);
+export const suggestPrefix = (name: string) => rpc<string>("suggestPrefix", [name]);
+export const createInvite = (role: import("../types").Role) => rpc<Invite>("createInvite", [role]);
+export const listInvites = () => rpc<Invite[]>("listInvites", []);
+export const revokeInvite = (token: string) => rpc<void>("revokeInvite", [token]);
+export const updateMember = (input: { userId: string; role?: import("../types").Role; team?: string | null; title?: string | null }) =>
+  rpc<void>("updateMember", [input]);
+export const removeMember = (userId: string) => rpc<void>("removeMember", [userId]);
+export const updateWorkspace = (input: { name?: string; teams?: string[]; repo?: string | null }) => rpc<void>("updateWorkspace", [input]);
