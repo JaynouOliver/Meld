@@ -6,7 +6,8 @@ import { Avatar } from "@/components/common/avatar";
 import { PriorityLabel } from "@/components/common/priority-label";
 import { StatusPill } from "@/components/common/status-pill";
 import { useDirectory, useRole } from "@/hooks/use-directory";
-import { useCreateTicket } from "@/hooks/use-tickets";
+import { useCreateTicket, useVisibleTickets } from "@/hooks/use-tickets";
+import { openBlockers } from "@/lib/agent/blockers";
 import { STATUS_COLORS, STATUS_ORDER } from "@/lib/constants";
 import { personOf, teamName } from "@/lib/directory";
 import { matchQuery } from "@/lib/query-language";
@@ -137,6 +138,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                             {t.id}
                             {linked && ` · ${t.links[0].kind === "PR" ? "PR " : ""}#${t.links[0].num}`}
                           </span>
+                          <BlockedBadge t={t} />
                         </span>
                         <span className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
                           <Avatar person={a} size="xs" />
@@ -200,6 +202,7 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-meta text-muted-foreground">
           <StatusPill status={t.status} bordered className="py-px" />
           <PriorityLabel priority={t.priority} />
+          <BlockedBadge t={t} />
           <span aria-hidden>·</span>
           <span>{t.id}</span>
           {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}
@@ -210,5 +213,21 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
         </span>
       </button>
     </li>
+  );
+}
+
+/** "Blocked" when an open ticket is still waiting on another one. */
+function BlockedBadge({ t }: { t: Ticket }) {
+  const { all } = useVisibleTickets();
+  if (t.status === "Done") return null;
+  const open = openBlockers(t, all);
+  if (!open.length) return null;
+  return (
+    <span
+      title={`Blocked by ${open.map((b) => b.id).join(", ")}`}
+      className="shrink-0 rounded-full bg-danger-soft px-2 py-px text-2xs font-semibold text-destructive"
+    >
+      Blocked
+    </span>
   );
 }

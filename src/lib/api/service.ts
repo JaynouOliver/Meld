@@ -7,7 +7,8 @@
 import { runAtlas } from "../agent/atlas";
 import { applyOps, permissionProblem, revertOps, UNDO_WINDOW_MS } from "../agent/actions";
 import { toRunView, type RunResult, type RunView } from "../agent/runs";
-import { currentDir } from "../context";
+import { blockerNotices, blockersOf, createsCycle } from "../agent/blockers";
+import { currentDir, deliverNotices } from "../context";
 import { ATLAS_ID, personOf, type Directory } from "../directory";
 import { stamp, uid } from "../format";
 import { canCreateIn, canDelete, canSee, clampRole, viewerOf } from "../rbac";
@@ -192,12 +193,17 @@ export interface UpdateTicketInput {
   removeLinkId?: string;
   addImage?: Omit<TicketImage, "id">;
   removeImageId?: string;
+  /** Mark this ticket blocked by another (id), or remove that. */
+  addBlocker?: string;
+  removeBlocker?: string;
 }
 
 export interface UpdateTicketResult {
   ticket: Ticket;
   /** Chat where Atlas posted an update, if the ticket is watched. */
   broadcastChat: ChatId | null;
+  /** Chats that got a blocker notice (people's Atlas DMs). */
+  notified: ChatId[];
 }
 
 /**
@@ -208,9 +214,26 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   await wait(80);
   const store = await getStore();
   const t = await requireTicket(input.id, input.role);
+  const before = structuredClone(t);
   let note: string | null = null;
   let announce: string | null = null;
   const p = input.patch ?? {};
+  if (input.addBlocker) {
+    const id = input.addBlocker.toUpperCase().trim();
+    const all = await store.listTickets();
+    const b = all.find((x) => x.id === id);
+    if (!b || !canSee(viewer(input.role), b)) throw new ApiError(`${id} doesn't exist or you can't see it`, 404);
+    if (id === t.id) throw new ApiError("A ticket can't block itself");
+    if (createsCycle(t.id, id, all)) throw new ApiError(`${t.id} already blocks ${id}, so ${id} can't block it`);
+    if (!blockersOf(t).includes(id)) {
+      t.blockedBy = [...blockersOf(t), id];
+      note = `marked it blocked by ${id}`;
+    }
+  }
+  if (input.removeBlocker && blockersOf(t).includes(input.removeBlocker)) {
+    t.blockedBy = blockersOf(t).filter((x) => x !== input.removeBlocker);
+    note = `removed blocker ${input.removeBlocker}`;
+  }
   if (p.title !== undefined) t.title = p.title;
   if (p.description !== undefined) t.description = p.description;
   if (p.status && p.status !== t.status) {
@@ -262,15 +285,20 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
     broadcastChat = t.watch.chat;
   }
   await Promise.all(writes);
-  return { ticket: t, broadcastChat };
+  // Tell the owners of tickets this change blocks or unblocks.
+  const notices = blockerNotices(currentDir(), before, t, await store.listTickets(), currentDir().me);
+  const notified = await deliverNotices(notices);
+  return { ticket: t, broadcastChat, notified };
 }
 
-export async function deleteTicket(id: string, role: Role): Promise<void> {
+export async function deleteTicket(id: string, role: Role): Promise<{ notified: ChatId[] }> {
   await wait(80);
   if (!canDelete(effectiveRole(role))) throw new ApiError("Only org owners can delete tickets", 403);
-  await requireTicket(id, role);
+  const before = await requireTicket(id, role);
   const store = await getStore();
   await Promise.all([store.deleteTicket(id), store.bumpWeek("p"), store.logEvent({ kind: "ticket.deleted", actor: currentDir().me, ticketId: id })]);
+  const notified = await deliverNotices(blockerNotices(currentDir(), before, null, await store.listTickets(), currentDir().me));
+  return { notified };
 }
 
 /** Demo: put the workspace back to its seed state. */

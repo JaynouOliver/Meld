@@ -7,6 +7,7 @@ import { displayTime, stamp, uid } from "@/lib/format";
 import type { Store } from "@/lib/store";
 import type { MessageHit } from "@/lib/store/types";
 import { needsConfirmation, type TicketOp } from "@/lib/agent/actions";
+import { blockersOf, createsCycle } from "@/lib/agent/blockers";
 import { matchQuery } from "@/lib/query-language";
 import { canCreateIn, canDelete, canSee, viewerOf } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
@@ -38,7 +39,7 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           query: {
             type: "string",
             description:
-              'Optional filter. Free text matches title or ID; also supports status:review assignee:ravi team:payments priority:high is:agent is:draft, and "-" to negate (e.g. -status:done).',
+              'Optional filter. Free text matches title or ID; also supports status:review assignee:ravi team:payments priority:high is:agent is:draft is:blocked, and "-" to negate (e.g. -status:done).',
           },
         },
         additionalProperties: false,
@@ -98,6 +99,12 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           description: { type: "string" },
           link_pr: { type: "string", description: "GitHub pull request number to link" },
           link_issue: { type: "string", description: "GitHub issue number to link" },
+          blocked_by_add: {
+            type: "array",
+            items: { type: "string" },
+            description: 'Ticket IDs that block this one ("NW-131 blocks NW-130" → update NW-130 with blocked_by_add ["NW-131"]). Owners are notified automatically.',
+          },
+          blocked_by_remove: { type: "array", items: { type: "string" }, description: "Ticket IDs that no longer block this one" },
         },
         required: ["id"],
         additionalProperties: false,
@@ -263,9 +270,15 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       const t = await findVisible(ctx, args.id);
       if ("ok" in t) return t;
       effects.read.push(t.id);
+      const everyone = await store.listTickets();
       return {
         ok: true,
         ticket: ticketLine(t),
+        blocked_by: blockersOf(t).map((id) => {
+          const b = everyone.find((x) => x.id === id);
+          return b && canSee(viewer(ctx.role), b) ? ticketLine(b) : `${id} (not visible or deleted)`;
+        }),
+        blocks: everyone.filter((d) => blockersOf(d).includes(t.id) && canSee(viewer(ctx.role), d)).map(ticketLine),
         description: t.description || "(none)",
         reporter: personOf(currentDir(), t.reporter).name,
         recent_activity: t.activity.slice(-5).map((a) => `${a.who} ${a.text} (${displayTime(a.time)})`),
@@ -342,6 +355,32 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         if (num && !t.links.some((l) => l.kind === kind && l.num === num)) {
           t.links.push({ id: uid(), kind, num, repo: repo() });
           changes.push(`linked ${kind} #${num}`);
+        }
+      }
+      const visibleNow = async () => {
+        const byId = new Map((await store.listTickets()).map((x) => [x.id, x] as [string, Ticket | null]));
+        for (const [sid, { after }] of effects.plan) byId.set(sid, after);
+        return [...byId.values()].filter((x): x is Ticket => !!x);
+      };
+      const adds = Array.isArray(args.blocked_by_add) ? args.blocked_by_add.map((x) => String(x).toUpperCase().trim()) : [];
+      const removes = Array.isArray(args.blocked_by_remove) ? args.blocked_by_remove.map((x) => String(x).toUpperCase().trim()) : [];
+      if (adds.length) {
+        const all = await visibleNow();
+        for (const id of adds) {
+          const b = all.find((x) => x.id === id);
+          if (!b || !canSee(viewer(role), b)) return err(`${id} doesn't exist or the requester can't see it.`);
+          if (id === t.id) return err("A ticket can't block itself.");
+          if (createsCycle(t.id, id, all.map((x) => (x.id === t.id ? t : x)))) return err(`${t.id} already blocks ${id} (directly or through other tickets), so ${id} can't block it.`);
+          if (!blockersOf(t).includes(id)) {
+            t.blockedBy = [...blockersOf(t), id];
+            changes.push(`blocked by ${id}`);
+          }
+        }
+      }
+      for (const id of removes) {
+        if (blockersOf(t).includes(id)) {
+          t.blockedBy = blockersOf(t).filter((x) => x !== id);
+          changes.push(`no longer blocked by ${id}`);
         }
       }
       if (!changes.length) return { ok: true, unchanged: true, ticket: ticketLine(t) };

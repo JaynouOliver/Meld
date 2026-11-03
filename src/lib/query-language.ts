@@ -6,7 +6,7 @@ type QueryDir = Pick<Directory, "people" | "teams" | "me">;
 /**
  * Ticket filter language used in the tickets view.
  *   status:review  assignee:ravi  team:payments  priority:high
- *   is:draft | is:linked | is:agent    -status:done (negation)    free text
+ *   is:draft | is:linked | is:agent | is:blocked    -status:done (negation)    free text
  * All tokens must match (AND). Names resolve through the workspace directory.
  */
 export function matchQuery(t: Ticket, q: string, dir: QueryDir) {
@@ -25,7 +25,7 @@ export function matchQuery(t: Ticket, q: string, dir: QueryDir) {
       else if (k === "assignee") hit = norm(personOf(dir, t.assignee).name).includes(v) || (v === "me" && t.assignee === dir.me);
       else if (k === "team") hit = norm(t.team).includes(v) || norm(teamName(dir, t.team)).includes(v);
       else if (k === "priority") hit = norm(t.priority).includes(v);
-      else hit = (v === "draft" && !t.links.length) || (v === "linked" && t.links.length > 0) || (v === "agent" && t.reporter === ATLAS_ID);
+      else hit = (v === "draft" && !t.links.length) || (v === "linked" && t.links.length > 0) || (v === "agent" && t.reporter === ATLAS_ID) || (v === "blocked" && !!t.blockedBy?.length);
     } else {
       hit = norm(t.title).includes(norm(body)) || norm(t.id).includes(norm(body));
     }

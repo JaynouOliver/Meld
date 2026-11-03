@@ -84,10 +84,12 @@ export function useUpdateTicket() {
     onError: (_e, _i, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKeys.tickets, ctx.prev);
     },
-    onSuccess: ({ ticket, broadcastChat }) => {
+    onSuccess: ({ ticket, broadcastChat, notified }) => {
       qc.setQueryData<Ticket[]>(queryKeys.tickets, (old) => old?.map((t) => (t.id === ticket.id ? ticket : t)));
       qc.invalidateQueries({ queryKey: queryKeys.week });
       if (broadcastChat) notify(broadcastChat);
+      // Blocker notices land in Atlas DMs (mine shows up as unread).
+      for (const c of notified ?? []) notify(c);
     },
   });
 }

@@ -1,6 +1,8 @@
-import type { Directory } from "./directory";
+import type { BlockerNotice } from "./agent/blockers";
+import { ATLAS_ID, atlasDmOf, personOf, type Directory } from "./directory";
+import { stamp, uid } from "./format";
 import { demoDirectory } from "./mock/demo";
-import type { Role } from "./types";
+import type { ChatId, Role } from "./types";
 import type { Store } from "./store/types";
 
 /**
@@ -47,3 +49,37 @@ export function demoCtxAs(role: Role): RequestCtx {
   const base = currentCtx();
   return { ...base, dir: { ...base.dir, role } };
 }
+
+// ---------------------------------------------------------------- Atlas notices
+
+/** Deliver Atlas notices to people; returns the chats that got a message. */
+export type Notifier = (notices: BlockerNotice[]) => Promise<ChatId[]>;
+let notifier: Notifier | null = null;
+
+/** The server delivers to each recipient's Atlas DM (src/server/notify.ts). */
+export function setNotifier(n: Notifier) {
+  notifier = n;
+}
+
+export async function deliverNotices(notices: BlockerNotice[]): Promise<ChatId[]> {
+  if (!notices.length) return [];
+  return (notifier ?? demoNotifier)(notices);
+}
+
+/**
+ * Without the server (browser preview, evals): only my own Atlas DM is known, so
+ * notices for others go to the ticket's channel, addressed to them by name.
+ */
+const demoNotifier: Notifier = async (notices) => {
+  const { dir, store } = currentCtx();
+  const chats: ChatId[] = [];
+  for (const n of notices) {
+    const mine = n.to === dir.me ? atlasDmOf(dir) : null;
+    const where = mine ? { chat: mine, thread: null } : n.fallbackChat;
+    if (!where || !dir.chats[where.chat]) continue;
+    const text = mine ? n.text : `@${personOf(dir, n.to).first}: ${n.text}`;
+    await store.appendMessage(where.chat, { id: uid(), who: ATLAS_ID, time: stamp(), text }, where.thread);
+    chats.push(where.chat);
+  }
+  return chats;
+};

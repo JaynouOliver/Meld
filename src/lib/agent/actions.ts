@@ -1,4 +1,5 @@
-import { currentDir } from "../context";
+import { currentDir, deliverNotices } from "../context";
+import { blockerNotices } from "./blockers";
 import { ATLAS_ID, chatTitle, personOf, teamName as teamNameIn } from "../directory";
 import { stamp } from "../format";
 import { canCreateIn, canDelete, canSee, type Viewer } from "../rbac";
@@ -66,7 +67,7 @@ export function permissionProblem(ops: TicketOp[], v: Viewer): string | null {
   return null;
 }
 
-const FIELDS = ["title", "description", "status", "priority", "assignee", "links"] as const;
+const FIELDS = ["title", "description", "status", "priority", "assignee", "team", "links", "blockedBy"] as const;
 
 /**
  * Apply ops. Updates are applied field by field on top of the ticket's current
@@ -75,20 +76,25 @@ const FIELDS = ["title", "description", "status", "priority", "assignee", "links
  */
 export async function applyOps(store: Store, ops: TicketOp[], where: ChatId): Promise<ChatId[]> {
   const posted = new Set<ChatId>();
+  const changed: [Ticket | null, Ticket | null][] = [];
   for (const o of ops) {
     if (o.type === "create") {
       if (!(await store.getTicket(o.after.id))) await store.insertTicket(o.after);
+      changed.push([null, o.after]);
       await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.created", actor: ATLAS_ID, chatId: where, ticketId: o.after.id })]);
     } else if (o.type === "delete") {
       await store.deleteTicket(o.before.id);
+      changed.push([o.before, null]);
       await Promise.all([store.bumpWeek("a"), store.logEvent({ kind: "ticket.deleted", actor: ATLAS_ID, chatId: where, ticketId: o.before.id })]);
     } else {
       const cur = await store.getTicket(o.after.id);
       if (!cur) continue;
+      const prev = structuredClone(cur);
       for (const f of FIELDS) {
         if (JSON.stringify(o.before[f]) !== JSON.stringify(o.after[f])) (cur as unknown as Record<string, unknown>)[f] = o.after[f];
       }
       cur.updated = "Just now";
+      changed.push([prev, cur]);
       cur.activity.push({ who: "Atlas", text: `${o.changes.join(", ")} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() });
       await Promise.all([
         store.saveTicket(cur),
@@ -106,6 +112,10 @@ export async function applyOps(store: Store, ops: TicketOp[], where: ChatId): Pr
       }
     }
   }
+  // Blocker propagation: tell the owners of tickets these changes block or unblock.
+  const all = await store.listTickets();
+  const notices = changed.flatMap(([b, a]) => blockerNotices(currentDir(), b, a, all, currentDir().me));
+  for (const c of await deliverNotices(notices)) posted.add(c);
   return [...posted];
 }
 

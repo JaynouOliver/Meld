@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
+import { Dependencies } from "./dependencies";
 import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -260,6 +261,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             </div>
           )}
         </div>
+
+        <Dependencies ticket={t} />
 
         <div className="flex flex-col gap-2">
           <span className={sectionLabel}>GitHub</span>

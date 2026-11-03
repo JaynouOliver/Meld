@@ -58,6 +58,8 @@ export interface Ticket {
   updated: string;
   /** Chat that Atlas posts updates to when this ticket changes. */
   watch: { chat: ChatId; thread: string | null } | null;
+  /** Tickets that must be done before this one can move (ids). */
+  blockedBy?: string[];
   activity: Activity[];
 }
 

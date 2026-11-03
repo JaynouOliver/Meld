@@ -29,13 +29,14 @@ interface TicketRow {
   id: string; team: Ticket["team"]; title: string; description: string; status: Ticket["status"];
   priority: Ticket["priority"]; assignee: PersonId; reporter: PersonId; links: Ticket["links"];
   images: Ticket["images"]; watch: Ticket["watch"]; activity: Ticket["activity"]; updated: string;
+  blocked_by: string[];
 }
 const toRow = (t: Ticket): TicketRow => ({
   id: t.id, team: t.team, title: t.title, description: t.description, status: t.status, priority: t.priority,
   assignee: t.assignee, reporter: t.reporter, links: t.links, images: t.images, watch: t.watch,
-  activity: t.activity, updated: t.updated,
+  activity: t.activity, updated: t.updated, blocked_by: t.blockedBy ?? [],
 });
-const fromRow = (r: TicketRow): Ticket => ({ ...r });
+const fromRow = ({ blocked_by, ...r }: TicketRow): Ticket => ({ ...r, blockedBy: blocked_by ?? [] });
 
 interface MessageRow {
   workspace_id?: string;

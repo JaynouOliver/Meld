@@ -100,11 +100,12 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
     case "askAtlas":
       return { chats: (result as api.AskAtlasResult).touchedChats, tickets: true };
     case "createTicket":
-    case "deleteTicket":
       return { chats: [], tickets: true };
+    case "deleteTicket":
+      return { chats: (result as { notified: ChatId[] }).notified, tickets: true };
     case "updateTicket": {
-      const b = (result as api.UpdateTicketResult).broadcastChat;
-      return { chats: b ? [b] : [], tickets: true };
+      const r = result as api.UpdateTicketResult;
+      return { chats: [...(r.broadcastChat ? [r.broadcastChat] : []), ...r.notified], tickets: true };
     }
     case "decideAction":
       return { chats: (result as api.DecideActionResult).chats, tickets: true };
