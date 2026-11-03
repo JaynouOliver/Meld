@@ -88,13 +88,15 @@ export const updateChannel = (input: { id: string; name?: string; topic?: string
 export const deleteChannel = (id: string) => rpc<{ home: string }>("deleteChannel", [id]);
 export const openDm = (userId: string) => rpc<{ id: string }>("openDm", [userId]);
 export interface AgentInput {
+  kind?: "custom" | "external";
   name: string;
   handle?: string;
   description?: string;
   instructions?: string;
   tools?: ("read" | "write" | "delete")[];
 }
-export const createAgent = (input: AgentInput) => rpc<{ id: string; handle: string }>("createAgent", [input]);
+export const createAgent = (input: AgentInput) => rpc<{ id: string; handle: string; token: string | null }>("createAgent", [input]);
+export const rotateAgentToken = (id: string) => rpc<{ token: string }>("rotateAgentToken", [id]);
 export const updateAgent = (input: AgentInput & { id: string }) => rpc<void>("updateAgent", [input]);
 export const deleteAgent = (id: string) => rpc<void>("deleteAgent", [id]);
 export const setChannelAgent = (input: { chatId: string; agentId: string; mode: "mention" | "lurk" | "active" | "off" }) =>

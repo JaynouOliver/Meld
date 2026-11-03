@@ -1,7 +1,7 @@
 import "server-only";
 
 import { currentCtx } from "@/lib/context";
-import { agentById, agentModeIn, agentsOf, ATLAS_ID, mentionedAgents, personOf } from "@/lib/directory";
+import { agentById, agentModeIn, agentsOf, ATLAS_ID, mentionedAgents, personOf, type Directory } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
 import { MAX_AGENT_DEPTH, RATE_ALL, RATE_PROACTIVE, RATE_WINDOW_MS, type AgentRun, type RunTrigger } from "@/lib/agent/runs";
 import type { ChatId, PersonId, Role } from "@/lib/types";
@@ -106,3 +106,18 @@ export function teammatesFor(self: PersonId) {
 }
 
 export const agentName = (id: PersonId) => personOf(currentCtx().dir, id).name;
+
+/** The directory as an agent may see it: channels it's in, and its own DM. */
+export function scopeFor(dir: Directory, agentId: PersonId): Directory {
+  const chats = Object.fromEntries(Object.entries(dir.chats).filter(([id]) => agentModeIn(dir, id, agentId) !== null));
+  return { ...dir, chats, channels: dir.channels.filter((c) => chats[c]), dms: dir.dms.filter((c) => chats[c]) };
+}
+
+/**
+ * Runs Meld executes itself. External agents (MCP) pull their runs from their inbox
+ * instead, so those stay queued until the agent picks them up.
+ */
+export function runsWeExecute<T extends { agentId: PersonId }>(runs: T[]): T[] {
+  const { dir } = currentCtx();
+  return runs.filter((r) => agentById(dir, r.agentId)?.kind !== "external");
+}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { agentById, agentModeIn, type AgentInfo, type Directory } from "@/lib/directory";
+import { agentById, agentModeIn, type AgentInfo } from "@/lib/directory";
 import { stamp } from "@/lib/format";
 import { currentCtx } from "@/lib/context";
 import { getStore } from "@/lib/store";
@@ -9,7 +9,7 @@ import type { Message } from "@/lib/types";
 import { runInCtx } from "../context";
 import { pingChanges } from "../realtime";
 import { contextAs } from "../workspace";
-import { agentName, dispatch } from "../agents/dispatch";
+import { agentName, dispatch, runsWeExecute, scopeFor } from "../agents/dispatch";
 import { shouldRespond } from "../agents/triage";
 import { reporter } from "./progress";
 import { runAtlasAgent } from "./run";
@@ -48,14 +48,8 @@ async function execute(run: AgentRun, workspaceId: string) {
     const next = await dispatch({
       chatId: run.chatId, threadId: out.threadId, messageId: out.reply.id, authorId: agent.id, text: out.reply.text, parent: run,
     });
-    await Promise.all(next.map((r) => processRun(r.id)));
+    await Promise.all(runsWeExecute(next).map((r) => processRun(r.id)));
   }
-}
-
-/** The directory as this agent may see it: channels it's in, and its own DM. */
-function scopeFor(dir: Directory, agentId: string): Directory {
-  const chats = Object.fromEntries(Object.entries(dir.chats).filter(([id]) => agentModeIn(dir, id, agentId) !== null));
-  return { ...dir, chats, channels: dir.channels.filter((c) => chats[c]), dms: dir.dms.filter((c) => chats[c]) };
 }
 
 async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
@@ -136,7 +130,7 @@ export function dueRuns(runs: AgentRun[], now = Date.now()) {
 /** Start any due runs. Called opportunistically when browsers poll run status. */
 export async function sweepRuns(runs?: AgentRun[]): Promise<number> {
   const store = await getStore();
-  const due = dueRuns(runs ?? (await store.listRecentRuns())).slice(0, 2);
+  const due = runsWeExecute(dueRuns(runs ?? (await store.listRecentRuns()))).slice(0, 2);
   for (const r of due) await processRun(r.id);
   return due.length;
 }

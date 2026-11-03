@@ -6,7 +6,7 @@ import { RichText } from "@/components/common/rich-text";
 import { useLiveRuns } from "@/hooks/use-agent-runs";
 import { useDirectory } from "@/hooks/use-directory";
 import { useRunProgress } from "@/hooks/use-run-progress";
-import { ATLAS_ID, personOf } from "@/lib/directory";
+import { agentById, ATLAS_ID, personOf } from "@/lib/directory";
 import type { RunView } from "@/lib/agent/runs";
 import type { ChatId } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,12 @@ function LiveBubble({ run, className }: { run: RunView; className?: string }) {
   if (run.trigger === "proactive" && !progress) return null;
   const agent = personOf(dir, run.agentId ?? ATLAS_ID);
   const draft = progress?.draft ? clean(progress.draft) : "";
-  const step = progress?.step ?? (run.status === "queued" ? "Getting started" : "Reading the conversation");
+  // External agents (MCP) pick work up from their inbox on their own schedule.
+  const external = agentById(dir, run.agentId ?? ATLAS_ID)?.kind === "external";
+  const handle = agentById(dir, run.agentId ?? ATLAS_ID)?.handle;
+  const step = external
+    ? run.status === "queued" ? `In @${handle}'s inbox, waiting to be picked up` : "Working on it in its own environment"
+    : progress?.step ?? (run.status === "queued" ? "Getting started" : "Reading the conversation");
 
   return (
     <div data-testid="atlas-live" data-agent={agent.id} className={cn("flex gap-3 py-1.5", className)} aria-live="polite">

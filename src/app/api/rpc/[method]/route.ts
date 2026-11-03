@@ -6,7 +6,7 @@ import * as api from "@/lib/api/service";
 import type { ChatId, Role } from "@/lib/types";
 import { progressOf } from "@/server/atlas/progress";
 import { toRunView } from "@/lib/agent/runs";
-import { dispatch } from "@/server/agents/dispatch";
+import { dispatch, runsWeExecute } from "@/server/agents/dispatch";
 import { processRun, sweepRuns } from "@/server/atlas/queue";
 import { runAtlasAgent } from "@/server/atlas/run";
 import { getSessionUser } from "@/server/auth";
@@ -47,7 +47,8 @@ const methods: Record<string, Method> = {
       chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
       text: saved.text, role: api.effectiveRole(input.role),
     });
-    if (runs.length) after(() => Promise.all(runs.map((r) => processRun(r.id))));
+    const ours = runsWeExecute(runs);
+    if (ours.length) after(() => Promise.all(ours.map((r) => processRun(r.id))));
     return { ...saved, runs: runs.map(toRunView) };
   },
   getAgentRuns: async () => {
@@ -83,6 +84,7 @@ const methods: Record<string, Method> = {
   createAgent: async (input: ws.AgentInput) => ws.createAgent(currentCtx(), input),
   updateAgent: async (input: ws.AgentInput & { id: string }) => ws.updateAgent(currentCtx(), input),
   deleteAgent: async (id: string) => ws.deleteAgent(currentCtx(), id),
+  rotateAgentToken: async (id: string) => ws.rotateAgentToken(currentCtx(), id),
   setChannelAgent: async (input: Parameters<typeof ws.setChannelAgent>[1]) => ws.setChannelAgent(currentCtx(), input),
 };
 

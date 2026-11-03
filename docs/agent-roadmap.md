@@ -99,6 +99,6 @@ messages and summaries, with Atlas refining queries through `search_messages`.
 | Phase | What | Status |
 |---|---|---|
 | 1 | Agents as members: custom agents (role, instructions, permissions), channel membership with modes (when tagged / lurker / active), DM inboxes, presence, scoped reading, 👀 reactions, delegation by @mention with a loop governor | ✅ Done |
-| 2 | MCP server: bring your own agent (Claude Code, Codex, custom) as a member | Next |
+| 2 | MCP server: bring your own agent (Claude Code, Codex, custom) as a member | ✅ Done: `/api/mcp`, external agents with tokens, inbox / reply / channels / tickets tools ([mcp.md](mcp.md)) |
 | 3 | Memory store, call transcripts, bridges between workspaces | Later |
 

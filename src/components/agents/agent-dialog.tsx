@@ -17,7 +17,12 @@ import { MODE_OPTIONS } from "./agent-modes";
 
 type Open = { open: boolean; onOpenChange: (o: boolean) => void };
 
-const TEMPLATES: { name: string; handle: string; description: string; instructions: string; tools: AgentTool[] }[] = [
+const TEMPLATES: { name: string; handle: string; description: string; instructions: string; tools: AgentTool[]; kind?: "external" }[] = [
+  {
+    name: "Your own agent (MCP)", handle: "coder", tools: ["read", "write"], kind: "external",
+    description: "A coding agent (Claude Code, Codex, your own) connected over MCP.",
+    instructions: "",
+  },
   {
     name: "Triage", handle: "triage", tools: ["read", "write"],
     description: "Turns bug reports into well-formed tickets with the right owner.",
@@ -63,6 +68,8 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
   const [description, setDescription] = useState(existing?.description ?? "");
   const [instructions, setInstructions] = useState(existing?.instructions ?? "");
   const [tools, setTools] = useState<AgentTool[]>(existing?.tools ?? ["read"]);
+  const [kind, setKind] = useState<"custom" | "external">(existing?.kind === "external" ? "external" : "custom");
+  const [token, setToken] = useState<string | null>(null);
   const [modes, setModes] = useState<Record<string, AgentMode | "off">>(() =>
     Object.fromEntries(dir.channels.map((c) => [c, (existing ? agentModeIn(dir, c, existing.id) : null) ?? "off"])),
   );
@@ -71,7 +78,8 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
   const canJoin = dir.role !== "guest";
 
   const apply = (t: (typeof TEMPLATES)[number]) => {
-    setName(t.name);
+    setKind(t.kind ?? "custom");
+    setName(t.kind === "external" ? "Coder" : t.name);
     setHandle(t.handle);
     setDescription(t.description);
     setInstructions(t.instructions);
@@ -87,7 +95,11 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
       if (editable && !builtin) {
         const input = { name, handle: handle || undefined, description, instructions, tools };
         if (id) await remote.updateAgent({ id, ...input });
-        else id = (await remote.createAgent(input)).id;
+        else {
+          const made = await remote.createAgent({ ...input, kind });
+          id = made.id;
+          if (made.token) setToken(made.token);
+        }
       }
       if (canJoin && id) {
         for (const c of dir.channels) {
@@ -96,13 +108,25 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
         }
       }
       await qc.refetchQueries({ queryKey: queryKeys.directory });
-      onDone();
+      // An external agent's token is shown once: keep the dialog open to copy it.
+      if (!(kind === "external" && !existing)) onDone();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
   };
+
+  const rotate = async () => {
+    if (!existing || !window.confirm("Make a new token? The current one stops working.")) return;
+    try {
+      setToken((await remote.rotateAgentToken(existing.id)).token);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  if (token) return <Connect token={token} handle={handle || existing?.handle || "agent"} onDone={onDone} />;
 
   const remove = async () => {
     if (!existing || !window.confirm(`Remove ${existing.name} from ${dir.workspace.name}? Its messages stay.`)) return;
@@ -148,6 +172,17 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
         </div>
       )}
 
+      {kind === "external" && (
+        <div className="mb-4 rounded-lg border border-agent-border bg-agent/40 px-3 py-2.5 text-meta">
+          <strong>Connects over MCP.</strong> Claude Code, Codex or your own agent joins as @{handle || "coder"}: it gets an inbox for mentions, DMs and
+          hand-offs, reads the channels you add it to, replies, and updates tickets. You&apos;ll get a token and a one-line command.
+          {existing && editable && (
+            <button type="button" onClick={rotate} className="ml-2 cursor-pointer font-semibold text-link hover:underline">
+              New token
+            </button>
+          )}
+        </div>
+      )}
       {!builtin && (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -167,6 +202,7 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
             Role
             <input value={description} onChange={(e) => setDescription(e.target.value)} disabled={!editable} maxLength={200} placeholder="What it's for, in one line" className={input} />
           </label>
+          {kind !== "external" && (
           <label className="mt-3 block text-meta font-semibold">
             Instructions
             <textarea
@@ -179,6 +215,7 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
               className="mt-1.5 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:border-subtle disabled:opacity-70"
             />
           </label>
+          )}
           <fieldset className="mt-3">
             <legend className="text-meta font-semibold">Can</legend>
             <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
@@ -243,5 +280,42 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
         </button>
       </div>
     </form>
+  );
+}
+
+/** Shown once after creating an external agent: its token and the command to connect. */
+function Connect({ token, handle, onDone }: { token: string; handle: string; onDone: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const command = `claude mcp add --transport http meld-${handle} ${origin}/api/mcp --header "Authorization: Bearer ${token}"`;
+  const copy = async (what: string, text: string) => {
+    await navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(what);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  return (
+    <div>
+      <p className="text-sm">
+        @{handle} is a member now. Connect your agent with this command (Claude Code shown; any MCP client works with the same URL and header). Copy the
+        token now: it isn&apos;t shown again.
+      </p>
+      <pre className="mt-3 overflow-x-auto rounded-lg border bg-muted p-3 font-mono text-meta whitespace-pre-wrap break-all" data-testid="mcp-command">{command}</pre>
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={() => copy("cmd", command)} className="h-9 cursor-pointer rounded-md bg-foreground px-3 text-meta font-semibold text-background">
+          {copied === "cmd" ? "Copied" : "Copy command"}
+        </button>
+        <button type="button" onClick={() => copy("tok", token)} className="h-9 cursor-pointer rounded-md border px-3 text-meta font-semibold hover:bg-muted">
+          {copied === "tok" ? "Copied" : "Copy token"}
+        </button>
+      </div>
+      <p className="mt-4 text-meta text-muted-foreground">
+        Then ask it something like: &ldquo;Check your Meld inbox and handle what&apos;s there.&rdquo; Tag @{handle} in a channel it&apos;s in to give it work.
+      </p>
+      <div className="mt-5 flex justify-end">
+        <button type="button" onClick={onDone} className="h-10 cursor-pointer rounded-md bg-brand px-4 text-sm font-semibold text-white hover:opacity-90">
+          Done
+        </button>
+      </div>
+    </div>
   );
 }

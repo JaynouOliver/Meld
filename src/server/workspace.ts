@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash, randomBytes } from "node:crypto";
+
 import { cookies } from "next/headers";
 
 import type { SessionUser } from "@/lib/auth/shared";
@@ -392,6 +394,8 @@ const RESERVED_HANDLES = new Set(["atlas", "agent", "here", "channel", "everyone
 const AGENT_COLORS = ["#7C3AED", "#0EA5E9", "#059669", "#D97706", "#DB2777", "#4F46E5"];
 
 export interface AgentInput {
+  /** "external": an agent that connects over MCP with a token (Claude Code, Codex, your own). */
+  kind?: "custom" | "external";
   name: string;
   handle?: string;
   description?: string;
@@ -415,6 +419,13 @@ const toolsFrom = (t?: string[]) => {
   return ok.length ? [...new Set<"read" | "write" | "delete">(["read", ...ok])] : (["read"] as ("read" | "write" | "delete")[]);
 };
 
+/** A random MCP token, and the hash we keep (the token itself is shown once). */
+function newToken() {
+  const token = `meld_${randomBytes(24).toString("base64url")}`;
+  return { token, hash: hashToken(token) };
+}
+export const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
+
 /** A new agent member. It starts in no channels: add it where it should read along. */
 export async function createAgent(ctx: RequestCtx, input: AgentInput) {
   if (ctx.dir.role === "guest") throw new WorkspaceError("Guests can't add agents", 403);
@@ -424,12 +435,14 @@ export async function createAgent(ctx: RequestCtx, input: AgentInput) {
   checkHandle(ctx, handle);
   const id = `ag${uid()}`;
   const n = (ctx.dir.agents ?? []).length;
+  const external = input.kind === "external";
+  const tok = external ? newToken() : null;
   await (await registry()).createAgent({
     id, workspaceId: ctx.dir.workspace.id, handle, name, description: input.description?.trim().slice(0, 200) ?? "",
-    instructions: input.instructions?.trim().slice(0, 4000) ?? "", tools: toolsFrom(input.tools), kind: "custom",
-    color: AGENT_COLORS[n % AGENT_COLORS.length], tokenHash: null, createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
+    instructions: input.instructions?.trim().slice(0, 4000) ?? "", tools: toolsFrom(input.tools), kind: external ? "external" : "custom",
+    color: AGENT_COLORS[n % AGENT_COLORS.length], tokenHash: tok?.hash ?? null, createdBy: ctx.dir.me, createdAt: new Date().toISOString(),
   });
-  return { id, handle };
+  return { id, handle, token: tok?.token ?? null };
 }
 
 function canEditAgent(ctx: RequestCtx, id: string) {
@@ -451,6 +464,15 @@ export async function updateAgent(ctx: RequestCtx, input: AgentInput & { id: str
   if (input.instructions !== undefined) patch.instructions = input.instructions.trim().slice(0, 4000);
   if (input.tools !== undefined) patch.tools = toolsFrom(input.tools);
   await (await registry()).updateAgent(ctx.dir.workspace.id, input.id, patch);
+}
+
+/** A new MCP token for an external agent (the old one stops working). */
+export async function rotateAgentToken(ctx: RequestCtx, id: string) {
+  const a = canEditAgent(ctx, id);
+  if (a.kind !== "external") throw new WorkspaceError("Only agents that connect over MCP have tokens");
+  const tok = newToken();
+  await (await registry()).updateAgent(ctx.dir.workspace.id, id, { tokenHash: tok.hash });
+  return { token: tok.token };
 }
 
 export async function deleteAgent(ctx: RequestCtx, id: string) {
