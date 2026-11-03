@@ -110,7 +110,8 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
 
   // Only real messages can be cited: verify every [[id]] and drop the rest.
   trace.rawReply = reply;
-  reply = await resolveCitations(reply, store, trace.citations);
+  const caughtUp = trace.tools.some((t) => t.name === "catch_up");
+  reply = await resolveCitations(reply, store, trace.citations, caughtUp ? MAX_CATCH_UP_CITATIONS : MAX_CITATIONS);
 
   // Apply the run's changes, or hold them for confirmation (deletes, bulk edits).
   const ops = trace.error ? [] : planToOps(effects.plan);
@@ -152,19 +153,21 @@ Request from ${personOf(currentDir(), currentDir().me).name}: ${input.text}`,
 }
 
 const MAX_CITATIONS = 3;
+/** A catch-up covers several chats, so it may cite more. */
+const MAX_CATCH_UP_CITATIONS = 8;
 
 /**
  * The model cites messages as [[id]]. Keep the ones that exist (up to 3), rewritten
  * as [[cite:<chat>:<thread or ->:<id>]] so the UI can link straight to them; remove
  * the rest, so a made-up citation never reaches the chat.
  */
-async function resolveCitations(text: string, store: Store, log: AtlasTrace["citations"]) {
+async function resolveCitations(text: string, store: Store, log: AtlasTrace["citations"], max = MAX_CITATIONS) {
   const ids = [...new Set([...text.matchAll(/\[\[([A-Za-z0-9_-]{1,40})\]\]/g)].map((m) => m[1]))];
   if (!ids.length) return text;
   const all = await store.getMessageRefs(ids);
   // Only messages the requester can open (not someone else's DM).
   const refs = Object.fromEntries(Object.entries(all).filter(([, r]) => !!currentDir().chats[r.chatId]));
-  const kept = new Set(ids.filter((id) => refs[id]).slice(0, MAX_CITATIONS));
+  const kept = new Set(ids.filter((id) => refs[id]).slice(0, max));
   for (const id of ids) (kept.has(id) ? log.kept : refs[id] ? log.overLimit : log.invalid).push(id);
   return text
     .replace(/\s*\[\[([A-Za-z0-9_-]{1,40})\]\]/g, (_m, id: string) => {

@@ -83,6 +83,25 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     for (const m of allMessages(d())) if (want.has(m.id)) out[m.id] = { chatId: m.chatId, threadId: m.threadId };
     return out;
   },
+  async messagesSince(since, limit) {
+    const t = Date.parse(since);
+    // Seed messages carry display times ("10:02 AM"), not ISO: they count as old.
+    return allMessages(d()).filter((m) => Date.parse(m.time) > t).slice(-limit);
+  },
+  async readMarkers(userId) {
+    return { ...(d().reads.get(userId) ?? {}) };
+  },
+  async markRead(userId, chatId, at) {
+    const r = d().reads.get(userId) ?? {};
+    r[chatId] = at;
+    d().reads.set(userId, r);
+  },
+  async getSummary(key) {
+    return d().summaries.get(key) ?? null;
+  },
+  async putSummary(key, _chatId, text) {
+    d().summaries.set(key, text);
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

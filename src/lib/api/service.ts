@@ -56,6 +56,12 @@ export async function getMessages(chatId: ChatId): Promise<Message[]> {
   return (await getStore()).listMessages(chatId);
 }
 
+/** "I've seen this chat up to now" (powers Atlas's "what did I miss?"). */
+export async function markRead(chatId: ChatId): Promise<void> {
+  requireChat(chatId);
+  await (await getStore()).markRead(currentDir().me, chatId, new Date().toISOString());
+}
+
 export async function getTickets(): Promise<Ticket[]> {
   await wait();
   return (await getStore()).listTickets();

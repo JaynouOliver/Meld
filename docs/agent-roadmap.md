@@ -12,7 +12,7 @@ the UI and with evals, then tick it off. UI work happens in parallel on `main`.
 | 3 | **Blocker propagation**: "X blocks Y" or a blocked ticket notifies downstream owners once | ✅ Done: ticket dependencies (panel + Atlas), owners get one Atlas DM per change (blocked, unblocked, reopened, parked, deleted), loops refused; 27/27 evals |
 | 4 | **Thread → tickets**: "@Atlas make tickets from this" with a preview card before creating | ✅ Done: owners from the thread, existing tickets updated instead of re-filed, 2+ new tickets wait on a preview card; 23/23 evals |
 | 5 | **Quiet action-item capture**: private "make this a ticket?" suggestion to the author | To do: needs the memory pipeline |
-| 6 | **"What did I miss?"** per-person catch-up | To do: needs summaries |
+| 6 | **"What did I miss?"** per-person catch-up | ✅ Done: server read markers, `catch_up` tool (what needs you first, busy chats summarized and cached), "What did I miss?" buttons; 31/31 evals |
 | 7 | **Decision log** with links to where each decision was made | To do: needs fact extraction |
 | 8 | **GitHub automation**: merged PR → Done, failed CI posts, stale review nudges | To do: webhooks |
 | 9 | **Standups and digests** (daily team digest, weekly sprint summary, release notes) | To do: scheduler |

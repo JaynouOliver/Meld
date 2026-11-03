@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
+import { CatchUpButton } from "./catch-up-button";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { ATLAS_ID, personOf } from "@/lib/directory";
@@ -23,7 +24,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
     const p = personOf(dir, meta.who);
     const topic = meta.who === ATLAS_ID ? `Agent · works on tickets with your permissions (${roleLabel(dir, role)})` : meta.topic;
     return (
-      <ScreenHeader back="/home">
+      <ScreenHeader back="/home" actions={meta.who === ATLAS_ID ? <CatchUpButton compact className="max-sm:hidden" /> : undefined}>
         <Avatar person={p} size="md" />
         <div className="flex min-w-0 flex-col leading-[1.3]">
           <h1 className="truncate text-base font-bold">{p.name}</h1>

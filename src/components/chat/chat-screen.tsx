@@ -1,5 +1,6 @@
 "use client";
 
+import * as api from "@/lib/api";
 import Link from "next/link";
 import { useEffect } from "react";
 
@@ -25,6 +26,13 @@ export function ChatScreen({ chatId }: { chatId: ChatId }) {
   const markRead = useUiStore((s) => s.markRead);
 
   useEffect(() => markRead(chatId), [chatId, markRead]);
+  // Tell the server too, when opening the chat and when leaving it, so Atlas's
+  // "what did I miss?" starts from here. Best effort.
+  useEffect(() => {
+    const save = () => void api.markRead(chatId).catch(() => {});
+    save();
+    return save;
+  }, [chatId]);
   // Jump to a cited message once this chat's messages are loaded.
   const focus = useUiStore((s) => s.focus);
   const loaded = !!messages;

@@ -32,6 +32,21 @@ const T = (id: string) => db.tickets.find((t) => t.id === id);
 /** Atlas messages in a chat whose text contains every given snippet. */
 const atlasSaid = (chat: string, ...parts: string[]) =>
   (db.chats[chat] ?? []).some((m) => m.who === "atlas" && parts.every((p) => m.text.includes(p)));
+/** Post messages "minutes ago" (real timestamps, so catch-ups see them as new). */
+const posted = (chat: string, msgs: [string, string, number][]) => {
+  for (const [who, text, minsAgo] of msgs) {
+    db.chats[chat].push({ id: `cu${chat}${minsAgo}${who}`, who, time: new Date(Date.now() - minsAgo * 60_000).toISOString(), text, replies: [] });
+  }
+};
+const missedSetup = () => {
+  posted("payments", [
+    ["lena", "@Suvra can you approve the Stripe fee change by Friday? Finance needs it for the invoice run.", 90],
+    ["ravi", "Apple Pay is live for 10% of users, no errors so far.", 70],
+  ]);
+  posted("platform", [["diego", "CI is red on main since the cache change, I'm reverting it now.", 40]]);
+};
+const used = (trace: AtlasTrace, tool: string) => trace.tools.some((t) => t.name === tool);
+
 /** NW-130 (Ravi's Apple Pay ticket) waits on NW-131 (Lena's PaymentIntent migration). */
 const blockApplePay = () => {
   T("NW-130")!.blockedBy = ["NW-131"];
@@ -300,6 +315,74 @@ const cases: Case[] = [
     check: ({ reply, before }) => {
       if (!reply.includes("NW-131")) return "reply doesn't name NW-131";
       return unchanged(before);
+    },
+  },
+  {
+    name: "catch-up: leads with what needs me, covers the rest",
+    where: "atlas",
+    setup: missedSetup,
+    text: "What did I miss?",
+    check: ({ reply, trace, before }) => {
+      if (!used(trace, "catch_up")) return "didn't call catch_up";
+      if (!/stripe|fee|approve/i.test(reply)) return "missed Lena's request to Suvra";
+      if (!/CI|revert/i.test(reply) || !/apple pay/i.test(reply)) return "missed the channel news";
+      if (/stripe|fee|approve/i.exec(reply)!.index > Math.min(...[/CI\b/.exec(reply)?.index ?? 1e9, /apple pay/i.exec(reply)?.index ?? 1e9]))
+        return "didn't lead with the item addressed to the requester";
+      if (!trace.citations.kept.length) return "no citations";
+      return unchanged(before);
+    },
+  },
+  {
+    name: "catch-up: summarizes a busy channel",
+    where: "atlas",
+    setup: () =>
+      posted(
+        "design",
+        Array.from({ length: 16 }, (_, i): [string, string, number] => [
+          i % 2 ? "aiko" : "diego",
+          [
+            "Pricing page review: should the annual toggle default to on?",
+            "I think annual by default, it lifts conversion.",
+            "Worried it hides the monthly price, people feel tricked.",
+            "Data from last test: annual default +12% annual signups.",
+            "OK but show the monthly equivalent under the price.",
+            "Agreed. Decision: annual default, monthly equivalent shown.",
+            "Who updates the Figma?",
+            "I will, by Thursday.",
+          ][i % 8],
+          120 - i * 5,
+        ]),
+      ),
+    text: "catch me up",
+    check: ({ reply, trace }) => {
+      if (!used(trace, "catch_up")) return "didn't call catch_up";
+      if (!/annual/i.test(reply)) return "the pricing decision is missing";
+      return true;
+    },
+  },
+  {
+    name: "catch-up: skips chats I've already read",
+    where: "atlas",
+    setup: () => {
+      missedSetup();
+      db.reads.set("me", { payments: new Date().toISOString() });
+    },
+    text: "What did I miss?",
+    check: ({ reply, trace }) => {
+      if (!used(trace, "catch_up")) return "didn't call catch_up";
+      if (/stripe|apple pay/i.test(reply)) return "included #payments, which was already read";
+      return /CI|revert/i.test(reply) || "missed #platform";
+    },
+  },
+  {
+    name: "catch-up: one channel, today",
+    where: "general",
+    setup: missedSetup,
+    text: "@Atlas what happened in #platform-eng today?",
+    check: ({ reply, trace }) => {
+      if (!used(trace, "catch_up")) return "didn't call catch_up";
+      if (/stripe|apple pay/i.test(reply)) return "pulled in other channels";
+      return /CI|revert/i.test(reply) || "missed the CI news";
     },
   },
   {

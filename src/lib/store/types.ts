@@ -53,6 +53,14 @@ export interface Store {
   finishRun(id: string, patch: { status: "done" | "failed"; error?: string | null; result?: AgentRun["result"]; trace?: unknown }): Promise<void>;
   /** Runs that are queued/running, or finished within RUN_RECENT_MS. */
   listRecentRuns(): Promise<AgentRun[]>;
+  /** Messages posted after `since` (ISO), oldest first, across the workspace. */
+  messagesSince(since: string, limit: number): Promise<MessageHit[]>;
+  /** When each person last looked at each chat (ISO), for "what did I miss?". */
+  readMarkers(userId: PersonId): Promise<Record<ChatId, string>>;
+  markRead(userId: PersonId, chatId: ChatId, at: string): Promise<void>;
+  /** Cached summaries of a stretch of a chat, keyed by chat + first and last message id. */
+  getSummary(key: string): Promise<string | null>;
+  putSummary(key: string, chatId: ChatId, text: string): Promise<void>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */

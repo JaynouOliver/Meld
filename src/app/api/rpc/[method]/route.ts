@@ -31,6 +31,7 @@ const methods: Record<string, Method> = {
   getMessages: api.getMessages,
   getTickets: api.getTickets,
   getWeekActivity: api.getWeekActivity,
+  markRead: api.markRead,
   // An @Atlas message enqueues a run in the same request; it runs once the response is
   // sent and the reply arrives over realtime. Without a model, the browser calls the
   // rule-based askAtlas instead (no runId).

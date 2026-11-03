@@ -56,6 +56,7 @@ export const resetWorkspace = call("resetWorkspace");
 export const decideAction = call("decideAction");
 export const getAgentRuns = call("getAgentRuns");
 export const getDirectory = call("getDirectory");
+export const markRead = call("markRead");
 
 // Accounts and workspaces (server only; see src/server/workspace.ts).
 type Invite = { token: string; role: import("../types").Role; expiresAt: string };

@@ -17,6 +17,9 @@ export interface Db {
   nextNum: number;
   actions: Map<string, ActionRecord>;
   runs: Map<string, AgentRun>;
+  /** user id → chat id → last read (ISO). */
+  reads: Map<string, Record<ChatId, string>>;
+  summaries: Map<string, string>;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));
@@ -30,6 +33,8 @@ function seed(workspaceId: string): Db {
     nextNum: demo ? SEED_NEXT_NUM : 1,
     actions: new Map(),
     runs: new Map(),
+    reads: new Map(),
+    summaries: new Map(),
   };
 }
 

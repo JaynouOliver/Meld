@@ -11,6 +11,7 @@ import { blockersOf, createsCycle } from "@/lib/agent/blockers";
 import { matchQuery } from "@/lib/query-language";
 import { canCreateIn, canDelete, canSee, viewerOf } from "@/lib/rbac";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
+import { catchUp } from "./catch-up";
 import { ticketLine } from "./prompt";
 
 /** Atlas's tools. Permissions are enforced here, in code; the prompt only explains them. */
@@ -107,6 +108,22 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           blocked_by_remove: { type: "array", items: { type: "string" }, description: "Ticket IDs that no longer block this one" },
         },
         required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "catch_up",
+      description:
+        'What the requester missed: new messages in chats they can see since they last opened each one (busy chats come summarized), things addressed to them, and changes others made to their tickets. Use for "what did I miss?", "catch me up", "what happened in #x today?".',
+      parameters: {
+        type: "object",
+        properties: {
+          since_hours: { type: "number", description: 'Only when the requester names a window ("today" ≈ 12, "this week" ≈ 168). Otherwise omit: it uses their read position.' },
+          chat: { type: "string", description: "Optional: one channel (#name) or a person's DM to focus on" },
+        },
         additionalProperties: false,
       },
     },
@@ -392,6 +409,8 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if ("ok" in t) return t;
       return { ok: true, deleting: `${t.id} "${t.title}"`, ...stage(ctx, t.id, t, null, []) };
     }
+    case "catch_up":
+      return catchUp({ role, sinceHours: typeof args.since_hours === "number" ? args.since_hours : undefined, chat: str(args.chat) });
     case "search_messages": {
       const terms = (str(args.query) ?? "").toLowerCase().split(/\s+/).filter((w) => w.length > 2);
       if (!terms.length) return err("Give a few keywords to search for.");

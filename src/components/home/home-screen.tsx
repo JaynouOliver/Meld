@@ -1,5 +1,6 @@
 "use client";
 
+import { CatchUpButton } from "@/components/chat/catch-up-button";
 import { useQueries } from "@tanstack/react-query";
 import { ChevronRightIcon, HashIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
@@ -141,6 +142,7 @@ function AtlasCard({ id, last }: { id: ChatId; last: Message | undefined }) {
         </span>
         <ChevronRightIcon className="size-5 shrink-0 text-sidebar-muted" />
       </Link>
+      <CatchUpButton className="mt-2 w-full justify-center" />
     </div>
   );
 }

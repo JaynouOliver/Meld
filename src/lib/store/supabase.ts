@@ -166,6 +166,32 @@ export function supabaseStore(ws: string): Store {
     }[];
     return Object.fromEntries(rows.map((r) => [r.id, { chatId: r.chat_id, threadId: r.thread_id }]));
   },
+  async messagesSince(since, limit) {
+    const rows = check(
+      await sb().from("messages").select("id,chat_id,thread_id,who,text,time_label").eq("workspace_id", ws).gt("created_at", since).order("seq", { ascending: false }).limit(limit),
+      "messages since",
+    ) as HitRow[];
+    return rows.reverse().map(toHit);
+  },
+  async readMarkers(userId) {
+    const rows = check(await sb().from("read_markers").select("chat_id,last_read_at").eq("workspace_id", ws).eq("user_id", userId), "read markers") as {
+      chat_id: ChatId; last_read_at: string;
+    }[];
+    return Object.fromEntries(rows.map((r) => [r.chat_id, r.last_read_at]));
+  },
+  async markRead(userId, chatId, at) {
+    check(
+      await sb().from("read_markers").upsert({ workspace_id: ws, user_id: userId, chat_id: chatId, last_read_at: at }, { onConflict: "workspace_id,user_id,chat_id" }),
+      "mark read",
+    );
+  },
+  async getSummary(key) {
+    const r = check(await sb().from("summaries").select("text").eq("workspace_id", ws).eq("key", key).maybeSingle(), "get summary") as { text: string } | null;
+    return r?.text ?? null;
+  },
+  async putSummary(key, chatId, text) {
+    check(await sb().from("summaries").upsert({ workspace_id: ws, key, chat_id: chatId, text }, { onConflict: "workspace_id,key" }), "put summary");
+  },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.
     check(await sb().from("messages").delete().eq("workspace_id", ws).eq("chat_id", chatId).not("thread_id", "is", null), "delete replies");
