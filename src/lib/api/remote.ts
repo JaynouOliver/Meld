@@ -131,3 +131,12 @@ export const answerDecision = (decisionId: string, answer: string, role?: string
 export const listAgentMemories = (agentId: string) => rpc<import("../agent/memory").AgentMemory[]>("listAgentMemories", [agentId]);
 export const forgetAgentMemory = (id: string, role?: string) => rpc<{ ok: true }>("forgetAgentMemory", [id, role]);
 export const summarizeThread = (chatId: string, threadId: string, role?: string) => rpc<import("../agent/runs").RunView>("summarizeThread", [chatId, threadId, role]);
+
+// Workflow automation (src/server/automation).
+type PlaybookInput = import("../automation").PlaybookInput;
+export const listPlaybooks = () => rpc<import("../automation").PlaybookView[]>("listPlaybooks", []);
+export const savePlaybook = (input: PlaybookInput, role?: string) => rpc<import("../automation").Playbook>("savePlaybook", [input, role]);
+export const setPlaybookEnabled = (id: string, enabled: boolean, role?: string) => rpc<import("../automation").Playbook>("setPlaybookEnabled", [id, enabled, role]);
+export const deletePlaybook = (id: string, role?: string) => rpc<null>("deletePlaybook", [id, role]);
+export const ticketAutomation = (ticketId: string, role?: string) => rpc<import("../automation").TicketAutomationView>("ticketAutomation", [ticketId, role]);
+export const undoTriage = (ticketId: string, role?: string) => rpc<{ chats: string[] }>("undoTriage", [ticketId, role]);

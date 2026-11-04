@@ -18,7 +18,8 @@
     "test:listener": "DATA_STORE=memory tsx --conditions=react-server evals/listener.test.ts",
     "test:tickets": "DATA_STORE=memory tsx --conditions=react-server evals/tickets.test.ts",
     "test:chat": "DATA_STORE=memory tsx --conditions=react-server evals/chat.test.ts",
-    "test:skills": "DATA_STORE=memory tsx --conditions=react-server evals/agent-skills.test.ts"
+    "test:skills": "DATA_STORE=memory tsx --conditions=react-server evals/agent-skills.test.ts",
+    "test:automation": "DATA_STORE=memory tsx --conditions=react-server evals/automation.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

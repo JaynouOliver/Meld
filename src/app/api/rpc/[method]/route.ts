@@ -19,6 +19,8 @@ import * as teamDecisions from "@/server/listener/decisions";
 import * as ws from "@/server/workspace";
 import * as agentMemory from "@/server/agents/memory";
 import * as summary from "@/server/atlas/summary";
+import * as playbooks from "@/server/automation/playbooks";
+import { undoTriage } from "@/server/automation/triage";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -114,6 +116,13 @@ const methods: Record<string, Method> = {
   listAgentMemories: async (agentId: string) => agentMemory.listAgentMemories(agentId),
   forgetAgentMemory: async (id: string, role?: Role) => agentMemory.forgetMemory(id, role),
   summarizeThread: async (chatId: ChatId, threadId: string, role?: Role) => summary.summarizeThread(chatId, threadId, role),
+  // Workflow automation: playbooks, and the ticket panel's triage note and playbook runs.
+  listPlaybooks: async () => playbooks.listPlaybooks(),
+  savePlaybook: async (input: import("@/lib/automation").PlaybookInput, role?: Role) => playbooks.savePlaybook(input, role),
+  setPlaybookEnabled: async (id: string, enabled: boolean, role?: Role) => playbooks.setPlaybookEnabled(id, enabled, role),
+  deletePlaybook: async (id: string, role?: Role) => playbooks.deletePlaybook(id, role),
+  ticketAutomation: async (ticketId: string, role?: Role) => playbooks.ticketAutomation(ticketId, role),
+  undoTriage: async (ticketId: string, role?: Role) => undoTriage(ticketId, role),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
@@ -196,6 +205,8 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
     case "deleteAgent":
     case "setChannelAgent":
       return { chats: [], tickets: false, directory: true };
+    case "undoTriage":
+      return { chats: (result as { chats: ChatId[] }).chats, tickets: true };
     default:
       return { chats: [], tickets: false };
   }

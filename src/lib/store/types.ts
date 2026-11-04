@@ -2,6 +2,7 @@ import type { ActionRecord } from "../agent/actions";
 import type { TeamDecision } from "../team-decisions";
 import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
+import type { Playbook, PlaybookRun, TicketTriage } from "../automation";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 
@@ -116,6 +117,21 @@ export interface Store {
   addAgentMemory(m: AgentMemory): Promise<void>;
   /** False if there was no such memory. */
   deleteAgentMemory(id: string): Promise<boolean>;
+  /** Auto-triage (src/server/automation): one record per ticket. */
+  getTriage(ticketId: string): Promise<TicketTriage | null>;
+  /** Insert if the ticket has none yet; false if it was already triaged (or is being). */
+  claimTriage(t: TicketTriage): Promise<boolean>;
+  saveTriage(t: TicketTriage): Promise<void>;
+  listPlaybooks(): Promise<Playbook[]>;
+  savePlaybook(p: Playbook): Promise<void>;
+  deletePlaybook(id: string): Promise<void>;
+  /** Newest first, at most 50. */
+  listPlaybookRuns(filter?: { playbookId?: string; ticketId?: string }): Promise<PlaybookRun[]>;
+  getPlaybookRun(id: string): Promise<PlaybookRun | null>;
+  /** Insert if no run has this id (the event's key); false if it already ran. */
+  claimPlaybookRun(r: PlaybookRun): Promise<boolean>;
+  /** Atomically update a running run still at `step`; false if someone else moved it on. */
+  advancePlaybookRun(id: string, step: number, patch: Partial<Pick<PlaybookRun, "step" | "status" | "error" | "runIds" | "chatId" | "threadId" | "finishedAt">>): Promise<boolean>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */
