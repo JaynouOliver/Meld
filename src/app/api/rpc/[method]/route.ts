@@ -128,7 +128,7 @@ const accountMethods: Record<string, (user: SessionUser, ...args: never[]) => Pr
       const [tickets, week, lists] = await Promise.all([
         api.getTickets(),
         api.getWeekActivity(),
-        Promise.all(chats.map((c) => api.getMessages(c).catch(() => null))),
+        Promise.all(chats.map((c) => api.getMessages(c, 30).catch(() => null))),
       ]);
       const messages = Object.fromEntries(chats.map((c, i) => [c, lists[i]]).filter(([, l]) => l));
       return { directory: ctx.dir, tickets, week, messages };

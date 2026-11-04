@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "preview:build": "node preview/build.mjs",
     "eval:atlas": "DATA_STORE=memory tsx --conditions=react-server --env-file=.env.local evals/atlas.eval.ts",
+    "eval:listener": "DATA_STORE=memory tsx --conditions=react-server --env-file=.env.local evals/listener-eval.ts",
+    "eval:prefilter": "DATA_STORE=memory tsx --conditions=react-server --env-file=.env.local evals/listener-prefilter.ts",
     "test:queue": "DATA_STORE=memory tsx --conditions=react-server evals/queue.test.ts",
     "test:agents": "DATA_STORE=memory tsx --conditions=react-server evals/agents.test.ts",
     "test:missions": "DATA_STORE=memory tsx --conditions=react-server evals/missions.test.ts",

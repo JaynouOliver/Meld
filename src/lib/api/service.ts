@@ -63,10 +63,11 @@ export async function getBoot(): Promise<{
 
 // ---------------------------------------------------------------- reads
 
-export async function getMessages(chatId: ChatId): Promise<Message[]> {
+export async function getMessages(chatId: ChatId, limit?: number): Promise<Message[]> {
   await wait();
   requireChat(chatId);
-  return (await getStore()).listMessages(chatId);
+  // Bounded: a caller can ask for a smaller window, never an unbounded one.
+  return (await getStore()).listMessages(chatId, { limit: Math.min(Math.max(Number(limit) || 100, 1), 200) });
 }
 
 /** "I've seen this chat up to now" (powers Atlas's "what did I miss?"). */

@@ -59,8 +59,8 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async deleteTicket(id) {
     d().tickets = d().tickets.filter((x) => x.id !== id);
   },
-  async listMessages(chatId) {
-    return withActions(d(), clone(d().chats[chatId] ?? []));
+  async listMessages(chatId, opts) {
+    return withActions(d(), clone((d().chats[chatId] ?? []).slice(-(opts?.limit ?? 100))));
   },
   async appendMessage(chatId, msg, threadId) {
     return clone(appendMessage(d(), chatId, msg, threadId));

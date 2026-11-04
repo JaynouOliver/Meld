@@ -123,6 +123,10 @@ function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map
 interface HitRow { id: string; chat_id: ChatId; thread_id: string | null; who: PersonId; text: string; time_label: string }
 const toHit = (r: HitRow) => ({ chatId: r.chat_id, id: r.id, threadId: r.thread_id, who: r.who, time: r.time_label, text: r.text });
 
+/** Rows per request (the API's cap) and how many recent conversations a chat loads. */
+const PAGE = 1000;
+const MESSAGE_WINDOW = 100;
+
 const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** A store over one workspace's rows. Every query filters by workspace_id. */
@@ -131,7 +135,14 @@ export function supabaseStore(ws: string): Store {
   return {
   kind: "supabase",
   async listTickets() {
-    const rows = check(await sb().from("tickets").select("*").eq("workspace_id", ws).order("created_at").order("id"), "list tickets") as TicketRow[];
+    // Paged: the API returns at most 1,000 rows per request, so a big workspace would
+    // otherwise silently lose its newest tickets.
+    const rows: TicketRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const page = check(await sb().from("tickets").select("*").eq("workspace_id", ws).order("created_at").order("id").range(from, from + PAGE - 1), "list tickets") as TicketRow[];
+      rows.push(...page);
+      if (page.length < PAGE) break;
+    }
     return rows.map(fromRow);
   },
   async getTicket(id) {
@@ -150,14 +161,15 @@ export function supabaseStore(ws: string): Store {
   async deleteTicket(id) {
     check(await sb().from("tickets").delete().eq("workspace_id", ws).eq("id", id), "delete ticket");
   },
-  async listMessages(chatId) {
-    const [msgRes, actRes] = await Promise.all([
-      sb().from("messages").select("id,chat_id,thread_id,parent_id,who,text,ticket_id,time_label,action_id,reactions").eq("workspace_id", ws).eq("chat_id", chatId).order("seq"),
-      sb().from("agent_actions").select("*").eq("workspace_id", ws).eq("chat_id", chatId),
-    ]);
-    const rows = check(msgRes, "list messages") as MessageRow[];
-    const acts = (check(actRes, "list actions") as ActionRow[]).map(actionFromRow);
-    return toTree(rows, new Map(acts.map((a) => [a.id, a])));
+  async listMessages(chatId, opts) {
+    // The latest conversations (top-level messages) with their replies and action cards,
+    // in one round trip (public.chat_window): a chat's cost doesn't grow with its history.
+    const data = check(
+      await sb().rpc("chat_window", { p_ws: ws, p_chat: chatId, p_limit: opts?.limit ?? MESSAGE_WINDOW }),
+      "list messages",
+    ) as { rows: MessageRow[]; actions: ActionRow[] } | null;
+    const acts = (data?.actions ?? []).map(actionFromRow);
+    return toTree(data?.rows ?? [], new Map(acts.map((a) => [a.id, a])));
   },
   async appendMessage(chatId, msg, threadId) {
     const row = {

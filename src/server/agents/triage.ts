@@ -3,7 +3,7 @@ import "server-only";
 import { displayTime } from "@/lib/format";
 import { personOf, type AgentInfo, type Directory } from "@/lib/directory";
 import type { AgentMode, Message } from "@/lib/types";
-import { ATLAS_MODEL, llm } from "../llm";
+import { FAST_MODEL, llm } from "../llm";
 
 /**
  * Proactive agents (lurk / active) first decide, cheaply, whether a message is theirs
@@ -22,7 +22,7 @@ export async function shouldRespond(opts: { agent: AgentInfo; mode: AgentMode; d
     .map((m) => `[${displayTime(m.time)}] ${personOf(dir, m.who).name}: ${m.text.slice(0, 200)}`)
     .join("\n");
   const res = await client.chat.completions.create({
-    model: ATLAS_MODEL,
+    model: FAST_MODEL,
     reasoning_effort: "minimal",
     prompt_cache_key: "meld-triage-v1",
     messages: [
