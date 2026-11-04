@@ -6,7 +6,7 @@ import type { ChatId, PersonId, Role } from "../types";
  * reply reaches every browser over realtime. See docs/architecture.md §4.
  */
 export type RunStatus = "queued" | "running" | "done" | "failed";
-export type RunTrigger = "mention" | "dm" | "delegation" | "proactive" | "assignment" | "summary";
+export type RunTrigger = "mention" | "dm" | "delegation" | "proactive" | "assignment" | "summary" | "notes";
 
 export interface RunResult {
   /** Chats that received a new Atlas message. */
@@ -27,7 +27,8 @@ export interface AgentRun {
   agentId: PersonId;
   /**
    * Why: tagged, a DM, handed over by another agent, a proactive check (lurk/active), a
-   * ticket assigned to the agent (src/server/agents/assignment.ts), or a thread summary.
+   * ticket assigned to the agent (src/server/agents/assignment.ts), a thread summary, or
+   * meeting notes to process (src/server/notes).
    */
   trigger: RunTrigger;
   /** Hops from the human message (0) through agent-to-agent hand-offs; capped by the loop governor. */

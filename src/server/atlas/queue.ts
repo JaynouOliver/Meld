@@ -15,6 +15,7 @@ import { reporter } from "./progress";
 import { runAtlasAgent } from "./run";
 import { finishAssignment } from "../agents/assignment";
 import { runSummary } from "./summary";
+import { runNotes } from "../notes";
 
 /**
  * The agent queue (docs/architecture.md §4, docs/agent-platform.md). A run is a row in
@@ -46,8 +47,8 @@ async function execute(run: AgentRun, workspaceId: string) {
   const scoped = { ...currentCtx(), dir: scopeFor(dir, agent.id), scopedTo: agent.id, run: { id: run.id, depth: run.depth, role: run.role } };
   const out = await runInCtx(scoped, () => executeAs(agent, run, workspaceId));
   // Hand-offs: agents this reply @mentions pick it up, one level deeper (governed in dispatch).
-  // (A thread summary only reports: names in it aren't hand-offs.)
-  if (out?.reply && run.trigger !== "summary") {
+  // (A thread summary or meeting notes only report: names in them aren't hand-offs.)
+  if (out?.reply && run.trigger !== "summary" && run.trigger !== "notes") {
     const next = await dispatch({
       chatId: run.chatId, threadId: out.threadId, messageId: out.reply.id, authorId: agent.id, text: out.reply.text, parent: run,
     });
@@ -94,7 +95,7 @@ async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
 
   const progress = reporter(workspaceId, { ...run, threadId });
   try {
-    const { trace, replyMessage, ...result } = await (run.trigger === "summary" ? runSummary : runAtlasAgent)({
+    const { trace, replyMessage, ...result } = await (run.trigger === "summary" ? runSummary : run.trigger === "notes" ? runNotes : runAtlasAgent)({
       chatId: run.chatId, text: run.text, threadId, role: run.role, replyId, progress, agent, depth: run.depth,
     });
     // Assigned work: move the ticket on once the agent has posted its result.
