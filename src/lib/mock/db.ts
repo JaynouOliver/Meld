@@ -1,6 +1,7 @@
 import type { ActionRecord } from "../agent/actions";
 import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
+import type { OpenQuestion, ThreadLink } from "../proactive";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
 import type { Reminder } from "../scheduled";
@@ -33,6 +34,8 @@ export interface Db {
   reminders?: Map<string, Reminder>;
   digests?: Map<ChatId, { at: string; day: string }>;
   timeZones?: Map<string, string>;
+  questions?: Map<string, OpenQuestion>;
+  links?: Map<string, ThreadLink>;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));

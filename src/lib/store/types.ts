@@ -2,6 +2,7 @@ import type { ActionRecord } from "../agent/actions";
 import type { TeamDecision } from "../team-decisions";
 import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
+import type { OpenQuestion, QuestionStatus, ThreadLink } from "../proactive";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 import type { Reminder, ReminderStatus } from "../scheduled";
@@ -132,6 +133,19 @@ export interface Store {
   /** Time zones people's browsers reported (user id → IANA zone; "*" is the workspace default). */
   timeZones(): Promise<Record<string, string>>;
   setTimeZone(userId: string, tz: string): Promise<void>;
+  /** Questions tracked for follow-up (src/lib/proactive.ts), newest first (at most 200); optionally one status only. */
+  listOpenQuestions(filter?: { status?: QuestionStatus }): Promise<OpenQuestion[]>;
+  /** Insert or replace a tracked question. */
+  saveOpenQuestion(q: OpenQuestion): Promise<void>;
+  /**
+   * Atomically move a question from one of `from` to `to` (e.g. open -> followed_up).
+   * Returns false if it had already moved, so two sweeps can't both follow up.
+   */
+  transitionQuestion(id: string, from: QuestionStatus[], to: QuestionStatus, patch?: { followUpId?: string; resolvedBy?: string | null }): Promise<boolean>;
+  /** Record a link between two conversations. False if that pair (key) was linked before. */
+  addThreadLink(l: ThreadLink): Promise<boolean>;
+  /** Links Atlas posted, newest first (at most 300). */
+  listThreadLinks(): Promise<ThreadLink[]>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */

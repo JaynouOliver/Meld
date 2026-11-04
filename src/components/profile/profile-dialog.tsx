@@ -1,14 +1,16 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { HashIcon, LoaderCircleIcon, MessageSquareIcon, XIcon } from "lucide-react";
+import { BellRingIcon, HashIcon, LoaderCircleIcon, MessageSquareIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
 import { DigestNow } from "@/components/scheduled/digest-now";
-import { useDirectory } from "@/hooks/use-directory";
+import { useDirectory, useRole } from "@/hooks/use-directory";
+import { queryKeys } from "@/hooks/query-keys";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import * as remote from "@/lib/api/remote";
 import { agentById, agentDmOf, ATLAS_ID, personOf, teamName } from "@/lib/directory";
@@ -125,6 +127,8 @@ function Profile({ id, onClose }: { id: string; onClose: () => void }) {
           </Section>
         )}
 
+        {id === ATLAS_ID && <FollowUpCheck />}
+
         {isAgent && channels.length > 0 && (
           <Section title="Channels">
             <div className="flex flex-wrap gap-1.5">
@@ -174,6 +178,45 @@ function Profile({ id, onClose }: { id: string; onClose: () => void }) {
         </Section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Atlas follows up on questions nobody answered after a day (src/server/proactive/followups.ts).
+ * This runs that check now, for questions at least a couple of minutes old.
+ */
+function FollowUpCheck() {
+  const qc = useQueryClient();
+  const role = useRole();
+  const [state, setState] = useState<{ busy: boolean; note: string | null }>({ busy: false, note: null });
+  if (role === "guest") return null;
+  const run = async () => {
+    setState({ busy: true, note: null });
+    try {
+      const r = await remote.checkFollowUps(role);
+      for (const c of new Set(r.followedUp.map((f) => f.chatId))) void qc.invalidateQueries({ queryKey: queryKeys.messages(c) });
+      const n = r.followedUp.length;
+      setState({ busy: false, note: n ? `Followed up on ${n} open ${n === 1 ? "question" : "questions"}.` : "No open questions need a follow-up right now." });
+    } catch (e) {
+      setState({ busy: false, note: (e as Error).message });
+    }
+  };
+  return (
+    <Section title="Follow-ups">
+      <p className="text-[13px] text-ink-2">Atlas nudges once when a question to a teammate goes unanswered for a day.</p>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={state.busy}
+          className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 whitespace-nowrap text-[13px] font-medium text-ink-2 transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60"
+        >
+          {state.busy ? <LoaderCircleIcon className="size-3.5 animate-spin" /> : <BellRingIcon className="size-3.5" />}
+          Check follow-ups now
+        </button>
+        {state.note && <span role="status" className="min-w-0 text-[12px] text-muted-foreground">{state.note}</span>}
+      </div>
+    </Section>
   );
 }
 

@@ -200,6 +200,33 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async setTimeZone(userId, tz) {
     (d().timeZones ??= new Map()).set(userId, tz);
   },
+  async listOpenQuestions(filter = {}) {
+    return clone([...(d().questions ?? new Map()).values()])
+      .filter((q) => !filter.status || q.status === filter.status)
+      .sort((a, b) => b.askedAt.localeCompare(a.askedAt))
+      .slice(0, 200);
+  },
+  async saveOpenQuestion(q) {
+    (d().questions ??= new Map()).set(q.id, clone(q));
+  },
+  async transitionQuestion(id, from, to, patch = {}) {
+    const q = d().questions?.get(id);
+    if (!q || !from.includes(q.status)) return false;
+    q.status = to;
+    q.resolvedAt = new Date().toISOString();
+    if (patch.followUpId !== undefined) q.followUpId = patch.followUpId;
+    if (patch.resolvedBy !== undefined) q.resolvedBy = patch.resolvedBy;
+    return true;
+  },
+  async addThreadLink(l) {
+    const links = (d().links ??= new Map());
+    if (links.has(l.key)) return false;
+    links.set(l.key, clone(l));
+    return true;
+  },
+  async listThreadLinks() {
+    return clone([...(d().links ?? new Map()).values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 300);
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

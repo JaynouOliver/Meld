@@ -151,3 +151,5 @@ export const listReminders = () => rpc<ReminderView[]>("listReminders", []);
 export const createReminder = (input: NewReminder) => rpc<{ when: string; to: string; zoneNote: string | null }>("createReminder", [input]);
 export const cancelReminder = (id: string, role?: string) => rpc<{ ok: true }>("cancelReminder", [id, role]);
 export const postDigestNow = (chatId: string) => rpc<{ messageId: string; text: string } | null>("postDigestNow", [chatId]);
+// Proactive Atlas: follow up on open questions now.
+export const checkFollowUps = (role?: string) => rpc<{ followedUp: { questionId: string; chatId: string; messageId: string }[]; answered: number; dropped: number; waiting: number }>("checkFollowUps", [role]);

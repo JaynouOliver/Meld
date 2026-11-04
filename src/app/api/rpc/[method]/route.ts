@@ -21,6 +21,7 @@ import * as agentMemory from "@/server/agents/memory";
 import * as summary from "@/server/atlas/summary";
 import * as meetingNotes from "@/server/notes";
 import * as scheduled from "@/server/scheduled";
+import * as followUps from "@/server/proactive/followups";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -57,6 +58,9 @@ const methods: Record<string, Method> = {
     const saved = await api.postMessage(input);
     // Activity is when due reminders and the morning digest go out (src/server/scheduled).
     after(() => scheduled.sweepQuietly());
+    // Free, with or without a model: does it answer a tracked question? Now and then, follow up on due ones.
+    const said = { chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me };
+    after(() => followUps.afterHumanMessage(said));
     if (!llm()) return saved;
     const runs = await dispatch({
       chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
@@ -127,6 +131,8 @@ const methods: Record<string, Method> = {
   createReminder: async (input: scheduled.CreateReminderInput) => scheduled.createReminder({ ...input, role: api.effectiveRole(input.role) }),
   cancelReminder: async (id: string, role?: Role) => scheduled.cancelReminder(id, api.effectiveRole(role)),
   postDigestNow: async (chatId: ChatId) => scheduled.postDigest(chatId, { force: true }),
+  // Proactive Atlas: follow up on open questions now (Atlas's profile card).
+  checkFollowUps: async (role?: Role) => followUps.checkFollowUps(role),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
