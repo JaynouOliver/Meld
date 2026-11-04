@@ -60,7 +60,9 @@ export function ownerCandidates(dir: Directory, t: Ticket, tickets: Ticket[]): C
       const open = theirs.filter(OPEN).length;
       const team = dir.people[id].team;
       const score = similar.reduce((n, s) => n + s.n, 0) * 3 + (team === t.team ? 2 : 0) - open * 0.2;
-      return { id, team, open, owns: [...counts].sort((a, b) => b[1] - a[1]).map(([l]) => l).slice(0, 4), similar: similar.slice(0, 2).map((s) => `${s.x.id} ${s.x.title}`), score };
+      // Similar tickets first, then their latest open work, so the model sees what each person owns.
+      const shown = [...similar.map((s) => s.x), ...theirs.filter(OPEN).reverse()].filter((x, i, all) => all.indexOf(x) === i).slice(0, 3);
+      return { id, team, open, owns: [...counts].sort((a, b) => b[1] - a[1]).map(([l]) => l).slice(0, 4), similar: shown.map((x) => `${x.id} ${x.title}`), score };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
@@ -78,7 +80,7 @@ export function triagePrompt(dir: Directory, t: Ticket, x: { labels: string[]; c
   const fields = [
     ask("labels", `"labels": 1-3 labels from the list that fit, or []`),
     ask("priority", `"priority": "Low" | "Medium" | "High" (High: customers blocked, payments, data loss, outages, launch blockers; Low: polish, nice-to-have)`),
-    ask("assignee", `"owner": the id of the best owner from the candidates (similar work first, then the right team, then fewest open), and "ownerWhy": 2-5 words like "owns webhooks"`),
+    ask("assignee", `"owner": the id of the best owner from the candidates: the person whose tickets are about the same system or code first (bugs and code go to engineers, UI and copy to designers), then fewest open; "ownerWhy": 2-5 words naming that system, like "owns Stripe webhooks"`),
     ask("due", `"due": "YYYY-MM-DD" only if the text names a date or deadline, else null`),
   ].filter(Boolean);
   return `Today: ${x.today}
@@ -88,7 +90,7 @@ Description: ${t.description.trim().slice(0, 800) || "(none)"}
 
 Labels used in this workspace: ${x.labels.join(", ") || "(none)"}
 
-Owner candidates (id | name | team | open tickets | labels on their tickets | similar tickets):
+Owner candidates (id | name | team | open tickets | labels on their tickets | their related or recent tickets):
 ${x.candidates.map((c) => `${c.id} | ${personOf(dir, c.id).name} | ${teamName(dir, c.team)} | ${c.open} | ${c.owns.join(", ") || "-"} | ${c.similar.join("; ") || "-"}`).join("\n") || "(none)"}
 
 Answer with one JSON object with these keys:
