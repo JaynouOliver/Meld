@@ -34,17 +34,17 @@ export async function seedProactive(
 
   // 1. Follow-ups. One already posted (asked ~24h ago in the #design thread, never answered).
   const asked = await store.appendMessage(ch.design, {
-    id: uid(), who: maya, time: ago(1450), text: "@Priya can you check the sidebar card still fits at 1280px wide before I hand it to engineering?",
+    id: uid(), who: maya, time: ago(1458), text: "@Priya can you check the sidebar card still fits at 1280px wide before I hand it to engineering?",
   }, posted.d1.id);
   const followUpId = `fu${uid()}`;
-  await store.appendMessage(ch.design, { id: followUpId, who: ATLAS_ID, time: ago(10), text: "@Priya, Maya's question about the sidebar card at 1280px is still open." }, posted.d1.id);
+  await store.appendMessage(ch.design, { id: followUpId, who: ATLAS_ID, time: ago(4), text: "@Priya, Maya's question about the sidebar card at 1280px is still open." }, posted.d1.id);
   const question = (q: Partial<OpenQuestion> & Pick<OpenQuestion, "chatId" | "threadId" | "messageId" | "asker" | "addressee" | "summary" | "askedAt">): OpenQuestion => ({
     id: `oq${q.messageId}`, status: "open", dueAt: new Date(Date.parse(q.askedAt) + FOLLOW_UP_AFTER_MS).toISOString(),
     followUpId: null, resolvedAt: null, resolvedBy: null, ...q,
   });
   await store.saveOpenQuestion(question({
     chatId: ch.design, threadId: posted.d1.id, messageId: asked.id, asker: maya, addressee: priya, summary: "the sidebar card at 1280px",
-    askedAt: ago(1450), status: "followed_up", followUpId, resolvedAt: ago(10),
+    askedAt: ago(1458), status: "followed_up", followUpId, resolvedAt: ago(4),
   }));
   // One open and due: Tom asked Maya for the pricing ETA in #growth. Due now so the demo
   // doesn't wait a day; the next sweep or "Check follow-ups now" posts it.
@@ -57,7 +57,7 @@ export async function seedProactive(
   const linkReply = uid();
   await store.appendMessage(ch.design, {
     id: linkReply, who: ATLAS_ID, time: ago(44),
-    text: `Related: this is also being discussed in #growth. Tom: "The email sequence (ORB-6) is waiting on final pricing from ORB-5. Maya, any ETA?" [[cite:${ch.growth}:-:${posted.gr2.id}]]`,
+    text: `Related: this is also being discussed in #growth. Tom: "The email sequence (ORB-6) is waiting on final pricing from ORB-5." [[cite:${ch.growth}:-:${posted.gr2.id}]]`,
   }, posted.d2.id);
   await store.addThreadLink({
     key: linkKey(ch.design, posted.gr2.id), chatId: ch.design, messageId: posted.d2.id, toChatId: ch.growth, toMessageId: posted.gr2.id, replyId: linkReply, createdAt: ago(44),

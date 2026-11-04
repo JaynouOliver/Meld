@@ -43,6 +43,9 @@ export async function claimLink(
   });
   if (!ok) return null;
   const said = (to.text ?? "").replace(/\s+/g, " ").replace(/\[\[cite:[^\]]*\]\]/g, "").trim();
-  const quote = said ? ` ${personOf(dir, to.who ?? "").first}: "${said.length > 90 ? `${said.slice(0, 88).trimEnd()}…` : said}"` : "";
+  // Their first sentence (or the first ~100 characters, at a word) is enough to recognize it.
+  const first = /^.{20,}?[.!?](?=\s|$)/.exec(said)?.[0] ?? said;
+  const short = first.length > 100 ? `${first.slice(0, first.lastIndexOf(" ", 97))}…` : first;
+  const quote = short ? ` ${personOf(dir, to.who ?? "").first}: "${short}"` : "";
   return `Related: this is also being discussed in #${meta.label}.${quote} [[cite:${to.chatId}:-:${to.rootId}]]`;
 }

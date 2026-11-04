@@ -206,7 +206,7 @@ function FollowUpCheck() {
           type="button"
           onClick={() => void run()}
           disabled={state.busy}
-          className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60"
+          className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input px-2.5 whitespace-nowrap text-[13px] font-medium text-ink-2 transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60"
         >
           {state.busy ? <LoaderCircleIcon className="size-3.5 animate-spin" /> : <BellRingIcon className="size-3.5" />}
           Check follow-ups now

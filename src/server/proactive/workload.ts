@@ -74,7 +74,7 @@ export async function balanceAssignment(before: Ticket | null, t: Ticket): Promi
   }
   const why = [
     s.reason.open >= OVERLOAD_OPEN ? `${assignee.first} now has ${s.reason.open} open tickets` : null,
-    s.reason.out && t.due ? `${s.reason.open >= OVERLOAD_OPEN ? "and is" : `${assignee.first} is`} out on ${fmtDay(t.due)}, when ${t.id} is due ("${s.reason.out.replace(/[.\s]+$/, "")}")` : null,
+    s.reason.out && t.due ? `${s.reason.open >= OVERLOAD_OPEN ? "and is" : `${assignee.first} is`} out on ${fmtDay(t.due)}, the due date ("${s.reason.out.replace(/[.\s]+$/, "")}")` : null,
   ].filter(Boolean);
   const text = `${why.join(" ")}. ${to.first} has ${s.toOpen} open on ${teamName(dir, to.team)}. Reassign ${t.id} to ${to.first}?`;
   const saved = await store.appendMessage(where.chat, { id: replyId, who: ATLAS_ID, time: stamp(), text, ticket: t.id, actionId: id }, where.thread);
