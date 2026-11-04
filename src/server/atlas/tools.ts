@@ -262,10 +262,28 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "process_meeting_notes",
+      description:
+        'Turn meeting notes or a transcript into a posted record: summary, decisions (logged to the decision log), action items (held on a confirm card that files them as tickets with owners and dates) and open questions (with @mentions). Use when someone shares notes or a transcript ("here are the notes from today\'s sync: …") or pastes a long meeting record. Posts its own message; then reply in one short sentence.',
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: 'The notes. Omit it when they are in the request itself (don\'t copy them): the full request is used.' },
+          title: { type: "string", description: 'The meeting\'s name if given, e.g. "Pricing sync"' },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // Agent memory changes what every later conversation sees, so it needs write.
 TOOL_GROUP.remember = TOOL_GROUP.forget = "write";
+// Meeting notes log decisions and propose tickets.
+TOOL_GROUP.process_meeting_notes = "write";
 
 /**
  * Changes staged during one Atlas run, keyed by ticket. Nothing is written until the
@@ -301,6 +319,8 @@ export interface ToolCtx {
   allowed?: AgentTool[];
   /** Who signs comments: the running agent (Atlas when not given). */
   agentId?: PersonId;
+  /** The request as the person wrote it (meeting notes are read from it, not re-typed by the model). */
+  request?: string;
 }
 
 const STOP = new Set(["the", "a", "an", "to", "for", "of", "on", "in", "and", "or", "with", "add", "fix", "make", "new"]);
@@ -321,6 +341,8 @@ function likelyDuplicate(title: string, tickets: Ticket[]): Ticket | null {
 }
 
 type Args = Record<string, unknown>;
+/** Meeting notes already posted by a run (keyed by the run's effects). */
+const notesPosted = new WeakMap<Effects, Record<string, unknown>>();
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 const err = (message: string) => ({ ok: false as const, error: message });
 const clone = <T,>(x: T): T => structuredClone(x);
@@ -611,6 +633,35 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if ("ok" in t) return t;
       const found = visibleHits(await store.messagesMentioning(t.id, 12));
       return { ok: true, ticket: ticketLine(t), messages: found.reverse().map(hitLine) };
+    }
+    case "process_meeting_notes": {
+      if (role === "guest") return err("Guests can't add meeting notes.");
+      // Once per run: a second call would post the same notes twice.
+      const done = notesPosted.get(effects);
+      if (done) return { ...done, note: "Already posted in this conversation. Don't call process_meeting_notes again; reply in one short sentence." };
+      if (currentDir().chats[ctx.where]?.kind !== "channel") return err("Meeting notes go in a channel, so the team sees the decisions and owners. Ask in one.");
+      // The notes are usually the request itself: use it rather than the model's copy, which can drop lines.
+      const given = str(args.text) ?? "";
+      const request = (ctx.request ?? "").replace(/^\s*@\w+[,:]?\s*/, "");
+      const text = request.length > given.length ? request : given;
+      const { processMeetingNotes } = await import("../notes");
+      try {
+        const out = await processMeetingNotes({ text, title: str(args.title), chatId: ctx.where, threadId: ctx.threadId ?? null, role, who: ctx.agentId });
+        const { pingChanges } = await import("../realtime");
+        await pingChanges({
+          chats: [ctx.where], tickets: false, decisions: out.decisions.length > 0, origin: null, workspaceId: currentDir().workspace.id,
+          message: { chatId: ctx.where, threadId: ctx.threadId ?? null, message: out.message },
+        });
+        const result = {
+          ok: true, posted: `Notes: ${out.extraction.title}`, decisions_logged: out.decisions.length, tickets_to_confirm: out.proposed.length,
+          already_tracked: out.reused, open_questions: out.extraction.questions.length,
+          note: "Done: the notes message is posted above your reply, with a confirm card for the tickets. Don't call this tool again. Reply in one short sentence (e.g. what to confirm); don't repeat the notes.",
+        };
+        notesPosted.set(effects, result);
+        return result;
+      } catch (e) {
+        return err((e as Error).message);
+      }
     }
     default:
       return err(`Unknown tool ${name}.`);
