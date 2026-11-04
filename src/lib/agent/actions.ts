@@ -67,7 +67,7 @@ export function permissionProblem(ops: TicketOp[], v: Viewer): string | null {
   return null;
 }
 
-const FIELDS = ["title", "description", "status", "priority", "assignee", "team", "links", "blockedBy"] as const;
+const FIELDS = ["title", "description", "status", "priority", "assignee", "team", "links", "blockedBy", "due"] as const;
 
 /**
  * Apply ops. Updates are applied field by field on top of the ticket's current

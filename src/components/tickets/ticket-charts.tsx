@@ -26,7 +26,6 @@ import { useUiStore } from "@/stores/ui-store";
 const noopSubscribe = () => () => {};
 
 export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; scope?: TicketScope }) {
-  const [timeframe, setTimeframe] = useState<"7D" | "30D" | "QTD">("7D");
   const openTicket = useUiStore((s) => s.openTicket);
   const setTicketQuery = useUiStore((s) => s.setTicketQuery);
   const dir = useDirectory();
@@ -41,6 +40,15 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
   const linkedCount = activeTickets.filter((t) => t.links.length > 0).length;
   const atlasFiledCount = activeTickets.filter((t) => t.reporter === ATLAS_ID).length;
   const prPercent = total > 0 ? Math.round((linkedCount / total) * 100) : 0;
+  // Everything below is computed from the tickets in view: no placeholder numbers.
+  const donePct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+  const byId = new Map(activeTickets.map((t) => [t.id, t]));
+  const blockedCount = activeTickets.filter(
+    (t) => t.status !== "Done" && (t.blockedBy ?? []).some((b) => byId.get(b) && byId.get(b)!.status !== "Done"),
+  ).length;
+  const agentFiled = activeTickets.filter((t) => personOf(dir, t.reporter).isAgent).length;
+  const agentPct = total > 0 ? Math.round((agentFiled / total) * 100) : 0;
+  const agentOwned = activeTickets.filter((t) => t.status !== "Done" && personOf(dir, t.assignee).isAgent).length;
 
   // Stalled or attention items: In review tickets or high-priority unstarted
   const attentionTickets = activeTickets.filter(
@@ -67,21 +75,6 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
               Your tickets ({total})
             </span>
           )}
-          <div role="group" aria-label="Timeframe" className="inline-flex rounded-md border border-border bg-muted p-0.5 text-2xs font-medium">
-            {(["7D", "30D", "QTD"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTimeframe(t)}
-                className={cn(
-                  "rounded-[4px] px-2 py-1 transition-colors cursor-pointer",
-                  timeframe === t ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -92,14 +85,14 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
           <div className="flex items-center justify-between">
             <span className="text-2xs font-semibold text-muted-foreground">Completed</span>
             <span className="inline-flex items-center gap-0.5 rounded-sm bg-success-soft px-1.5 py-0.5 text-2xs font-medium text-success">
-              +14% vs 7d
+              {donePct}% done
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl font-semibold text-foreground tabular">{doneCount}</span>
             <span className="text-xs text-muted-foreground">/ {total} closed</span>
           </div>
-          <p className="text-2xs text-ink-2 truncate">Avg 1.8d turnaround · 0 blocked</p>
+          <p className="text-2xs text-ink-2 truncate">{inProgressCount} in progress · {blockedCount} blocked</p>
         </div>
 
         {/* KPI 2: Atlas AI Automation Impact */}
@@ -110,14 +103,14 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
               Agent activity
             </span>
             <span className="inline-flex items-center gap-0.5 rounded-sm bg-agent px-1.5 py-0.5 text-2xs font-medium text-agent-foreground border border-agent-border">
-              44% auto
+              {agentPct}% of tickets
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-semibold text-foreground tabular">32</span>
-            <span className="text-xs text-muted-foreground">agent actions</span>
+            <span className="text-xl font-semibold text-foreground tabular">{agentFiled}</span>
+            <span className="text-xs text-muted-foreground">filed by agents</span>
           </div>
-          <p className="text-2xs text-ink-2 truncate">~6.5h manual ticket work saved</p>
+          <p className="text-2xs text-ink-2 truncate">{agentOwned} open ticket{agentOwned === 1 ? "" : "s"} owned by agents</p>
         </div>
 
         {/* KPI 3: Review Dwell Time & SLA */}
@@ -128,14 +121,14 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
               Time in review
             </span>
             <span className="inline-flex items-center gap-0.5 rounded-sm bg-success-soft px-1.5 py-0.5 text-2xs font-medium text-success">
-              Healthy
+              {inReviewCount > 3 ? "Backed up" : "OK"}
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-semibold text-foreground tabular">14h</span>
-            <span className="text-xs text-muted-foreground">avg in review</span>
+            <span className="text-xl font-semibold text-foreground tabular">{inReviewCount}</span>
+            <span className="text-xs text-muted-foreground">in review</span>
           </div>
-          <p className="text-2xs text-ink-2 truncate">{inReviewCount} pending review · 0 breached (&gt;48h)</p>
+          <p className="text-2xs text-ink-2 truncate">{todoCount} to do · {inProgressCount} in progress</p>
         </div>
 
         {/* KPI 4: Engineering Linkage */}
@@ -292,7 +285,7 @@ export function TicketCharts({ tickets, scope = "all" }: { tickets: Ticket[]; sc
 
           <div className="mt-2 pt-2 border-t border-line-soft text-2xs text-muted-foreground flex items-center justify-between">
             <span>{atlasFiledCount} tickets filed via Atlas chat</span>
-            <span className="font-medium text-ink-2">100% within review target</span>
+            <span className="font-medium text-ink-2">{doneCount} done</span>
           </div>
         </div>
       </div>

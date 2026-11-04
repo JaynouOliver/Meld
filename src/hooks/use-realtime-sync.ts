@@ -41,7 +41,7 @@ export function useRealtimeSync() {
       })
       .on("broadcast", { event: "changed" }, ({ payload }) => {
         const ping = payload as {
-          chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; missions?: boolean; origin: string | null;
+          chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; missions?: boolean; decisions?: boolean; origin: string | null;
           message?: { chatId: ChatId; threadId: string | null; message: Message | ReplyNode };
         };
         // Someone's Atlas run was queued, started or finished.
@@ -53,6 +53,8 @@ export function useRealtimeSync() {
           qc.invalidateQueries({ queryKey: queryKeys.missions });
           qc.invalidateQueries({ queryKey: queryKeys.decisions });
         }
+        // The team's decision memory (logged, flagged, reopened).
+        if (ping.decisions || ping.missions) qc.invalidateQueries({ queryKey: queryKeys.teamDecisions });
         if (ping.origin === CLIENT_ID) return; // our own change: mutations already handled it
         // A new message rides along with the ping: add it directly, no refetch.
         const live = ping.message;

@@ -41,7 +41,7 @@ async function main() {
   await launchMission("ms1", "owner");
   let tickets = (await store.listTickets()).filter((t) => t.missionId === "ms1");
   assert.equal(tickets.length, 3);
-  const [a, b, c] = ["a", "b", "c"].map((k) => tickets.find((t) => t.title === `Task ${k}`)!);
+  const [a, b] = ["a", "b"].map((k) => tickets.find((t) => t.title === `Task ${k}`)!);
   assert.deepEqual(b.blockedBy, [a.id]);
   assert.equal(a.due, day(1));
   await assert.rejects(launchMission("ms1", "owner"), /already launched/);

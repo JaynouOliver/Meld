@@ -197,17 +197,31 @@ export async function createSandbox(me: { id: string; first: string }) {
     ]],
   ];
   // Channels fill in parallel; each one in order (so threads follow their roots).
+  const posted: Record<string, { id: string; root: string | null }> = {};
   await Promise.all([
     ...conversations.map(async ([channel, msgs]) => {
       for (const m of msgs) {
         const root = await store.appendMessage(ch[channel], { id: uid(), who: m.who, time: ago(m.min), text: m.text, ticket: m.ticket ?? null });
-        for (const r of m.replies ?? []) await store.appendMessage(ch[channel], { id: uid(), who: r.who, time: ago(r.min), text: r.text }, root.id);
+        posted[m.k] = { id: root.id, root: null };
+        for (const r of m.replies ?? []) {
+          const reply = await store.appendMessage(ch[channel], { id: uid(), who: r.who, time: ago(r.min), text: r.text }, root.id);
+          posted[r.k] = { id: reply.id, root: root.id };
+        }
       }
     }),
     store.appendMessage(dm[maya], { id: uid(), who: maya, time: ago(70), text: "Hey! Could you look at the pricing page mocks before Wednesday? Tom's emails (ORB-6) are waiting on them." }),
     store.appendMessage(dm[jonas], { id: uid(), who: jonas, time: ago(30), text: "Stripe test-mode keys expire on Friday and I don't have dashboard access. Can you rotate them?" }),
   ]);
 
+  // Decision memory: the #design thread settled where the onboarding checklist lives.
+  // Proposing a modal again gets pointed back to it (and why).
+  await store.saveTeamDecision({
+    id: `td${uid()}`, topic: "Onboarding checklist placement", statement: "The onboarding checklist is a sidebar card with 4 steps that disappears when done, not a modal.",
+    rationale: "Modals get dismissed and forgotten; a persistent card keeps setup visible until it's finished.", rejected: ["Modal on first login"],
+    deciders: [maya, priya, sofia, me.id], chatId: ch.design, threadId: posted.d1.id, messageId: posted.d1d.id, status: "active", supersededBy: null,
+    flags: 0, lastFlaggedAt: null, source: "chat", createdAt: ago(1460),
+  });
+  await store.react(posted.d1d.id, "📌", ATLAS_ID, true).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }

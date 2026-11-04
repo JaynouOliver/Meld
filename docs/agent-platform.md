@@ -109,3 +109,14 @@ A mission is a goal with a date that the agents drive to done (`src/server/missi
 5. **Done** when every remaining ticket is done; announced in the thread.
 
 Tests: `npm run test:missions` (no model). The demo sandbox seeds "Launch paid plans" with a day-late task, so one check-in shows the whole loop.
+
+## Listener: decision memory and tickets that keep themselves true
+
+After every message from a person in a channel Atlas is in (`src/server/listener`), once the response is sent, Atlas reads it with its conversation (the thread, or the channel's last messages), the team's active decisions, and the speaker's open tickets. That's one fast model call (`analyze.ts`, minimal reasoning, about 1.5–3.5 s), and everything it returns is checked against real data. Messages that @mention an agent are left to that agent. For most messages it does nothing.
+
+- **Decision settled** ("Agreed: sidebar card, not a modal"): logged in `team_decisions` with the statement, the why, the rejected options and who took part; 📌 on the message; one line in its thread. A decision that reverses an earlier one marks it *replaced*.
+- **Going against a decision** elsewhere: a heads-up in the message's thread with who decided, when, why, and a link to where. Never inside the thread that made the decision. The decision counts how often it was re-raised.
+- **Progress on the speaker's own tickets** ("it's up for review", "blocked on ORB-5", "pushing to Friday"): status, blocker or due date changes, applied as the speaker (their role), with Undo.
+- **Commitments** ("I'll write the release notes by Friday"): a ticket for the speaker with that due date, following the conversation it came from. Same Undo.
+
+The Decisions page lists the log (search, reopen). Atlas's `search_decisions` tool answers "why did we…?". Mission decisions people answer are logged too. Tests: `npm run test:listener` (no model).

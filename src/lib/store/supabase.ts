@@ -4,6 +4,7 @@ import { toView, type ActionRecord } from "../agent/actions";
 import { RUN_MAX_ATTEMPTS, RUN_RECENT_MS, RUN_STALE_MS, type AgentRun } from "../agent/runs";
 import { todayIndex } from "../format";
 import type { Decision, Mission, MissionEvent } from "../missions";
+import type { TeamDecision } from "../team-decisions";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
@@ -87,6 +88,17 @@ interface DecisionRow {
 const decisionFrom = (r: DecisionRow): Decision => ({
   id: r.id, missionId: r.mission_id, question: r.question, options: r.options ?? [], context: r.context, status: r.status, answer: r.answer,
   answeredBy: r.answered_by, answeredAt: r.answered_at, createdAt: r.created_at, actions: r.actions ?? {},
+});
+
+interface TeamDecisionRow {
+  id: string; topic: string; statement: string; rationale: string; rejected: string[] | null; deciders: string[] | null; chat_id: string;
+  thread_id: string | null; message_id: string; status: TeamDecision["status"]; superseded_by: string | null; flags: number;
+  last_flagged_at: string | null; source: TeamDecision["source"]; created_at: string;
+}
+const teamDecisionFrom = (r: TeamDecisionRow): TeamDecision => ({
+  id: r.id, topic: r.topic, statement: r.statement, rationale: r.rationale, rejected: r.rejected ?? [], deciders: r.deciders ?? [],
+  chatId: r.chat_id, threadId: r.thread_id, messageId: r.message_id, status: r.status, supersededBy: r.superseded_by, flags: r.flags,
+  lastFlaggedAt: r.last_flagged_at, source: r.source, createdAt: r.created_at,
 });
 
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
@@ -247,6 +259,20 @@ export function supabaseStore(ws: string): Store {
         answer: x.answer, answered_by: x.answeredBy, answered_at: x.answeredAt, created_at: x.createdAt, actions: x.actions ?? {},
       }),
       "save decision",
+    );
+  },
+  async listTeamDecisions() {
+    const rows = check(await sb().from("team_decisions").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(200), "team decisions") as TeamDecisionRow[];
+    return rows.map(teamDecisionFrom);
+  },
+  async saveTeamDecision(x) {
+    check(
+      await sb().from("team_decisions").upsert({
+        id: x.id, workspace_id: ws, topic: x.topic, statement: x.statement, rationale: x.rationale, rejected: x.rejected, deciders: x.deciders,
+        chat_id: x.chatId, thread_id: x.threadId, message_id: x.messageId, status: x.status, superseded_by: x.supersededBy, flags: x.flags,
+        last_flagged_at: x.lastFlaggedAt, source: x.source, created_at: x.createdAt,
+      }),
+      "save team decision",
     );
   },
   async addMissionEvent(e) {

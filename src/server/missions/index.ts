@@ -11,6 +11,7 @@ import type { ChatId, Ticket } from "@/lib/types";
 import { dispatch, runsWeExecute } from "../agents/dispatch";
 import { processRun } from "../atlas/queue";
 import { pingChanges } from "../realtime";
+import { rememberMissionDecision } from "../listener/decisions";
 import { planMission } from "./planner";
 
 /**
@@ -384,6 +385,8 @@ export async function answerDecision(decisionId: string, answer: string, request
   if (!m) throw new ApiError("That mission doesn't exist", 404);
 
   await store.saveDecision({ ...d, status: "answered", answer: choice, answeredBy: dir.me, answeredAt: new Date().toISOString() });
+  // Part of the team's decision memory from now on (linked to the mission thread).
+  if (m.threadId) await rememberMissionDecision({ question: d.question, answer: choice, chatId: m.chatId, threadId: m.threadId, messageId: m.threadId, by: dir.me });
   const who = personOf(dir, dir.me).name;
   await event(m, "decision", `${who} decided: ${choice}`, dir.me);
 
