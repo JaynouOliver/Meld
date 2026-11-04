@@ -21,7 +21,8 @@
     "test:skills": "DATA_STORE=memory tsx --conditions=react-server evals/agent-skills.test.ts",
     "test:notes": "DATA_STORE=memory tsx --conditions=react-server evals/meeting-notes.test.ts",
     "test:scheduled": "DATA_STORE=memory tsx --conditions=react-server evals/scheduled.test.ts",
-    "test:proactive": "DATA_STORE=memory tsx --conditions=react-server evals/proactive.test.ts"
+    "test:proactive": "DATA_STORE=memory tsx --conditions=react-server evals/proactive.test.ts",
+    "test:automation": "DATA_STORE=memory tsx --conditions=react-server evals/automation.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

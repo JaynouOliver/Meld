@@ -261,6 +261,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await (await import("./seeds/meeting-notes")).seedMeetingNotes(store, { me: me.id, product: ch.product, people: { maya, jonas, priya, tom, sofia } });
   await seedScheduled(store, { me, ch, ag, ids, posted, people: { maya, jonas, priya, sofia, tom } });
   await (await import("./seeds/proactive")).seedProactive(store, { me: me.id, workspaceId: wsId, ch, posted, people: { maya, jonas, priya, tom, sofia } });
+  await (await import("./seeds/automation")).seedAutomation(store, { me: me.id, ch, ag, ids, people: { jonas, priya, sofia } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }
 

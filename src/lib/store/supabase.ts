@@ -11,6 +11,7 @@ import type { OpenQuestion, ThreadLink } from "../proactive";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
+import { automationSupabase } from "./automation-supabase";
 import type { Store } from "./types";
 
 /**
@@ -431,6 +432,7 @@ export function supabaseStore(ws: string): Store {
     const rows = check(await sb().from("thread_links").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(300), "thread links") as LinkRow[];
     return rows.map(linkFrom);
   },
+  ...automationSupabase(ws),
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.
     check(await sb().from("messages").delete().eq("workspace_id", ws).eq("chat_id", chatId).not("thread_id", "is", null), "delete replies");
@@ -568,6 +570,9 @@ export function supabaseStore(ws: string): Store {
     const db = sb();
     check(await db.from("agent_runs").delete().eq("workspace_id", ws).neq("id", ""), "clear runs");
     check(await db.from("agent_actions").delete().eq("workspace_id", ws).neq("id", ""), "clear actions");
+    // Ticket ids restart from the seed: forget which were triaged or ran playbooks.
+    check(await db.from("ticket_triages").delete().eq("workspace_id", ws).neq("ticket_id", ""), "clear triages");
+    check(await db.from("playbook_runs").delete().eq("workspace_id", ws).neq("id", ""), "clear playbook runs");
     // Order matters: replies reference their thread roots.
     check(await db.from("events").delete().eq("workspace_id", ws).gte("id", 0), "clear events");
     check(await db.from("messages").delete().eq("workspace_id", ws).not("thread_id", "is", null), "clear replies");
