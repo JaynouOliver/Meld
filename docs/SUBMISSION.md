@@ -55,32 +55,12 @@ https://github.com/JaynouOliver/Meld
 
 ## 9. Describe your use of Meta products to build the submitted project (required)
 
-Every agent in Meld runs on the Meta Model API. We call it through its OpenAI-compatible Chat Completions endpoint with the OpenAI SDK, server-side only.
+Every agent in Meld runs on the Meta Model API, through its OpenAI-compatible endpoint.
 
-We use two Muse Spark models, chosen by our own evals:
-- **Muse Spark 1.3** powers the agents that reason and act. That includes Atlas's chat agent (tool calling with streamed replies), the mission planner and check-ins, meeting notes, thread summaries, "What did I miss?" and Sunny's digest.
-  - Atlas works through tools: searching messages, tickets and decisions; creating, updating and commenting on tickets; remembering facts; setting reminders; and starting missions.
-  - Every write goes through our action layer, so it's permission-checked and can be undone.
-- **Muse Spark 1.2** handles the checks that run on every message: the listener (does this message settle a decision, go against one, report progress on a ticket, or commit to new work?) and ticket triage.
-  - On our 28-case listener eval it matched 1.3 (28/28) at about 2.3 times the speed, so the listener answers in about a second.
-  - We kept Atlas on 1.3 because 1.2 failed a permissions case in our 32-case Atlas eval.
+- Muse Spark 1.3 does the reasoning and acting: answering questions, turning threads into tickets, planning missions and processing meeting notes, using tool calling and streaming.
+- Muse Spark 1.2 reads every chat message to spot decisions, progress and commitments. It scored the same as 1.3 on our 28-case test at about 2.3x the speed, so it replies in about a second.
 
-API features we rely on:
-- **`reasoning_effort`:** "minimal" for questions and planning, "low" when Atlas is about to change data. Combined with streaming, this cut mission planning from 31 seconds to about 8, with tasks appearing one by one.
-- **`prompt_cache_key`** per workspace, so the long shared prompt prefix is reused across calls.
-- **Tool calling and streaming** for Atlas.
-
-What we built around the models to make them dependable:
-- **Evals:**
-  - 32 Atlas cases covering questions, thread-to-tickets, permissions and decisions. All pass.
-  - 28 listener cases.
-  - A prefilter eval.
-- **Cost control:** a free prefilter skips most chat ("lunch?", "sounds good") before any model call. A message that passes gets exactly one model call.
-- **Guardrails:**
-  - A 15-second timeout with retries.
-  - Malformed tool arguments are repaired, and the model is asked to retry.
-  - A self-check catches a reply that claims an action without calling the tool.
-  - Everything the model proposes is validated against the real tickets, people, dates and permissions before anything changes.
+We picked each model with our own evals (32 cases for the main agent, all passing), set reasoning effort per call (planning went from 31 s to about 8 s), and cache prompts per workspace.
 
 ## 10. Why are Meta's models important to your solution? (required)
 
