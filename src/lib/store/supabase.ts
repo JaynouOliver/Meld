@@ -34,13 +34,22 @@ interface TicketRow {
   blocked_by: string[];
   mission_id: string | null;
   due: string | null;
+  labels: string[];
+  estimate: number | string | null;
+  checklist: NonNullable<Ticket["checklist"]>;
+  comments: NonNullable<Ticket["comments"]>;
 }
 const toRow = (t: Ticket): TicketRow => ({
   id: t.id, team: t.team, title: t.title, description: t.description, status: t.status, priority: t.priority,
   assignee: t.assignee, reporter: t.reporter, links: t.links, images: t.images, watch: t.watch,
   activity: t.activity, updated: t.updated, blocked_by: t.blockedBy ?? [], mission_id: t.missionId ?? null, due: t.due ?? null,
+  labels: t.labels ?? [], estimate: t.estimate ?? null, checklist: t.checklist ?? [], comments: t.comments ?? [],
 });
-const fromRow = ({ blocked_by, mission_id, due, ...r }: TicketRow): Ticket => ({ ...r, blockedBy: blocked_by ?? [], missionId: mission_id ?? null, due: due ?? null });
+const fromRow = ({ blocked_by, mission_id, due, labels, estimate, checklist, comments, ...r }: TicketRow): Ticket => ({
+  ...r, blockedBy: blocked_by ?? [], missionId: mission_id ?? null, due: due ?? null,
+  // numeric can arrive as a string, depending on the client.
+  labels: labels ?? [], estimate: estimate == null ? null : Number(estimate), checklist: checklist ?? [], comments: comments ?? [],
+});
 
 interface MessageRow {
   workspace_id?: string;
