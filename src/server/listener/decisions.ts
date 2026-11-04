@@ -45,10 +45,10 @@ export async function searchTeamDecisions(query: string) {
 }
 
 /** A mission decision someone answered becomes part of the team's decision memory too. */
-export async function rememberMissionDecision(input: { question: string; answer: string; chatId: string; threadId: string | null; messageId: string; by: string }) {
+export async function rememberMissionDecision(input: { topic: string; statement: string; rationale: string; chatId: string; threadId: string | null; messageId: string; by: string }) {
   const { store } = currentCtx();
   await store.saveTeamDecision({
-    id: `td${uid()}`, topic: input.question.replace(/\?$/, "").slice(0, 60), statement: `${input.question} ${input.answer}.`, rationale: "",
+    id: `td${uid()}`, topic: input.topic.slice(0, 60), statement: input.statement.slice(0, 300), rationale: input.rationale.slice(0, 300),
     rejected: [], deciders: [input.by], chatId: input.chatId, threadId: input.threadId, messageId: input.messageId, status: "active",
     supersededBy: null, flags: 0, lastFlaggedAt: null, source: "mission", createdAt: new Date().toISOString(),
   });

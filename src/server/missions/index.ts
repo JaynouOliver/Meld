@@ -386,7 +386,15 @@ export async function answerDecision(decisionId: string, answer: string, request
 
   await store.saveDecision({ ...d, status: "answered", answer: choice, answeredBy: dir.me, answeredAt: new Date().toISOString() });
   // Part of the team's decision memory from now on (linked to the mission thread).
-  if (m.threadId) await rememberMissionDecision({ question: d.question, answer: choice, chatId: m.chatId, threadId: m.threadId, messageId: m.threadId, by: dir.me });
+  if (m.threadId) {
+    const slip = !!d.actions?.[choice];
+    await rememberMissionDecision({
+      topic: slip ? `${m.title}: date or scope` : d.question.replace(/\?$/, ""),
+      statement: slip ? `${choice.replace(/ \(.*\)$/, "")} to keep "${m.title}" on track.` : `${choice}.`,
+      rationale: d.context,
+      chatId: m.chatId, threadId: m.threadId, messageId: m.threadId, by: dir.me,
+    });
+  }
   const who = personOf(dir, dir.me).name;
   await event(m, "decision", `${who} decided: ${choice}`, dir.me);
 
