@@ -32,7 +32,9 @@ function hash(s: string) {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36);
 }
-export const suggestionId = (ticketId: string, assignee: string) => `wl${hash(`${ticketId}|${assignee}`)}${hash(ticketId)}`;
+/** Stable per workspace, ticket and person (agent action ids are unique across all workspaces). */
+export const suggestionId = (workspaceId: string, ticketId: string, assignee: string) =>
+  `wl${hash(`${workspaceId}|${ticketId}|${assignee}`)}${hash(`${workspaceId}|${ticketId}`)}`;
 
 const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -46,7 +48,7 @@ export async function balanceAssignment(before: Ticket | null, t: Ticket): Promi
   if (!assignee || assignee.isAgent) return null;
   // Taking it yourself is your call; an external agent (MCP) has no one to ask; a custom agent's run sees only its chats.
   if (t.assignee === dir.me || agentById(dir, dir.me) || (ctx.scopedTo && ctx.scopedTo !== ATLAS_ID)) return null;
-  const id = suggestionId(t.id, t.assignee);
+  const id = suggestionId(currentCtx().dir.workspace.id, t.id, t.assignee);
   if (await store.getAction(id)) return null;
 
   const [tickets, memories] = await Promise.all([store.listTickets(), store.listAgentMemories()]);

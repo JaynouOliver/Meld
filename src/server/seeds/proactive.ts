@@ -22,6 +22,7 @@ export async function seedProactive(
   store: Store,
   x: {
     me: string;
+    workspaceId: string;
     ch: Record<string, string>;
     posted: Record<string, { id: string; root: string | null }>;
     people: Record<"maya" | "jonas" | "priya" | "tom" | "sofia", string>;
@@ -95,7 +96,7 @@ export async function seedProactive(
   await store.addAgentMemory({ id: `mem${uid()}`, agentId: "team", text: "Priya Raman is out on Monday.", createdBy: priya, createdAt: ago(200) });
 
   // The pending suggestion for ORB-17, as balanceAssignment posts it.
-  const id = suggestionId(mobile.id, priya);
+  const id = suggestionId(x.workspaceId, mobile.id, priya);
   const op: TicketOp = { type: "update", before: structuredClone(mobile), after: { ...structuredClone(mobile), assignee: jonas }, changes: ["assignee → Jonas Weber"] };
   const action: ActionRecord = {
     id, chatId: ch.engineering, messageId: `${id}m`, status: "pending", ops: [op], destructive: false, undoUntil: null, createdAt: ago(25),

@@ -236,16 +236,16 @@ async function workload() {
   await decideAction({ id: card.action!.id, decision: "undo", role: "owner" });
   assert.equal((await store.getTicket("W1"))!.assignee, "priya");
   assert.equal((await store.listMessages("eng")).length, before + 1);
-  assert.ok(await store.getAction(suggestionId("W1", "priya")));
+  assert.ok(await store.getAction(suggestionId("ws-proactive", "W1", "priya")));
 
   // Taking a ticket yourself, or a light load: nothing. No watch channel: the assigner's Atlas DM.
   await store.insertTicket(t("W2", "alex"));
   dir.me = "priya";
   await store.saveTicket({ ...(await store.getTicket("W2"))!, assignee: "priya" });
   dir.me = "alex";
-  assert.equal(await store.getAction(suggestionId("W2", "priya")), null, "self-assigned");
+  assert.equal(await store.getAction(suggestionId("ws-proactive", "W2", "priya")), null, "self-assigned");
   await store.insertTicket(t("W3", "jonas", { due: null }));
-  assert.equal(await store.getAction(suggestionId("W3", "jonas")), null, "Jonas isn't overloaded");
+  assert.equal(await store.getAction(suggestionId("ws-proactive", "W3", "jonas")), null, "Jonas isn't overloaded");
   await store.insertTicket(t("W4", "priya"));
   msgs = await store.listMessages("atlasdm");
   assert.equal(msgs.length, 1);
@@ -264,3 +264,9 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// Agent action ids are global: two workspaces with the same ticket and person must not collide
+// (this broke every demo after the first).
+import assert2 from "node:assert/strict";
+import { suggestionId as sid } from "../src/server/proactive/workload";
+assert2.notEqual(sid("ws-a", "ORB-17", "orb-priya"), sid("ws-b", "ORB-17", "orb-priya"));
