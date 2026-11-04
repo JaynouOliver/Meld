@@ -426,6 +426,8 @@ async function main() {
   const run = cases.filter((c) => !filter || c.name.toLowerCase().includes(filter));
   let pass = 0;
   let cost = 0;
+  const times: number[] = [];
+  let tokIn = 0, tokCached = 0, tokOut = 0;
   for (const c of run) {
     resetDb();
     if (c.name.startsWith("injection")) {
@@ -439,10 +441,19 @@ async function main() {
     if (ok) pass++;
     // Muse Spark 1.3 standard pricing: $1.25 in, $0.15 cached in, $4.25 out per 1M tokens.
     cost += ((trace.usage.prompt - trace.usage.cached) * 1.25 + trace.usage.cached * 0.15 + trace.usage.completion * 4.25) / 1e6;
+    times.push(trace.ms);
+    tokIn += trace.usage.prompt;
+    tokCached += trace.usage.cached;
+    tokOut += trace.usage.completion;
     console.log(`${ok ? "PASS" : "FAIL"}  ${c.name}  (${trace.ms}ms, tools: ${trace.tools.map((t) => t.name).join(",") || "-"})`);
     if (!ok) console.log(`      ${verdict}\n      reply: ${trace.reply}\n      raw:   ${JSON.stringify(trace.rawReply)}\n      citations: ${JSON.stringify(trace.citations)}`);
   }
-  console.log(`\n${pass}/${run.length} passed · est. cost $${cost.toFixed(4)}`);
+  times.sort((a, b) => a - b);
+  const per = (n: number) => Math.round(n / run.length);
+  console.log(
+    `\n${pass}/${run.length} passed · est. cost $${cost.toFixed(4)} · median ${times[Math.floor(times.length / 2)]}ms p90 ${times[Math.floor(times.length * 0.9)]}ms · ` +
+      `tokens/run in ${per(tokIn)} (cached ${per(tokCached)}) out ${per(tokOut)}`,
+  );
   process.exit(pass === run.length ? 0 : 1);
 }
 

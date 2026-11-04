@@ -67,7 +67,7 @@ export async function planMission(input: {
   const agents = agentsOf(dir).filter(
     (a) => a.id !== ATLAS_ID && agentModeIn(dir, input.chatId, a.id),
   );
-  const chat = (await store.listMessages(input.chatId)).slice(-25);
+  const chat = (await store.listMessages(input.chatId, { limit: 25 })).slice(-25);
   const meta = dir.chats[input.chatId];
 
   const prompt = `Plan this mission for the team.

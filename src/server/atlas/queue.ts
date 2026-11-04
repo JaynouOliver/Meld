@@ -70,7 +70,7 @@ async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
   // Proactive (lurk / active): first decide whether this is ours to answer at all.
   const meta = dir.chats[run.chatId];
   if (run.trigger === "proactive") {
-    const list = await store.listMessages(run.chatId);
+    const list = await store.listMessages(run.chatId, { limit: 30 });
     const recent = run.threadId ? (() => { const r = list.find((m) => m.id === run.threadId); return r ? [r, ...r.replies] : []; })() : list;
     const go = await shouldRespond({
       agent, mode: agentModeIn(dir, run.chatId, agent.id) ?? "lurk", dir, recent: recent as Message[], text: run.text,

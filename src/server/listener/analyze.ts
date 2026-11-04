@@ -5,7 +5,7 @@ import { personOf } from "@/lib/directory";
 import { displayTime } from "@/lib/format";
 import type { TeamDecision } from "@/lib/team-decisions";
 import type { ChatId, Message, PersonId, Ticket, TicketStatus } from "@/lib/types";
-import { ATLAS_MODEL, llm } from "../llm";
+import { FAST_MODEL, llm } from "../llm";
 
 /**
  * One fast model call per message from a person (docs/agent-platform.md, "Listener"):
@@ -21,6 +21,9 @@ export interface Analysis {
 }
 
 export const NOTHING: Analysis = { decision: null, conflict: null, updates: [], commitment: null };
+
+/** The listener runs on every message from a person: the fastest model that's accurate enough (evals/listener-eval.ts). */
+export const LISTENER_MODEL = process.env.LISTENER_MODEL ?? FAST_MODEL;
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const STATUSES: TicketStatus[] = ["To do", "In progress", "In review", "Done"];
@@ -79,7 +82,7 @@ New message from ${speaker.name}:
 ${input.text.slice(0, 1500)}`;
 
   const res = await client.chat.completions.create({
-    model: ATLAS_MODEL,
+    model: LISTENER_MODEL,
     reasoning_effort: "minimal",
     prompt_cache_key: `meld-listener-v1-${dir.workspace.id}`,
     messages: [

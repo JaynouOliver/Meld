@@ -140,3 +140,15 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// The free prefilter: chatter is skipped, anything that could matter goes to the model.
+import { mayMatter } from "../src/server/listener/prefilter";
+{
+  const decisions = [{ topic: "Onboarding checklist placement", statement: "Sidebar card, not a modal.", rejected: ["Modal on first login"], status: "active" as const }];
+  for (const s of ["sounds good", "lol yes", "brb grabbing coffee", "great work team", "Who's in for lunch?"]) assert.equal(mayMatter(s, decisions, "ORB"), false, s);
+  for (const s of [
+    "I'll write the migration guide by Thursday", "webhooks are merged", "blocked on ORB-3", "orb 12 is ready", "Agreed, weekly emails",
+    "what if the onboarding checklist was a modal?", "Mocks are in Figma, feedback welcome",
+  ]) assert.equal(mayMatter(s, decisions, "ORB"), true, s);
+  console.log("prefilter: all checks passed");
+}

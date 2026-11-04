@@ -11,6 +11,7 @@ import type { ChatId, PersonId, Role, Ticket } from "@/lib/types";
 import { llm } from "../llm";
 import { pingChanges } from "../realtime";
 import { analyze, type Analysis } from "./analyze";
+import { mayMatter } from "./prefilter";
 
 /**
  * The listener (docs/agent-platform.md): after a person's message is saved and the
@@ -52,7 +53,13 @@ export async function listen(m: Heard) {
   if (!shouldListen(m)) return;
   const started = Date.now();
   const { dir, store } = currentCtx();
-  const [messages, tickets, decisions] = await Promise.all([store.listMessages(m.chatId), store.listTickets(), store.listTeamDecisions()]);
+  // Free check first: most chat ("sounds good", "lunch?") can't change anything.
+  const decisions = await store.listTeamDecisions();
+  if (!mayMatter(m.text, decisions, dir.workspace.ticketPrefix)) {
+    console.log(`[listener] ${dir.workspace.id}/${m.chatId} skipped (prefilter) ${Date.now() - started}ms`);
+    return;
+  }
+  const [messages, tickets] = await Promise.all([store.listMessages(m.chatId, { limit: 30 }), store.listTickets()]);
 
   // The conversation it belongs to: the thread, or the channel's recent messages.
   const root = m.threadId ? messages.find((x) => x.id === m.threadId) : null;

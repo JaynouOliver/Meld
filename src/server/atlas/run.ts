@@ -38,6 +38,21 @@ export interface AtlasTrace {
  * Atlas on Meta's Model API: assemble context, run the tool loop, post the reply,
  * and announce ticket changes in the channels that follow those tickets.
  */
+/**
+ * Reasoning effort per request (evals/atlas.eval.ts): changing things (filing, assigning,
+ * moving, deleting, missions) needs the default effort to reliably call its tools;
+ * questions are answered as well at "minimal", about a third faster and cheaper.
+ */
+const WRITE_HINT =
+  /\b(create|make|file|open|add|log|track|turn|convert|split|assign|reassign|give|move|set|mark|change|update|rename|close|reopen|finish|resolve|delete|remove|archive|link|unlink|block|unblock|prioriti[sz]e|start|plan|mission|undo|confirm)\b/i;
+/** A reply that says something was (or will be, on confirm) created or changed. */
+const CLAIMS_ACTION = /\b(once you confirm|confirm|created|filed|updated|assigned|moved|deleted|i'?ll (?:file|create|add|make|update|assign|move))\b/i;
+
+export function effortFor(text: string): OpenAI.ReasoningEffort {
+  if (process.env.ATLAS_REASONING_EFFORT) return ATLAS_EFFORT;
+  return WRITE_HINT.test(text) ? "low" : "minimal";
+}
+
 export async function runAtlasAgent(
   input: AskAtlasInput & { replyId?: string; progress?: Progress; agent?: AgentInfo; depth?: number },
 ): Promise<AskAtlasResult & { trace: AtlasTrace; replyMessage?: Message | ReplyNode }> {
@@ -47,14 +62,15 @@ export async function runAtlasAgent(
   const where = input.chatId;
   const store = await getStore();
   const effects: Effects = { plan: new Map(), read: [] };
+  const effort = effortFor(input.text);
   const trace: AtlasTrace = {
-    model: ATLAS_MODEL, effort: String(ATLAS_EFFORT), steps: 0, tools: [],
+    model: ATLAS_MODEL, effort: String(effort), steps: 0, tools: [],
     usage: { prompt: 0, cached: 0, completion: 0, reasoning: 0 }, ms: 0, reply: "",
     citations: { kept: [], invalid: [], overLimit: [] },
   };
 
   const agent = input.agent ?? ATLAS_AGENT;
-  const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where)]);
+  const [tickets, chat] = await Promise.all([store.listTickets(), store.listMessages(where, { limit: 40 })]);
   // Handed over by another agent: the request text is that agent's message.
   const lastHop = (input.depth ?? 0) >= MAX_AGENT_DEPTH
     ? "\nThis is the last hand-off allowed in this chain: finish it yourself or hand back to a person; don't @mention other agents."
@@ -73,13 +89,15 @@ Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.
   const progress = input.progress;
   progress?.step(input.threadId ? "Reading the thread" : "Reading the conversation");
   let reply = "";
+  const wantsWrite = WRITE_HINT.test(input.text);
+  let nudged = false;
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       trace.steps = step + 1;
       // Streamed, so the reply appears as it's written (tool calls arrive in pieces too).
       const stream = await client.chat.completions.create({
         model: ATLAS_MODEL,
-        reasoning_effort: ATLAS_EFFORT,
+        reasoning_effort: effort,
         messages,
         tools,
         stream: true,
@@ -110,10 +128,36 @@ Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.
         }
       }
 
+      // The model sometimes streams malformed tool arguments; echoing them back makes the
+      // API reject the whole conversation (400). Send "{}" instead and tell it to retry.
+      const validJson = (s: string) => {
+        try {
+          JSON.parse(s || "{}");
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const badArgs = new Set<string>();
       const calls: OpenAI.Chat.Completions.ChatCompletionMessageFunctionToolCall[] = parts
         .filter((p) => p.name)
-        .map((p, i) => ({ id: p.id || `call_${step}_${i}`, type: "function", function: { name: p.name, arguments: p.args } }));
+        .map((p, i) => {
+          const id = p.id || `call_${step}_${i}`;
+          if (!validJson(p.args)) badArgs.add(id);
+          return { id, type: "function", function: { name: p.name, arguments: badArgs.has(id) ? "{}" : p.args } };
+        });
       if (!calls.length) {
+        // Self-check: asked to change something, no change staged, yet the reply talks as
+        // if it did (or will on confirm). Seen in evals at every effort: nudge it once.
+        if (!nudged && wantsWrite && !effects.plan.size && CLAIMS_ACTION.test(content) && step < MAX_STEPS - 1) {
+          nudged = true;
+          messages.push({ role: "assistant", content });
+          messages.push({
+            role: "user",
+            content: "(System check: you haven't called any tool, so nothing was created or changed and there is nothing to confirm. Call the tools now to do what was asked, then reply.)",
+          });
+          continue;
+        }
         reply = content.trim();
         break;
       }
@@ -125,6 +169,7 @@ Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.
         let args: Record<string, unknown> = {};
         let result: unknown;
         try {
+          if (badArgs.has(call.id)) throw new Error("they weren't valid JSON; call the tool again with valid JSON arguments");
           args = JSON.parse(call.function.arguments || "{}");
           progress?.step(stepLabel(call.function.name, args));
           result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store, allowed: agent.tools });
