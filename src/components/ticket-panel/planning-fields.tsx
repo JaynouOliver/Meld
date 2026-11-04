@@ -16,27 +16,29 @@ export function DueField({ ticket: t }: { ticket: Ticket }) {
   const late = isOverdue(t);
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor="tk-due">Due date</Label>
-      <div className="relative">
-        <Input
-          id="tk-due"
-          type="date"
-          value={t.due ?? ""}
-          onChange={(e) => update.mutate({ id: t.id, patch: { due: e.target.value || null } })}
-          aria-describedby={late ? "tk-due-late" : undefined}
-          className={cn("pr-9", late && "border-destructive text-destructive")}
-        />
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="tk-due">Due date</Label>
         {t.due && (
+          // Beside the label, not inside the input, so it never covers the native calendar button.
           <button
             type="button"
             aria-label="Clear due date"
             onClick={() => update.mutate({ id: t.id, patch: { due: null } })}
-            className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:size-7"
+            className="-my-1 flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1 text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <XIcon className="size-3.5" />
+            <XIcon aria-hidden className="size-3" />
+            Clear
           </button>
         )}
       </div>
+      <Input
+        id="tk-due"
+        type="date"
+        value={t.due ?? ""}
+        onChange={(e) => update.mutate({ id: t.id, patch: { due: e.target.value || null } })}
+        aria-describedby={late ? "tk-due-late" : undefined}
+        className={cn(late && "border-destructive text-destructive")}
+      />
       {late && (
         <span id="tk-due-late" className="text-[12px] font-medium text-destructive">
           Overdue
