@@ -18,6 +18,7 @@ import { runSummary } from "./summary";
 import { runNotes } from "../notes";
 import { isPlaybookStep } from "@/lib/automation";
 import { afterPlaybookStep } from "../automation/playbooks";
+import { finishCommentReply, isCommentRun } from "../agents/comment-mentions";
 
 /**
  * The agent queue (docs/architecture.md §4, docs/agent-platform.md). A run is a row in
@@ -105,6 +106,8 @@ async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
     });
     // Assigned work: move the ticket on once the agent has posted its result.
     if (run.trigger === "assignment" && !trace.error) result.touchedChats.push(...(await finishAssignment(run, agent, replyMessage?.text ?? "", threadId)));
+    // Woken by a ticket comment: the answer belongs on the ticket (src/server/agents/comment-mentions.ts).
+    if (isCommentRun(run) && !trace.error) await finishCommentReply(run, agent, replyMessage?.text ?? "");
     await store.finishRun(run.id, { status: "done", result, trace, error: trace.error ?? null });
     await store.react(run.triggerMessageId, "👀", agent.id, false).catch(() => {});
     // The reply rides along, so the chat shows it without refetching.
