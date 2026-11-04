@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { BookmarkIcon, CheckIcon, ChevronRightIcon, MonitorIcon, MoonIcon, SunIcon, UsersIcon } from "lucide-react";
+import Link from "next/link";
 
 import { Avatar } from "@/components/common/avatar";
 import { ScreenHeader } from "@/components/shell/screen-header";
@@ -45,6 +46,23 @@ export function MeScreen() {
               </span>
             </div>
           </div>
+
+          {/* Phones have no sidebar: the workspace-wide pages live here. */}
+          <nav aria-label="Workspace" className="overflow-hidden rounded-md border bg-card md:hidden">
+            {[
+              { href: "/people", label: "People", hint: "Everyone and every agent", Icon: UsersIcon },
+              { href: "/decisions", label: "Decisions", hint: "What the team decided, and why", Icon: BookmarkIcon },
+            ].map(({ href, label, hint, Icon }) => (
+              <Link key={href} href={href} data-press className="flex min-h-12 items-center gap-3 border-b px-3.5 py-2.5 last:border-b-0 active:bg-muted">
+                <Icon aria-hidden className="size-4 text-muted-foreground" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-body font-semibold">{label}</span>
+                  <span className="text-meta text-muted-foreground">{hint}</span>
+                </span>
+                <ChevronRightIcon aria-hidden className="size-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </nav>
 
           {viewAs.length > 1 && (
             <fieldset className="flex flex-col gap-2">

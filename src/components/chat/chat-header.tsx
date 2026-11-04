@@ -4,6 +4,7 @@ import { SettingsIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
+import { MembersButton } from "@/components/people/members-button";
 import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
 import { CatchUpButton } from "./catch-up-button";
 import { PinnedButton } from "./pinned-button";
@@ -63,14 +64,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
             <ChannelSettingsDialog key={`${chatId}-${meta.label}`} chatId={chatId} open={settingsOpen} onOpenChange={setSettingsOpen} />
           </>
         )}
-        <div title="Channel members" className="flex h-8 shrink-0 items-center gap-2 rounded-md border border-input pr-2.5 pl-1.5">
-          <span aria-hidden className="flex pl-1 max-[360px]:hidden">
-            {meta.members.slice(0, 3).map((k) => (
-              <Avatar key={k} person={personOf(dir, k)} size="sm" className="-ml-1 rounded-[5px] border-2 border-background" />
-            ))}
-          </span>
-          <span className="tabular text-meta font-medium text-ink-2">{meta.members.length}</span>
-        </div>
+        <MembersButton chatId={chatId} />
         </div>
       }
     >

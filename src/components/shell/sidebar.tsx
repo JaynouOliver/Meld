@@ -251,6 +251,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <BookmarkIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
             <span className="flex-1">Decisions</span>
           </NavLink>
+          <NavLink href="/people" active={pathname.startsWith("/people")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
+            <UsersIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
+            <span className="flex-1">People</span>
+            <span className="tabular text-xs text-sidebar-muted">{Object.keys(dir.people).length}</span>
+          </NavLink>
         </div>
         <SectionLabel onAdd={dir.role !== "guest" ? () => setCreateOpen(true) : undefined} addLabel="Create a channel">
           Channels
