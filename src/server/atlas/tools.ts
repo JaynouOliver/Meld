@@ -341,6 +341,8 @@ function likelyDuplicate(title: string, tickets: Ticket[]): Ticket | null {
 }
 
 type Args = Record<string, unknown>;
+/** Meeting notes already posted by a run (keyed by the run's effects). */
+const notesPosted = new WeakMap<Effects, Record<string, unknown>>();
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 const err = (message: string) => ({ ok: false as const, error: message });
 const clone = <T,>(x: T): T => structuredClone(x);
@@ -634,6 +636,9 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
     }
     case "process_meeting_notes": {
       if (role === "guest") return err("Guests can't add meeting notes.");
+      // Once per run: a second call would post the same notes twice.
+      const done = notesPosted.get(effects);
+      if (done) return { ...done, note: "Already posted in this conversation. Don't call process_meeting_notes again; reply in one short sentence." };
       if (currentDir().chats[ctx.where]?.kind !== "channel") return err("Meeting notes go in a channel, so the team sees the decisions and owners. Ask in one.");
       // The notes are usually the request itself: use it rather than the model's copy, which can drop lines.
       const given = str(args.text) ?? "";
@@ -647,11 +652,13 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
           chats: [ctx.where], tickets: false, decisions: out.decisions.length > 0, origin: null, workspaceId: currentDir().workspace.id,
           message: { chatId: ctx.where, threadId: ctx.threadId ?? null, message: out.message },
         });
-        return {
+        const result = {
           ok: true, posted: `Notes: ${out.extraction.title}`, decisions_logged: out.decisions.length, tickets_to_confirm: out.proposed.length,
           already_tracked: out.reused, open_questions: out.extraction.questions.length,
-          note: "The notes are posted above your reply with a confirm card for the tickets. Reply in one short sentence (e.g. what to confirm); don't repeat the notes.",
+          note: "Done: the notes message is posted above your reply, with a confirm card for the tickets. Don't call this tool again. Reply in one short sentence (e.g. what to confirm); don't repeat the notes.",
         };
+        notesPosted.set(effects, result);
+        return result;
       } catch (e) {
         return err((e as Error).message);
       }

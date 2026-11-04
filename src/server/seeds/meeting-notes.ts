@@ -74,7 +74,7 @@ export async function seedMeetingNotes(
     "From notes shared by Sofia Rossi.",
     `**Decisions** (logged to the decision log)\n${decisions.map((d) => `- ${d.statement} Why: ${d.rationale} (${d.deciders.map((p) => names[p]).join(", ")})`).join("\n")}`,
     `**Action items**\n${[
-      ...items.map((it, i) => `- @${it.first} ${it.title}, due ${fmtDay(inDays(it.due))} (${ids[i]})`),
+      ...items.map((it, i) => `- @${it.first} ${it.title}, due ${fmtDay(inDays(it.due))} → ${ids[i]}`),
       "- @Maya Pricing page refresh: already tracked in ORB-5",
     ].join("\n")}`,
     "**Open questions**\n- @Jonas Do seat changes prorate mid-cycle, or bill at renewal?\n- @Sofia Do we offer a nonprofit discount at launch?",

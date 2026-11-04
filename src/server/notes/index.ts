@@ -160,7 +160,7 @@ export function composeNotes(ex: NotesExtraction, dir: Directory, ticketFor: Map
             const due = a.due ? `, due ${fmtDay(a.due)}` : "";
             if (a.existing) return `- ${owner} ${a.title}${due}: already tracked in ${a.existing}`;
             // The reserved id: plain text until Confirm files it, a ticket chip after.
-            return `- ${owner} ${a.title}${due}${ticketFor.has(i) ? ` (${ticketFor.get(i)})` : " (not filed: your role can't create tickets for it)"}`;
+            return `- ${owner} ${a.title}${due}${ticketFor.has(i) ? ` → ${ticketFor.get(i)}` : " (not filed: your role can't create tickets for it)"}`;
           })
           .join("\n"),
     );

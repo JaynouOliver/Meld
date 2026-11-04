@@ -244,9 +244,9 @@ Return this JSON:
  "questions": [{"question": "a question the meeting left open", "ask": "<person id who should answer, or null>"}]}
 
 Rules:
-- decisions: only choices the meeting settled ("we'll go with", "agreed", "decided"), not ideas still being discussed. decided_by: who made or agreed the call. If one reverses an active decision above, set "replaces" to its id; skip decisions already in that list.
+- decisions: only choices the meeting settled ("we'll go with", "agreed", "decided"), not ideas still being discussed. decided_by: who proposed and who agreed to the call. If one reverses an active decision above, set "replaces" to its id; skip decisions already in that list.
 - actions: concrete work someone took on or was given. owner: the person who said they'd do it or was asked to; null if nobody was named. due: only if a date or day was said; resolve "Friday", "next week" (Monday), "end of month" against today. If an open ticket above already covers it, set "existing" to its id.
-- questions: things still unanswered at the end, with who should answer.
+- questions: things still unanswered at the end, with who should answer. A question is not also an action item.
 - Use ids exactly as listed. At most ${LIMITS.decisions} decisions, ${LIMITS.actions} actions, ${LIMITS.questions} questions. Empty lists are fine.`;
 
   const stream = await client.chat.completions.create({
