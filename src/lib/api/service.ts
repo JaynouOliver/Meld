@@ -13,6 +13,7 @@ import { ATLAS_ID, personOf, type Directory } from "../directory";
 import { stamp, uid } from "../format";
 import { canCreateIn, canDelete, canSee, clampRole, viewerOf } from "../rbac";
 import { getStore } from "../store";
+import { cleanEstimate, cleanLabels, isValidDue, MAX_CHECKLIST_ITEMS, MAX_COMMENT_LENGTH } from "../ticket-fields";
 import type { ChatId, GitHubLink, Message, PersonId, ReplyNode, Role, Ticket, TicketImage, WeekDay } from "../types";
 
 // Simulated network latency only when running in the browser (preview mode).
@@ -203,7 +204,7 @@ export async function createTicket(preset: Partial<Ticket>, role: Role): Promise
   return t;
 }
 
-export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team" | "due">>;
+export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team" | "due" | "labels" | "estimate">>;
 
 export interface UpdateTicketInput {
   id: string;
@@ -216,6 +217,13 @@ export interface UpdateTicketInput {
   /** Mark this ticket blocked by another (id), or remove that. */
   addBlocker?: string;
   removeBlocker?: string;
+  /** Comment as the signed-in person (anyone who can see the ticket). */
+  addComment?: string;
+  /** Delete a comment: your own, or anyone's for org owners. */
+  removeCommentId?: string;
+  addChecklistItem?: string;
+  toggleChecklistId?: string;
+  removeChecklistId?: string;
 }
 
 export interface UpdateTicketResult {
@@ -257,10 +265,51 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   if (p.title !== undefined) t.title = p.title;
   if (p.description !== undefined) t.description = p.description;
   if (p.due !== undefined && p.due !== (t.due ?? null)) {
-    if (p.due !== null && !/^\d{4}-\d{2}-\d{2}$/.test(p.due)) throw new ApiError("Due date must be YYYY-MM-DD");
+    if (p.due !== null && !isValidDue(p.due)) throw new ApiError("Due date must be a real date, YYYY-MM-DD");
     t.due = p.due;
     note = p.due ? `set the due date to ${p.due}` : "cleared the due date";
   }
+  if (p.labels !== undefined) {
+    const r = cleanLabels(p.labels);
+    if ("error" in r) throw new ApiError(r.error);
+    const prev = t.labels ?? [];
+    const added = r.labels.filter((l) => !prev.includes(l));
+    const removed = prev.filter((l) => !r.labels.includes(l));
+    t.labels = r.labels;
+    if (added.length) note = `added label ${added.join(", ")}`;
+    else if (removed.length) note = `removed label ${removed.join(", ")}`;
+  }
+  if (p.estimate !== undefined && p.estimate !== (t.estimate ?? null)) {
+    const r = cleanEstimate(p.estimate);
+    if ("error" in r) throw new ApiError(r.error);
+    t.estimate = r.estimate;
+    note = r.estimate === null ? "cleared the estimate" : `estimated it at ${r.estimate} ${r.estimate === 1 ? "point" : "points"}`;
+  }
+  if (input.addComment !== undefined) {
+    const text = String(input.addComment).trim();
+    if (!text) throw new ApiError("Comment is empty");
+    if (text.length > MAX_COMMENT_LENGTH) throw new ApiError(`Comments are limited to ${MAX_COMMENT_LENGTH} characters`);
+    t.comments = [...(t.comments ?? []), { id: uid(), who: currentDir().me, text, time: stamp() }];
+  }
+  if (input.removeCommentId) {
+    const c = (t.comments ?? []).find((x) => x.id === input.removeCommentId);
+    if (!c) throw new ApiError("That comment no longer exists", 404);
+    if (c.who !== currentDir().me && effectiveRole(input.role) !== "owner") throw new ApiError("You can only delete your own comments", 403);
+    t.comments = (t.comments ?? []).filter((x) => x.id !== c.id);
+  }
+  if (input.addChecklistItem !== undefined) {
+    const text = String(input.addChecklistItem).trim().slice(0, 200);
+    if (!text) throw new ApiError("Checklist item is empty");
+    if ((t.checklist ?? []).length >= MAX_CHECKLIST_ITEMS) throw new ApiError(`A checklist can have at most ${MAX_CHECKLIST_ITEMS} items`);
+    t.checklist = [...(t.checklist ?? []), { id: uid(), text, done: false }];
+  }
+  if (input.toggleChecklistId) {
+    const item = (t.checklist ?? []).find((x) => x.id === input.toggleChecklistId);
+    if (!item) throw new ApiError("That checklist item no longer exists", 404);
+    item.done = !item.done;
+    if (item.done) note = `checked off “${item.text}”`;
+  }
+  if (input.removeChecklistId) t.checklist = (t.checklist ?? []).filter((x) => x.id !== input.removeChecklistId);
   if (p.status && p.status !== t.status) {
     t.status = p.status;
     note = announce = `moved it to ${p.status}`;
@@ -304,6 +353,7 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   if (note) t.activity.push({ who: myName(), text: note, time: stamp() });
   const writes: Promise<unknown>[] = [store.saveTicket(t)];
   if (note) writes.push(store.bumpWeek("p"), store.logEvent({ kind: "ticket.updated", actor: currentDir().me, ticketId: t.id, payload: { note } }));
+  if (input.addComment !== undefined) writes.push(store.logEvent({ kind: "ticket.commented", actor: currentDir().me, ticketId: t.id }));
   let broadcastChat: ChatId | null = null;
   if (announce && t.watch) {
     writes.push(store.appendMessage(t.watch.chat, { id: uid(), who: ATLAS_ID, time: stamp(), text: `Update on ${t.id}: ${myName()} ${announce}.` }, t.watch.thread));

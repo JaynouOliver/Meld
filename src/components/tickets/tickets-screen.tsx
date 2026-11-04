@@ -7,10 +7,12 @@ import { useMemo } from "react";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { Button } from "@/components/ui/button";
 import { useDirectory, useRole } from "@/hooks/use-directory";
+import { useTicketLayout } from "@/hooks/use-ticket-layout";
 import { useCreateTicket, useVisibleTickets } from "@/hooks/use-tickets";
 import { roleScope } from "@/lib/rbac";
 import type { TicketScope } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { TicketBoard } from "./ticket-board";
 import { TicketCharts } from "./ticket-charts";
 import { TicketFilterBar } from "./ticket-filter-bar";
 import { TicketTable } from "./ticket-table";
@@ -22,6 +24,7 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
   const { visible, isPending } = useVisibleTickets();
   const create = useCreateTicket();
   const showInsights = useUiStore((s) => s.showInsights);
+  const [layout] = useTicketLayout();
   const scoped = useMemo(() => visible.filter((t) => scope === "all" || t.assignee === dir.me), [visible, scope, dir.me]);
 
   return (
@@ -50,10 +53,14 @@ export function TicketsScreen({ scope }: { scope: TicketScope }) {
         {/* List first: views and filter sit directly above it, charts are opt-in. */}
         <TicketViews tickets={scoped} scope={scope} />
         {showInsights && <TicketCharts tickets={scoped} scope={scope} />}
-        <TicketFilterBar />
-        <div className="@container">
-          <TicketTable tickets={scoped} loading={isPending} />
-        </div>
+        <TicketFilterBar board={layout === "board"} />
+        {layout === "board" ? (
+          <TicketBoard tickets={scoped} loading={isPending} />
+        ) : (
+          <div className="@container">
+            <TicketTable tickets={scoped} loading={isPending} />
+          </div>
+        )}
       </div>
     </main>
   );

@@ -67,7 +67,23 @@ export function permissionProblem(ops: TicketOp[], v: Viewer): string | null {
   return null;
 }
 
-const FIELDS = ["title", "description", "status", "priority", "assignee", "team", "links", "blockedBy", "due"] as const;
+const FIELDS = ["title", "description", "status", "priority", "assignee", "team", "links", "blockedBy", "due", "labels", "estimate", "checklist"] as const;
+
+/**
+ * Comments aren't a FIELD: they're a conversation that keeps moving while an action
+ * waits or sits in its undo window. They merge by id instead, so applying adds only the
+ * agent's comment and undoing removes only that one, never comments people wrote since.
+ */
+function mergeComments(cur: Ticket, from: Ticket, to: Ticket) {
+  const fromIds = new Set((from.comments ?? []).map((c) => c.id));
+  const toIds = new Set((to.comments ?? []).map((c) => c.id));
+  const added = (to.comments ?? []).filter((c) => !fromIds.has(c.id));
+  const removed = new Set([...fromIds].filter((id) => !toIds.has(id)));
+  if (!added.length && !removed.size) return;
+  const next = (cur.comments ?? []).filter((c) => !removed.has(c.id));
+  for (const c of added) if (!next.some((x) => x.id === c.id)) next.push(c);
+  cur.comments = next;
+}
 
 /**
  * Apply ops. Updates are applied field by field on top of the ticket's current
@@ -93,6 +109,7 @@ export async function applyOps(store: Store, ops: TicketOp[], where: ChatId): Pr
       for (const f of FIELDS) {
         if (JSON.stringify(o.before[f]) !== JSON.stringify(o.after[f])) (cur as unknown as Record<string, unknown>)[f] = o.after[f];
       }
+      mergeComments(cur, o.before, o.after);
       cur.updated = "Just now";
       changed.push([prev, cur]);
       cur.activity.push({ who: "Atlas", text: `${o.changes.join(", ")} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() });
@@ -131,6 +148,7 @@ export async function revertOps(store: Store, ops: TicketOp[], where: ChatId) {
       for (const f of FIELDS) {
         if (JSON.stringify(o.before[f]) !== JSON.stringify(o.after[f])) (cur as unknown as Record<string, unknown>)[f] = o.before[f];
       }
+      mergeComments(cur, o.after, o.before);
       cur.updated = "Just now";
       cur.activity.push({ who: "Atlas", text: `undid: ${o.changes.join(", ")} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() });
       await store.saveTicket(cur);

@@ -10,7 +10,8 @@ import { ATLAS_ID, personOf } from "@/lib/directory";
 import type { GroupBy } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 
-export function TicketFilterBar() {
+/** On the board, columns are the grouping, so "Group by" is hidden. */
+export function TicketFilterBar({ board = false }: { board?: boolean }) {
   const query = useUiStore((s) => s.ticketQuery);
   const setQuery = useUiStore((s) => s.setTicketQuery);
   const groupBy = useUiStore((s) => s.groupBy);
@@ -53,19 +54,23 @@ export function TicketFilterBar() {
           </button>
         )}
       </div>
-      <label htmlFor="groupby" className="ml-auto text-meta font-medium text-muted-foreground sm:ml-0">
-        Group by
-      </label>
-      <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-        <SelectTrigger id="groupby" className="w-[130px] bg-card">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="assignee">Assignee</SelectItem>
-          <SelectItem value="status">Status</SelectItem>
-          <SelectItem value="team">Team</SelectItem>
-        </SelectContent>
-      </Select>
+      {!board && (
+        <>
+          <label htmlFor="groupby" className="ml-auto text-meta font-medium text-muted-foreground sm:ml-0">
+            Group by
+          </label>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+            <SelectTrigger id="groupby" className="w-[130px] bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="assignee">Assignee</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+            </SelectContent>
+          </Select>
+        </>
+      )}
     </div>
   );
 }

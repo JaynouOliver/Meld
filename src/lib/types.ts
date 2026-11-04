@@ -66,7 +66,30 @@ export interface Ticket {
   missionId?: string | null;
   /** Due date, YYYY-MM-DD. */
   due?: string | null;
+  /** Free-form tags, lowercase, e.g. "billing". */
+  labels?: string[];
+  /** Story points, or null when not estimated. */
+  estimate?: number | null;
+  /** Subtasks lite: small steps ticked off inside the ticket. */
+  checklist?: ChecklistItem[];
+  /** Discussion on the ticket, oldest first. Mentions and ticket ids render as chips. */
+  comments?: TicketComment[];
   activity: Activity[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TicketComment {
+  id: string;
+  /** Person or agent id. */
+  who: PersonId;
+  text: string;
+  /** Stored time (ISO on the server); show with displayTime(). */
+  time: string;
 }
 
 /** What the chat shows for an Atlas action (confirm card or undo). */

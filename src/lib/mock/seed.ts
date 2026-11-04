@@ -33,19 +33,33 @@ export const SEED_WEEK: WeekDay[] = [
 
 export const SEED_UNREAD: Partial<Record<ChatId, number>> = { payments: 2, aiko: 1 };
 
+/** A date `n` days from today, YYYY-MM-DD (seed due dates stay relative to the demo). */
+const day = (n: number) => new Date(Date.now() + n * 86400_000).toISOString().slice(0, 10);
+
 export const SEED_TICKETS: Ticket[] = [
-  T("NW-121", "design", "Invite email links expire too early", "In progress", "aiko", "High", "me", [L("Issue", 412)], { description: "Invite links stop working after about 2 hours. They should last 7 days.", watch: { chat: "design", thread: null } }),
-  T("NW-122", "design", "Two-step invite prompt in onboarding", "To do", "aiko", "Medium", "me", [], { description: "Light invite prompt up front, stronger one after the first project is created." }),
+  T("NW-121", "design", "Invite email links expire too early", "In progress", "aiko", "High", "me", [L("Issue", 412)], { description: "Invite links stop working after about 2 hours. They should last 7 days.", watch: { chat: "design", thread: null }, labels: ["bug", "onboarding"], due: day(2), estimate: 3 }),
+  T("NW-122", "design", "Two-step invite prompt in onboarding", "To do", "aiko", "Medium", "me", [], { description: "Light invite prompt up front, stronger one after the first project is created.", labels: ["design", "onboarding"], estimate: 5 }),
   T("NW-123", "design", "Copy pass on workspace setup screen", "Done", "me", "Low", "aiko", [L("PR", 488)], { watch: { chat: "design", thread: null } }),
-  T("NW-125", "design", "Onboarding invite A/B test", "To do", "me", "Medium", "atlas", [], { description: "Requested by Suvra Das in #product-design.", watch: { chat: "design", thread: null } }),
+  T("NW-125", "design", "Onboarding invite A/B test", "To do", "me", "Medium", "atlas", [], { description: "Requested by Suvra Das in #product-design.", watch: { chat: "design", thread: null }, labels: ["experiment"] }),
   T("NW-126", "design", "Dark mode for settings", "Backburner", "aiko", "Low", "aiko"),
-  T("NW-130", "payments", "Apple Pay on the payments page", "In review", "ravi", "High", "ravi", [L("PR", 512)], { description: "Apple Pay sheet behind the payments_apple_pay flag.", watch: { chat: "payments", thread: null } }),
-  T("NW-131", "payments", "Replace SetupIntent with PaymentIntent", "To do", "lena", "High", "lena", [L("Issue", 498)]),
-  T("NW-132", "payments", "Team billing in the creator plan", "To do", "ravi", "Medium", "ravi"),
+  T("NW-130", "payments", "Apple Pay on the payments page", "In review", "ravi", "High", "ravi", [L("PR", 512)], {
+    description: "Apple Pay sheet behind the payments_apple_pay flag.", watch: { chat: "payments", thread: null }, labels: ["billing", "launch"], due: day(1), estimate: 5,
+    checklist: [
+      { id: "ck130a", text: "Domain verification file on staging", done: true },
+      { id: "ck130b", text: "Sheet copy reviewed", done: false },
+      { id: "ck130c", text: "Flag rollout plan", done: false },
+    ],
+    comments: [
+      { id: "cm130a", who: "ravi", text: "Staging is ready behind the flag. Copy on the sheet still needs a look.", time: "9:14 AM" },
+      { id: "cm130b", who: "lena", text: "@Ravi reviewing after standup. NW-131 has to land before we flip it for everyone.", time: "9:26 AM" },
+    ],
+  }),
+  T("NW-131", "payments", "Replace SetupIntent with PaymentIntent", "To do", "lena", "High", "lena", [L("Issue", 498)], { labels: ["billing", "bug"], due: day(-1), estimate: 3 }),
+  T("NW-132", "payments", "Team billing in the creator plan", "To do", "ravi", "Medium", "ravi", [], { labels: ["billing"], estimate: 8 }),
   T("NW-133", "payments", "Refund webhook reconciliation", "Done", "lena", "Medium", "lena", [L("PR", 505)], { watch: { chat: "payments", thread: null } }),
   T("NW-140", "platform", "Rate-limit webhook retries", "Done", "me", "High", "me", [L("PR", 475), L("Issue", 401)]),
-  T("NW-141", "platform", "Redeploy cron jobs on code changes", "In progress", "diego", "Medium", "diego", [L("PR", 530)], { watch: { chat: "platform", thread: null } }),
-  T("NW-142", "platform", "Rotate API signing keys", "To do", "diego", "High", "atlas", [], { description: "Requested by Suvra Das in a DM with Atlas." }),
+  T("NW-141", "platform", "Redeploy cron jobs on code changes", "In progress", "diego", "Medium", "diego", [L("PR", 530)], { watch: { chat: "platform", thread: null }, labels: ["infra"], estimate: 2 }),
+  T("NW-142", "platform", "Rotate API signing keys", "To do", "diego", "High", "atlas", [], { description: "Requested by Suvra Das in a DM with Atlas.", labels: ["security", "infra"], due: day(6) }),
   T("NW-143", "platform", "Golden benchmark set for evals", "To do", "me", "Medium", "me"),
 ];
 

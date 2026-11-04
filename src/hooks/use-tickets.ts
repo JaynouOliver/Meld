@@ -71,13 +71,13 @@ export function useUpdateTicket() {
   const notify = useNotifyChat();
   return useMutation({
     mutationFn: (input: Omit<api.UpdateTicketInput, "role">) => api.updateTicket({ ...input, role }),
-    // Optimistic for simple field edits so selects and inputs feel instant.
+    // Optimistic for simple field edits (and ticks and removals) so selects, inputs and drags feel instant.
     onMutate: async (input) => {
-      if (!input.patch) return;
+      if (!input.patch && !input.toggleChecklistId && !input.removeChecklistId && !input.removeCommentId) return;
       await qc.cancelQueries({ queryKey: queryKeys.tickets });
       const prev = qc.getQueryData<Ticket[]>(queryKeys.tickets);
       qc.setQueryData<Ticket[]>(queryKeys.tickets, (old) =>
-        old?.map((t) => (t.id === input.id ? { ...t, ...input.patch } : t)),
+        old?.map((t) => (t.id === input.id ? applyLocal(t, input) : t)),
       );
       return { prev };
     },
@@ -105,4 +105,13 @@ export function useDeleteTicket() {
       useUiStore.getState().closeTicket();
     },
   });
+}
+
+/** The client-side guess of an update, shown until the server's version arrives. */
+function applyLocal(t: Ticket, input: Omit<api.UpdateTicketInput, "role">): Ticket {
+  const next: Ticket = { ...t, ...input.patch };
+  if (input.toggleChecklistId) next.checklist = (t.checklist ?? []).map((i) => (i.id === input.toggleChecklistId ? { ...i, done: !i.done } : i));
+  if (input.removeChecklistId) next.checklist = (next.checklist ?? []).filter((i) => i.id !== input.removeChecklistId);
+  if (input.removeCommentId) next.comments = (t.comments ?? []).filter((c) => c.id !== input.removeCommentId);
+  return next;
 }
