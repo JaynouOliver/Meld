@@ -5,6 +5,7 @@ import { RUN_MAX_ATTEMPTS, RUN_RECENT_MS, RUN_STALE_MS, type AgentRun } from "..
 import { todayIndex } from "../format";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
+import type { AgentMemory } from "../agent/memory";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
@@ -110,6 +111,9 @@ const teamDecisionFrom = (r: TeamDecisionRow): TeamDecision => ({
   chatId: r.chat_id, threadId: r.thread_id, messageId: r.message_id, status: r.status, supersededBy: r.superseded_by, flags: r.flags,
   lastFlaggedAt: r.last_flagged_at, source: r.source, createdAt: r.created_at,
 });
+
+interface MemoryRow { id: string; agent_id: string; text: string; created_by: string; created_at: string }
+const memoryFrom = (r: MemoryRow): AgentMemory => ({ id: r.id, agentId: r.agent_id, text: r.text, createdBy: r.created_by, createdAt: r.created_at });
 
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
   const roots: Message[] = [];
@@ -308,6 +312,17 @@ export function supabaseStore(ws: string): Store {
       mission_id: string; kind: MissionEvent["kind"]; actor: string | null; text: string; at: string;
     }[];
     return rows.map((r) => ({ missionId: r.mission_id, kind: r.kind, actor: r.actor, text: r.text, at: r.at }));
+  },
+  async listAgentMemories() {
+    const rows = check(await sb().from("agent_memories").select("id, agent_id, text, created_by, created_at").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(500), "agent memories") as MemoryRow[];
+    return rows.map(memoryFrom);
+  },
+  async addAgentMemory(m) {
+    check(await sb().from("agent_memories").insert({ id: m.id, workspace_id: ws, agent_id: m.agentId, text: m.text, created_by: m.createdBy, created_at: m.createdAt }), "add memory");
+  },
+  async deleteAgentMemory(id) {
+    const rows = check(await sb().from("agent_memories").delete().eq("workspace_id", ws).eq("id", id).select("id"), "delete memory") as { id: string }[];
+    return rows.length > 0;
   },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.

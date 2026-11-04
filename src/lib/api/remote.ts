@@ -126,3 +126,8 @@ export const checkInMission = (id: string, role?: string) => rpc<{ summary: stri
 export const listTeamDecisions = () => rpc<TeamDecision[]>("listTeamDecisions", []);
 export const setTeamDecisionStatus = (id: string, status: "active" | "reopened", role?: string) => rpc<TeamDecision>("setTeamDecisionStatus", [id, status, role]);
 export const answerDecision = (decisionId: string, answer: string, role?: string) => rpc<void>("answerDecision", [decisionId, answer, role]);
+
+// Agent skills: memory and thread summaries.
+export const listAgentMemories = (agentId: string) => rpc<import("../agent/memory").AgentMemory[]>("listAgentMemories", [agentId]);
+export const forgetAgentMemory = (id: string, role?: string) => rpc<{ ok: true }>("forgetAgentMemory", [id, role]);
+export const summarizeThread = (chatId: string, threadId: string, role?: string) => rpc<import("../agent/runs").RunView>("summarizeThread", [chatId, threadId, role]);

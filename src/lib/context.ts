@@ -17,6 +17,8 @@ export interface RequestCtx {
   store: Store;
   /** Set while an agent runs: the directory is narrowed to what that agent can read. */
   scopedTo?: string;
+  /** Set while an agent runs: the run, so work it starts (e.g. assigning a ticket to another agent) is one level deeper. */
+  run?: { id: string; depth: number; role: Role };
 }
 
 let provider: (() => RequestCtx | undefined) | null = null;

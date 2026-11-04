@@ -120,3 +120,16 @@ After every message from a person in a channel Atlas is in (`src/server/listener
 - **Commitments** ("I'll write the release notes by Friday"): a ticket for the speaker with that due date, following the conversation it came from. Same Undo.
 
 The Decisions page lists the log (search, reopen). Atlas's `search_decisions` tool answers "why did we…?". Mission decisions people answer are logged too. Tests: `npm run test:listener` (no model).
+
+## Agent skills: assigned work, memory, thread summaries
+
+**Assigned tickets** (`src/server/agents/assignment.ts`). When a ticket's assignee becomes an agent (Atlas, a custom agent, or an external one), that agent picks it up. The hook is the workspace store on the request context (`withAssignmentPickup`, applied where contexts are built in `src/server/workspace.ts`): every assignment path (ticket panel, createTicket, Atlas and the listener via `applyOps`, Confirm/Undo, mission launch, MCP) ends in `insertTicket`/`saveTicket` there. Only a change of assignee *to* an agent counts, so the agent saving its own ticket never wakes it again. The pick-up is a run with trigger `assignment`:
+- It works in the ticket's watch thread/channel if the agent can read it, else in its DM with the assigner; it posts "On it: ORB-12 …" (with the ticket card), reads the ticket and its discussion with its own tools and scope, posts the result, and Meld moves the ticket to In review (or Done when the agent says it's finished).
+- Governed like any run: depth (assigned from inside an agent's run is one hop deeper; capped at 3), the per-chat rate limit, an idempotency key per assignment, no self-assignment wake-ups. Mission launch no longer @mentions agent owners into a second run.
+- Cost: about two model calls per assignment (ATLAS_MODEL, low effort): roughly 8k input tokens (half cached) and under 1k output, 10–15 s.
+
+**Memory** (`src/lib/agent/memory.ts`, `src/server/agents/memory.ts`, table `agent_memories`). `remember(fact, for_team)` and `forget(id)` tools (write group); the newest 30 of the agent's own and the team's memories are injected into each run's context with their ids. The agent dialog lists the agent's memory and the team memory, with delete. Guests can't add or remove.
+
+**Thread summary** (`src/server/atlas/summary.ts`). "Summarize" in the thread header queues a `summary` run: one streamed call (ATLAS_MODEL, minimal effort) that posts TL;DR, decisions, owners and next steps, open questions into the thread. Same live bubble as other runs; the same thread state summarizes once.
+
+Tests: `npm run test:skills` (no model).

@@ -13,6 +13,8 @@ import { agentName, dispatch, runsWeExecute, scopeFor } from "../agents/dispatch
 import { shouldRespond } from "../agents/triage";
 import { reporter } from "./progress";
 import { runAtlasAgent } from "./run";
+import { finishAssignment } from "../agents/assignment";
+import { runSummary } from "./summary";
 
 /**
  * The agent queue (docs/architecture.md §4, docs/agent-platform.md). A run is a row in
@@ -41,10 +43,11 @@ async function execute(run: AgentRun, workspaceId: string) {
     return;
   }
   // The agent reads only the chats it's a member of (and the requester can see).
-  const scoped = { ...currentCtx(), dir: scopeFor(dir, agent.id), scopedTo: agent.id };
+  const scoped = { ...currentCtx(), dir: scopeFor(dir, agent.id), scopedTo: agent.id, run: { id: run.id, depth: run.depth, role: run.role } };
   const out = await runInCtx(scoped, () => executeAs(agent, run, workspaceId));
   // Hand-offs: agents this reply @mentions pick it up, one level deeper (governed in dispatch).
-  if (out?.reply) {
+  // (A thread summary only reports: names in it aren't hand-offs.)
+  if (out?.reply && run.trigger !== "summary") {
     const next = await dispatch({
       chatId: run.chatId, threadId: out.threadId, messageId: out.reply.id, authorId: agent.id, text: out.reply.text, parent: run,
     });
@@ -91,9 +94,11 @@ async function executeAs(agent: AgentInfo, run: AgentRun, workspaceId: string) {
 
   const progress = reporter(workspaceId, { ...run, threadId });
   try {
-    const { trace, replyMessage, ...result } = await runAtlasAgent({
+    const { trace, replyMessage, ...result } = await (run.trigger === "summary" ? runSummary : runAtlasAgent)({
       chatId: run.chatId, text: run.text, threadId, role: run.role, replyId, progress, agent, depth: run.depth,
     });
+    // Assigned work: move the ticket on once the agent has posted its result.
+    if (run.trigger === "assignment" && !trace.error) result.touchedChats.push(...(await finishAssignment(run, agent, replyMessage?.text ?? "", threadId)));
     await store.finishRun(run.id, { status: "done", result, trace, error: trace.error ?? null });
     await store.react(run.triggerMessageId, "👀", agent.id, false).catch(() => {});
     // The reply rides along, so the chat shows it without refetching.
