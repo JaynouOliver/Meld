@@ -8,7 +8,18 @@ import { clearLocalCache } from "@/lib/cache";
 import { cn } from "@/lib/utils";
 
 /** One click into a private copy of a company with agents already at work. No sign-up. */
-export function TryDemo({ className, label = "Try the live demo" }: { className?: string; label?: string }) {
+/**
+ * `highlight` makes it the page's main call to action: a soft pulsing glow and a slight
+ * zoom (static glow under reduced motion, see .demo-glow in globals.css). */
+export function TryDemo({
+  className,
+  label = "Try the live demo",
+  highlight = false,
+}: {
+  className?: string;
+  label?: string;
+  highlight?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +48,11 @@ export function TryDemo({ className, label = "Try the live demo" }: { className?
         type="button"
         onClick={go}
         disabled={busy}
-        className={cn("inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70", className)}
+        className={cn(
+          "inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70",
+          highlight && !busy && "demo-glow",
+          className,
+        )}
       >
         {busy && <LoaderCircleIcon className="size-4 animate-spin" />}
         {busy ? "Setting up your demo company…" : label}

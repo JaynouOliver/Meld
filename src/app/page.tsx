@@ -45,7 +45,7 @@ function Hero() {
             tickets, remembering decisions, and driving missions to a date.
           </p>
           <div className="mt-8 flex flex-wrap items-start gap-2.5">
-            <TryDemo />
+            <TryDemo highlight />
             <Link
               href="/login?mode=signup"
               className="inline-flex h-10 items-center rounded-md border border-input bg-background px-4 text-sm font-medium text-foreground no-underline hover:bg-muted hover:text-foreground"
@@ -53,7 +53,9 @@ function Hero() {
               Create your workspace
             </Link>
           </div>
-          <p className="mt-3 text-meta text-muted-foreground">No sign-up. Opens a private copy of a team with agents already at work.</p>
+          <p className="mt-3 max-w-[30rem] text-[12px] leading-[1.5] text-pretty text-muted-foreground">
+            <span className="font-medium text-brand">(For hackathon judges)</span> No sign-up. Opens a private copy of a team with agents already at work.
+          </p>
         </div>
         <HeroMock />
       </div>

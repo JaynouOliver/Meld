@@ -402,3 +402,31 @@
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: none; }
 }
+
+/* Landing page: the "Try the live demo" button glows and gently zooms so it's the obvious click. */
+@keyframes demo-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 45%, transparent), 0 4px 14px color-mix(in srgb, var(--brand) 30%, transparent);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--brand) 0%, transparent), 0 6px 26px color-mix(in srgb, var(--brand) 55%, transparent);
+  }
+}
+.demo-glow {
+  animation: demo-glow 2.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+}
+.demo-glow:hover {
+  animation: none;
+  transform: scale(1.06);
+  opacity: 1;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 22%, transparent), 0 8px 28px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-glow {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent), 0 6px 22px color-mix(in srgb, var(--brand) 45%, transparent);
+  }
+}
