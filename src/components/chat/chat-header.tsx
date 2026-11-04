@@ -32,7 +32,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
         back="/home"
         actions={
           <div className="flex shrink-0 items-center gap-2">
-            <SearchButton className="-mr-1 size-9" />
+            <SearchButton className="size-8 border border-input text-muted-foreground [&_svg]:size-4" />
             <PinnedButton chatId={chatId} />
             {meta.who === ATLAS_ID && <CatchUpButton compact className="max-sm:hidden" />}
           </div>
@@ -56,7 +56,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div className="flex shrink-0 items-center gap-2">
-        <SearchButton className="-mr-1 size-9" />
+        <SearchButton className="size-8 border border-input text-muted-foreground [&_svg]:size-4" />
         <PinnedButton chatId={chatId} />
         <ChannelAgents chatId={chatId} />
         {canEdit && (
