@@ -64,7 +64,7 @@ export function Avatar({
   return (
     <span
       aria-hidden
-      style={{ background: person.color }}
+      style={{ background: src && !failed ? "var(--muted)" : person.color }}
       className={cn("relative inline-flex shrink-0 items-center justify-center font-semibold text-white select-none", SIZES[size], className, shape)}
     >
       {person.initials}
