@@ -53,5 +53,10 @@ export function useStickToBottom<T extends HTMLElement = HTMLDivElement>(resetKe
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
-  return { scrollRef, contentRef, pin };
+  /** Call before scrolling away on purpose (a jump to an older message): stop following new ones. */
+  const release = useCallback(() => {
+    pinned.current = false;
+  }, []);
+
+  return { scrollRef, contentRef, pin, release };
 }

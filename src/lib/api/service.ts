@@ -73,6 +73,17 @@ export async function getMessages(chatId: ChatId, limit?: number): Promise<Messa
   return (await getStore()).listMessages(chatId, { limit: Math.min(Math.max(Number(limit) || 100, 1), 200) });
 }
 
+/**
+ * The conversations around one message, for jumping to (or scrolling back into) history
+ * older than the loaded window. "Load older" passes after = 0, "Load newer" before = 0.
+ */
+export async function getMessagesAround(chatId: ChatId, messageId: string, before?: number, after?: number): Promise<Message[]> {
+  await wait();
+  requireChat(chatId);
+  const clamp = (n: unknown) => Math.min(Math.max(Math.floor(Number(n ?? 30)) || 0, 0), 100);
+  return (await getStore()).listMessagesAround(chatId, String(messageId), clamp(before), clamp(after));
+}
+
 /** "I've seen this chat up to now" (powers Atlas's "what did I miss?"). */
 export async function markRead(chatId: ChatId): Promise<void> {
   requireChat(chatId);

@@ -7,6 +7,7 @@ import * as api from "@/lib/api";
 import { replyIdFor, type RunResult, type RunStatus, type RunView } from "@/lib/agent/runs";
 import type { ChatId, Message, Ticket } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
+import { fetchLatest } from "./use-chat-history";
 import { useNotifyChat } from "./use-notify-chat";
 import { setRunProgress } from "./use-run-progress";
 import { queryKeys } from "./query-keys";
@@ -40,11 +41,12 @@ export function useAtlasWorking(chatId: ChatId, threadId: string | null) {
  * message without a gap). Proactive checks that decided to stay quiet are left out.
  */
 export function useLiveRuns(chatId: ChatId, threadId: string | null): RunView[] {
+  const qc = useQueryClient();
   const { data } = useQuery({
     ...runsQuery,
     select: (runs: RunView[]) => runs.filter((r) => r.chatId === chatId && (r.threadId ?? null) === threadId),
   });
-  const { data: messages } = useQuery<Message[]>({ queryKey: queryKeys.messages(chatId), queryFn: () => api.getMessages(chatId), enabled: false });
+  const { data: messages } = useQuery<Message[]>({ queryKey: queryKeys.messages(chatId), queryFn: () => fetchLatest(qc, chatId), enabled: false });
   const delivered = (r: RunView) => {
     const id = replyIdFor(r.id);
     return !!messages?.some((m) => m.id === id || m.replies.some((x) => x.id === id));

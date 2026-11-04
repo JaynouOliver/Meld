@@ -15,6 +15,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useDeliverDue } from "@/hooks/use-scheduled";
 import { useSheetHistory } from "@/hooks/use-sheet-history";
+import { GlobalSearch } from "./search-palette";
 import { Sidebar } from "./sidebar";
 import { TabBar } from "./tab-bar";
 
@@ -78,6 +79,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <TabBar />
       <TicketPanel />
       <ProfileDialog />
+      <GlobalSearch />
     </div>
   );
 }

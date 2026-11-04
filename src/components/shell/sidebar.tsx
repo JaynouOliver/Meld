@@ -29,7 +29,7 @@ import { PeopleDialog } from "@/components/workspace/people-dialog";
 import { AgentDialog } from "@/components/agents/agent-dialog";
 import { useWorkingAgents } from "@/hooks/use-agent-runs";
 import { SettingsDialog } from "@/components/workspace/settings-dialog";
-import { SearchPalette, useSearchShortcut } from "./search-palette";
+import { openSearch } from "./search-palette";
 import { ACCENTS } from "@/lib/constants";
 import { agentDmOf, agentsOf, personOf } from "@/lib/directory";
 import { THEME_OPTIONS } from "@/lib/theme";
@@ -123,8 +123,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  useSearchShortcut(setSearchOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState<{ id: string | null } | null>(null);
   const workingAgents = useWorkingAgents();
@@ -217,12 +215,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           type="button"
           aria-label="Search (Ctrl+K)"
           title="Search  ⌘K"
-          onClick={() => setSearchOpen(true)}
+          onClick={openSearch}
           className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-sidebar-border bg-sidebar-input text-sidebar-foreground hover:text-sidebar-strong"
         >
           <SearchIcon className="size-4" />
         </button>
-        <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
         <button
           type="button"
           aria-label="New message"

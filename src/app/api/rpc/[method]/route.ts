@@ -142,6 +142,8 @@ const methods: Record<string, Method> = {
   deletePlaybook: async (id: string, role?: Role) => playbooks.deletePlaybook(id, role),
   ticketAutomation: async (ticketId: string, role?: Role) => playbooks.ticketAutomation(ticketId, role),
   undoTriage: async (ticketId: string, role?: Role) => undoTriage(ticketId, role),
+  // Jump to old messages, and load older/newer history (read-only).
+  getMessagesAround: api.getMessagesAround,
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */

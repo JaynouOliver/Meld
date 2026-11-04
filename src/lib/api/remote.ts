@@ -67,6 +67,8 @@ export const getPinned: typeof getPinnedRaw = async (...a) => (await getPinnedRa
 export const toggleReaction = call("toggleReaction");
 const searchMessagesRaw = call("searchMessages");
 export const searchMessages: typeof searchMessagesRaw = async (...a) => (await searchMessagesRaw(...a)).map((h) => ({ ...h, time: displayTime(h.time) }));
+const getMessagesAroundRaw = call("getMessagesAround");
+export const getMessagesAround: typeof getMessagesAroundRaw = async (...a) => (await getMessagesAroundRaw(...a)).map(localMessage);
 
 /** Everything the app needs to start, in one round trip (directory, tickets, week, every chat's messages). */
 export async function getBoot() {

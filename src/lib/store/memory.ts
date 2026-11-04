@@ -229,6 +229,12 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     return clone([...(d().links ?? new Map()).values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 300);
   },
   ...automationMemory(d),
+  async listMessagesAround(chatId, messageId, before = 30, after = 30) {
+    const list = d().chats[chatId] ?? [];
+    const i = list.findIndex((m) => m.id === messageId || m.replies.some((r) => r.id === messageId));
+    if (i < 0) return [];
+    return withActions(d(), clone(list.slice(Math.max(0, i - Math.max(0, before)), i + Math.max(0, after) + 1)));
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

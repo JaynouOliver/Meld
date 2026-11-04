@@ -433,6 +433,15 @@ export function supabaseStore(ws: string): Store {
     return rows.map(linkFrom);
   },
   ...automationSupabase(ws),
+  async listMessagesAround(chatId, messageId, before = 30, after = 30) {
+    // Same JSON shape as chat_window (see 20261111090000_chat_around.sql).
+    const data = check(
+      await sb().rpc("chat_window_around", { p_ws: ws, p_chat: chatId, p_id: messageId, p_before: before, p_after: after }),
+      "list messages around",
+    ) as { rows: MessageRow[]; actions: ActionRow[] } | null;
+    const acts = (data?.actions ?? []).map(actionFromRow);
+    return toTree(data?.rows ?? [], new Map(acts.map((a) => [a.id, a])));
+  },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.
     check(await sb().from("messages").delete().eq("workspace_id", ws).eq("chat_id", chatId).not("thread_id", "is", null), "delete replies");

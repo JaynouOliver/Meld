@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HashIcon, SearchIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { create } from "zustand";
 
 import { Avatar } from "@/components/common/avatar";
 import * as api from "@/lib/api";
@@ -195,7 +196,8 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           onKeyDown={onKeyDown}
-          className="fixed top-[12vh] left-1/2 z-50 flex max-h-[min(560px,76dvh)] w-[calc(100vw-32px)] max-w-[620px] -translate-x-1/2 flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-xl outline-none max-sm:top-4"
+          // Phones: a full-screen sheet (the keyboard takes the bottom half; results scroll above it).
+          className="fixed top-[12vh] left-1/2 z-50 flex max-h-[min(560px,76dvh)] w-[calc(100vw-32px)] max-w-[620px] -translate-x-1/2 flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-xl outline-none max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:rounded-none max-sm:border-0 max-sm:pt-safe max-sm:pb-safe max-sm:shadow-none"
         >
           <DialogPrimitive.Title className="sr-only">Search</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Find channels, people, tickets and messages</DialogPrimitive.Description>
@@ -218,6 +220,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
               className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-[14px]"
             />
             {searching && <span className="text-[12px] text-muted-foreground">Searching…</span>}
+            <DialogPrimitive.Close className="-mr-2 h-11 shrink-0 cursor-pointer px-2 text-[15px] font-medium text-brand sm:hidden">Cancel</DialogPrimitive.Close>
           </div>
           <div ref={listRef} id="search-results" role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto p-1.5">
             {items.map((it, i) => {
@@ -273,4 +276,36 @@ export function useSearchShortcut(setOpen: (fn: (v: boolean) => boolean) => void
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setOpen]);
+}
+
+const useSearchStore = create<{ open: boolean }>(() => ({ open: false }));
+
+/** Open the search palette (sidebar button, phone header button). */
+export const openSearch = () => useSearchStore.setState({ open: true });
+
+/**
+ * The app's one search palette, mounted in the shell so phones (no sidebar) reach it too.
+ * Opened by Cmd/Ctrl+K, the sidebar's search button, or SearchButton in phone headers.
+ */
+export function GlobalSearch() {
+  const open = useSearchStore((s) => s.open);
+  const setOpen = useCallback((v: boolean | ((v: boolean) => boolean)) => {
+    useSearchStore.setState((s) => ({ open: typeof v === "function" ? v(s.open) : v }));
+  }, []);
+  useSearchShortcut(setOpen);
+  return <SearchPalette open={open} onOpenChange={setOpen} />;
+}
+
+/** Phone-only search entry for screen headers (desktop has the sidebar button and Cmd/Ctrl+K). */
+export function SearchButton({ className }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label="Search"
+      onClick={openSearch}
+      className={cn("flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-muted hover:text-foreground md:hidden", className)}
+    >
+      <SearchIcon className="size-[22px]" strokeWidth={1.9} />
+    </button>
+  );
 }
