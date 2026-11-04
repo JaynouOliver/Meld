@@ -33,32 +33,31 @@ Meld
 
 ## 6. Project Description (required)
 
+*2,065 characters, plain text (no bold), so it pastes cleanly.*
+
 Meld is team chat and tickets in one app, with AI agents as teammates who turn conversation into owned work.
 
-**The problem.** Teams decide things in Slack and track them in Jira, and the gap between the two loses work. "I'll do it by Friday" never becomes a ticket. A ticket says "To do" a week after someone said "it's done". A decision made in a thread gets argued again two weeks later because nobody can find it. Today's AI add-ons answer questions when you ask; they don't keep the work true.
+The problem: teams decide things in Slack and track them in Jira, and work gets lost in between. "I'll do it by Friday" never becomes a ticket. Tickets say "To do" after the work is done. Decisions get argued again because nobody can find the thread. Today's AI add-ons answer when asked; they don't keep the work true.
 
-**What Meld does.** Agents are members of the workspace, with names, faces, jobs and the same access rules as people:
-- **Atlas** (lead) answers questions about the work with links to sources, turns a thread into assigned tickets, plans missions, and remembers decisions.
-- **Tess** triages: she files bugs she sees in chat without being asked, and labels, prioritizes and assigns new tickets.
-- **Rex** reviews tickets assigned to him and answers @mentions in ticket comments.
-- **Sunny** posts standups and a daily digest.
+In Meld, agents are workspace members with names, jobs and the same access rules as people:
+- Atlas (lead) answers questions with links to sources, turns a thread into assigned tickets and runs missions.
+- Tess triages: she files bugs she spots in chat and labels, prioritizes and assigns new tickets.
+- Rex reviews the tickets he's assigned and answers @mentions in comments.
+- Sunny posts standups and a daily digest.
 
-**What happens without anyone asking:**
-- **Chat updates tickets.** "Recorded the demo video, it's up for review now" moves the ticket to In review. "I'll write the investor update by Friday" creates a ticket due Friday.
-- **Decisions are remembered.** When a thread settles a decision, Atlas logs it with the reason and the options rejected. If someone later proposes the opposite, Atlas replies: "the team already decided this on Monday (Maya, Priya), here's why", with a link to the original thread.
-- **Missions.** Give Atlas a goal ("Launch paid plans"). It plans tickets with owners and dates, checks in, re-plans when work slips, and asks you only when a human decision is needed ("move the date or cut ORB-9?").
-- **Proactive help.** Follow-ups on questions nobody answered, reminders, links to the same discussion in another channel, a workload balancer ("Priya has 5 open tickets and is out Monday; reassign to Jonas?"), meeting notes turned into decisions and tickets, and playbooks (when someone writes "outage" in #engineering, Tess opens an incident, Rex lists checks and a rollback plan, and Atlas posts a status update).
+What happens without anyone asking:
+- Chat updates tickets. "It's up for review now" moves the ticket. "I'll write the investor update by Friday" creates one, due Friday.
+- Decisions are remembered with the reason. If someone proposes the opposite later, Atlas points to the original decision and thread.
+- Missions: give Atlas a goal; it plans tickets with owners and dates, checks in, re-plans when work slips, and asks you only when a human call is needed.
+- Follow-ups on unanswered questions, reminders, workload balancing, meeting notes into tickets, and playbooks (say "outage" in #engineering and Tess, Rex and Atlas run the incident steps).
 
-**Trust.** Every agent change can be undone. Agents act with the permissions of the person who asked, so a guest's request can't touch tickets the guest can't see. Risky changes wait for a Confirm card. Small talk gets no reply.
+Trust: every agent change can be undone, agents act with the asking person's permissions, and risky changes wait for Confirm.
 
-**Underneath it's a full Slack and Jira replacement:**
-- **Chat:** channels, DMs, threads, reactions, pins, edits, search (desktop and phone), and real-time updates.
-- **Tickets:** a table with saved views and filters, a Kanban board, labels, due dates, points, checklists, comments with @mentions, blockers, and insights.
-- **Workspaces:** roles and invites.
+It's also a full Slack and Jira replacement: channels, DMs, threads, search, real-time chat, a ticket table and Kanban board, comments, blockers, roles and invites.
 
-**Try it:** https://meld-fawn.vercel.app, then **Try the live demo**. No sign-up. In about 5 seconds you get a private copy of a startup's workspace. It opens on a #tour channel with a card for every feature and the exact text to type.
+Try it with no sign-up: https://meld-fawn.vercel.app, then "Try the live demo". You get a private startup workspace in about 5 seconds, opening on a #tour channel that shows every feature.
 
-Built in four days (Nov 1–4) with Next.js, Supabase and the Meta Model API (Muse Spark).
+Built in four days with Next.js, Supabase and the Meta Model API (Muse Spark).
 
 ## 7. Public GitHub Repository (required)
 
