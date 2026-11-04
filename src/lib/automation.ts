@@ -98,7 +98,11 @@ export function triageSummary(p: TriageProposal, nameOf: (id: PersonId) => strin
 
 // ---------------------------------------------------------------- playbooks
 
-export type PlaybookTrigger = { kind: "label"; label: string } | { kind: "status"; status: TicketStatus };
+export type PlaybookTrigger =
+  | { kind: "label"; label: string }
+  | { kind: "status"; status: TicketStatus }
+  /** A person's message in this channel containing the keyword or phrase (whole words, any case). */
+  | { kind: "keyword"; chatId: ChatId; keyword: string };
 
 export interface PlaybookStep {
   agentId: PersonId;
@@ -123,6 +127,7 @@ export interface PlaybookRun {
   id: string;
   playbookId: string;
   playbookName: string;
+  /** The ticket it ran on; "" for a run started by a message (see messageId). */
   ticketId: string;
   chatId: ChatId;
   threadId: string | null;
@@ -137,12 +142,17 @@ export interface PlaybookRun {
   createdAt: string;
   updatedAt: string;
   finishedAt: string | null;
+  /** Keyword runs: the message that started it (its thread holds the steps), and what it said. */
+  messageId?: string | null;
+  messageText?: string | null;
+  messageAuthor?: PersonId | null;
 }
 
 export const MAX_PLAYBOOK_STEPS = 5;
 export const MAX_PLAYBOOKS = 20;
 
-export const triggerLabel = (t: PlaybookTrigger) => (t.kind === "label" ? `Ticket labeled ${t.label}` : `Ticket moved to ${t.status}`);
+export const triggerLabel = (t: PlaybookTrigger) =>
+  t.kind === "label" ? `Ticket labeled ${t.label}` : t.kind === "status" ? `Ticket moved to ${t.status}` : `Message containing "${t.keyword}"`;
 
 /** Step header, posted by the step's agent before it works: "Playbook: Bug intake · step 2 of 3". */
 export const stepHeader = (name: string, i: number, total: number) => `Playbook: ${name} · step ${i + 1} of ${total}`;
@@ -163,9 +173,43 @@ export function matchPlaybooks(pbs: Playbook[], before: Ticket | null, after: Ti
     if (tr.kind === "label") {
       const has = (t: Ticket | null) => !!t && !!t.title.trim() && (t.labels ?? []).includes(tr.label);
       if (has(after) && !has(before)) out.push({ pb, key: `${pb.id}|${after.id}|label` });
-    } else if (before && before.status !== after.status && after.status === tr.status) {
+    } else if (tr.kind === "status" && before && before.status !== after.status && after.status === tr.status) {
       out.push({ pb, key: `${pb.id}|${after.id}|status|${after.activity.length}` });
     }
+  }
+  return out;
+}
+
+/**
+ * A keyword or phrase as a case-insensitive whole-word match: "outage" matches "Outage!"
+ * and "an outage:" but not "outages"; "login failing" allows any spacing between words.
+ */
+export function keywordRegex(keyword: string): RegExp | null {
+  const words = keyword.trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!words.length) return null;
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${words.join("\\s+")}(?![\\p{L}\\p{N}_])`, "iu");
+}
+
+export interface PlaybookMessage {
+  chatId: ChatId;
+  /** The thread it was posted in, if it's a reply. */
+  threadId: string | null;
+  messageId: string;
+  authorId: PersonId;
+  text: string;
+}
+
+/**
+ * Which enabled keyword playbooks a message starts, each with its key (one run per
+ * message and playbook). Only messages from people count, so agents can't start them.
+ */
+export function matchMessagePlaybooks(pbs: Playbook[], m: PlaybookMessage, authorIsAgent: boolean): { pb: Playbook; key: string }[] {
+  if (authorIsAgent || !m.text.trim()) return [];
+  const out: { pb: Playbook; key: string }[] = [];
+  for (const pb of pbs) {
+    const tr = pb.trigger;
+    if (!pb.enabled || !pb.steps.length || tr.kind !== "keyword" || tr.chatId !== m.chatId) continue;
+    if (keywordRegex(tr.keyword)?.test(m.text)) out.push({ pb, key: `${pb.id}|msg|${m.messageId}` });
   }
   return out;
 }
@@ -201,6 +245,11 @@ export function cleanPlaybook(
     trigger = { kind: "label", label };
   } else if (tr.kind === "status" && x.statuses.includes(tr.status as TicketStatus)) {
     trigger = { kind: "status", status: tr.status as TicketStatus };
+  } else if (tr.kind === "keyword") {
+    if (typeof tr.chatId !== "string" || !x.chats.includes(tr.chatId)) return { error: "Pick the channel to listen in" };
+    const keyword = clip(tr.keyword, 60);
+    if (!keyword || !/[\p{L}\p{N}]/u.test(keyword)) return { error: "Write the keyword or phrase to listen for" };
+    trigger = { kind: "keyword", chatId: tr.chatId, keyword };
   } else return { error: "Pick a trigger" };
   const rawSteps = Array.isArray(input.steps) ? input.steps : [];
   if (!rawSteps.length) return { error: "Add at least one step" };
@@ -213,7 +262,8 @@ export function cleanPlaybook(
     if (!instruction) return { error: `Step ${i + 1}: write what the agent should do` };
     steps.push({ agentId: o.agentId, instruction });
   }
-  const chatId = typeof input.chatId === "string" && x.chats.includes(input.chatId) ? input.chatId : null;
+  // Keyword runs work in the message's own thread, so they "post in" its channel.
+  const chatId = trigger.kind === "keyword" ? trigger.chatId : typeof input.chatId === "string" && x.chats.includes(input.chatId) ? input.chatId : null;
   return { ok: { name, trigger, steps, enabled: input.enabled !== false, chatId } };
 }
 

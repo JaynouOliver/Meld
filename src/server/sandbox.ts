@@ -288,6 +288,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await seedScheduled(store, { me, ch, ag, ids, posted, people: { maya, jonas, priya, sofia, tom } });
   await (await import("./seeds/proactive")).seedProactive(store, { me: me.id, workspaceId: wsId, ch, posted, people: { maya, jonas, priya, tom, sofia } });
   await (await import("./seeds/automation")).seedAutomation(store, { me: me.id, ch, ag, ids, people: { jonas, priya, sofia } });
+  await (await import("./seeds/agent-gaps")).seedAgentGaps(store, { me: me.id, ch, ag, ids, atlasDm, people: { jonas, priya } });
   // Last: it points at what every seed above posted.
   await (await import("./seeds/showcase")).seedShowcase(store, { me: me.id, ch, ag, ids, posted, people: { maya, jonas, priya, tom, sofia }, tour: ch.tour, atlasDm });
   await store.flush();

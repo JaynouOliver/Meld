@@ -1,14 +1,14 @@
 import "server-only";
 
 import {
-  cleanPlaybook, matchPlaybooks, MAX_PLAYBOOKS, playbookRunId, runIdOfStep, stepHeader, stepRunId, triggerLabel,
-  type Playbook, type PlaybookInput, type PlaybookRun, type PlaybookView, type TicketAutomationView,
+  cleanPlaybook, matchMessagePlaybooks, matchPlaybooks, MAX_PLAYBOOKS, playbookRunId, runIdOfStep, stepHeader, stepRunId, triggerLabel,
+  type Playbook, type PlaybookInput, type PlaybookMessage, type PlaybookRun, type PlaybookView, type TicketAutomationView,
 } from "@/lib/automation";
 import { MAX_AGENT_DEPTH, RATE_ALL, RATE_WINDOW_MS, type AgentRun } from "@/lib/agent/runs";
 import { ApiError, effectiveRole } from "@/lib/api/service";
 import { STATUSES } from "@/lib/constants";
 import { currentCtx } from "@/lib/context";
-import { agentById, agentModeIn, agentsOf, personOf, teamName, type Directory } from "@/lib/directory";
+import { agentById, agentModeIn, agentsOf, chatTitle, personOf, teamName, type Directory } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
 import { canSee, viewerOf } from "@/lib/rbac";
 import type { ChatId, Role, Ticket } from "@/lib/types";
@@ -52,6 +52,91 @@ export async function playbookEvent(before: Ticket | null, t: Ticket): Promise<P
     if (r) out.push(r);
   }
   return out;
+}
+
+// ---------------------------------------------------------------- keyword triggers
+
+/**
+ * Enabled keyword playbooks per workspace, cached briefly: every message from a person is
+ * checked, so this is one read per workspace per window, not per message. Edits on this
+ * instance clear it at once; other instances catch up within the window.
+ */
+const KEYWORD_TTL_MS = 20_000;
+const keywordCache = new Map<string, { at: number; pbs: Playbook[] }>();
+const forgetKeywordPlaybooks = () => keywordCache.delete(currentCtx().dir.workspace.id);
+
+async function keywordPlaybooks(): Promise<Playbook[]> {
+  const { dir, store } = currentCtx();
+  const hit = keywordCache.get(dir.workspace.id);
+  if (hit && Date.now() - hit.at < KEYWORD_TTL_MS) return hit.pbs;
+  const pbs = (await store.listPlaybooks()).filter((p) => p.enabled && p.trigger.kind === "keyword");
+  keywordCache.set(dir.workspace.id, { at: Date.now(), pbs });
+  return pbs;
+}
+
+/** The keyword playbooks a message starts (none for agents' messages). */
+export async function matchMessage(m: PlaybookMessage): Promise<{ pb: Playbook; key: string }[]> {
+  const { dir } = currentCtx();
+  if (agentById(dir, m.authorId) || !dir.chats[m.chatId] || dir.chats[m.chatId].kind !== "channel") return [];
+  return matchMessagePlaybooks(await keywordPlaybooks(), m, false);
+}
+
+/** A person posted a message: start the keyword playbooks it matches, in its thread. */
+export async function messageEvent(m: PlaybookMessage, role?: Role): Promise<PlaybookRun[]> {
+  const out: PlaybookRun[] = [];
+  for (const x of await matchMessage(m)) {
+    const r = await startMessagePlaybook(x.pb, x.key, m, role);
+    if (r) out.push(r);
+  }
+  return out;
+}
+
+/**
+ * Start a keyword playbook on a message: its steps post in the message's thread (or the
+ * thread it was posted in), with the message as their context. Keyed by the message, so
+ * it runs once per message.
+ */
+export async function startMessagePlaybook(pb: Playbook, key: string, m: PlaybookMessage, role?: Role): Promise<PlaybookRun | null> {
+  const ctx = currentCtx();
+  const { dir, store } = ctx;
+  const meta = dir.chats[m.chatId];
+  const missing = pb.steps.filter((s) => !agentModeIn(dir, m.chatId, s.agentId)).map((s) => personOf(dir, s.agentId).first);
+  const ok = !!meta && !missing.length;
+  const now = new Date().toISOString();
+  const run: PlaybookRun = {
+    id: playbookRunId(key), playbookId: pb.id, playbookName: pb.name, ticketId: "", chatId: m.chatId, threadId: m.threadId ?? m.messageId,
+    step: 0, total: pb.steps.length, status: ok ? "running" : "failed", runIds: [], requester: dir.me, createdAt: now, updatedAt: now,
+    error: ok ? null : `${[...new Set(missing)].join(", ")} can't read ${meta ? chatTitle(dir, m.chatId) : "that channel"}. Add them to it.`,
+    finishedAt: ok ? null : now,
+    messageId: m.messageId, messageText: m.text.replace(/\s+/g, " ").trim().slice(0, 280), messageAuthor: m.authorId,
+  };
+  if (ok && (await store.countRunsSince(m.chatId, new Date(Date.now() - RATE_WINDOW_MS).toISOString())) >= RATE_ALL) {
+    console.log(`[playbook] ${pb.name} on message ${m.messageId}: rate-limited in ${m.chatId}, not started`);
+    return null;
+  }
+  if (!(await store.claimPlaybookRun(run))) return null; // this message already started it
+  console.log(`[playbook] ${pb.name} on message ${m.messageId} in ${m.chatId}: ${run.status}`);
+  if (!ok) return run;
+  const first = await startStep(run, 0, 0, null, ctx.run?.role ?? effectiveRole(role));
+  if (first) {
+    if (runner) await runner(first);
+    else scheduleJob(() => execute(first), dir.workspace.id, run.requester);
+  }
+  return (await store.getPlaybookRun(run.id)) ?? run;
+}
+
+/** A keyword run's request: the message that started it, and this step's instruction. */
+export function messageStepTask(dir: Directory, pb: Pick<Playbook, "name">, i: number, total: number, instruction: string, run: Pick<PlaybookRun, "chatId" | "messageText" | "messageAuthor">) {
+  return `${stepHeader(pb.name, i, total)}, started by a message in ${chatTitle(dir, run.chatId)} from ${personOf(dir, run.messageAuthor ?? dir.me).name}:
+"${run.messageText ?? ""}"
+
+Your step: ${instruction}
+
+How to do it:
+- The message and earlier steps are in this thread; build on them, don't repeat them.
+- Do only your step. If it says to open or change a ticket, do that with your tools; otherwise just report.
+- Post the result in at most five "• " lines, concrete and specific to this message.
+- Don't @mention other agents or hand off: the playbook starts the next step itself.`;
 }
 
 /** Where a playbook works: the ticket's watch thread, else its channel, else any channel all its agents read. */
@@ -121,19 +206,20 @@ async function startStep(run: PlaybookRun, i: number, depth: number, parentRunId
   const pb = (await store.listPlaybooks()).find((p) => p.id === run.playbookId);
   const step = pb?.steps[i];
   const agent = step ? agentById(dir, step.agentId) : null;
-  const t = await store.getTicket(run.ticketId);
-  if (!pb || !step || !agent || !t) {
-    await store.advancePlaybookRun(run.id, i, { status: "failed", error: !t ? "The ticket was deleted" : !agent ? `Step ${i + 1}'s agent no longer exists` : "The playbook changed", finishedAt: new Date().toISOString() });
+  // A keyword run has no ticket: its context is the message (and its thread).
+  const t = run.messageId ? null : await store.getTicket(run.ticketId);
+  if (!pb || !step || !agent || (!t && !run.messageId)) {
+    await store.advancePlaybookRun(run.id, i, { status: "failed", error: !t && !run.messageId ? "The ticket was deleted" : !agent ? `Step ${i + 1}'s agent no longer exists` : "The playbook changed", finishedAt: new Date().toISOString() });
     return null;
   }
   const id = stepRunId(run.id, i);
   const headerId = `${id}h`;
-  const header = { id: headerId, who: agent.id, time: stamp(), text: `**${stepHeader(pb.name, i, run.total)}** · ${step.instruction}`, ticket: i === 0 ? t.id : null };
+  const header = { id: headerId, who: agent.id, time: stamp(), text: `**${stepHeader(pb.name, i, run.total)}** · ${step.instruction}`, ticket: i === 0 && t ? t.id : null };
   const saved = await store.appendMessage(run.chatId, header, run.threadId);
   const threadId = run.threadId ?? headerId;
   const agentRun: AgentRun = {
     id, triggerMessageId: headerId, chatId: run.chatId, threadId, agentId: agent.id, trigger: "delegation", depth, parentRunId,
-    requester: run.requester, role, text: stepTask(dir, pb, i, run.total, step.instruction, t),
+    requester: run.requester, role, text: t ? stepTask(dir, pb, i, run.total, step.instruction, t) : messageStepTask(dir, pb, i, run.total, step.instruction, run),
     status: "queued", attempts: 0, error: null, result: null, trace: null, createdAt: new Date().toISOString(), startedAt: null, finishedAt: null,
   };
   const queued = await store.enqueueRun(agentRun);
@@ -200,6 +286,7 @@ export async function savePlaybook(input: PlaybookInput, role?: Role): Promise<P
   const now = new Date().toISOString();
   const pb: Playbook = { id: prev?.id ?? `pbk${uid()}`, createdBy: prev?.createdBy ?? dir.me, createdAt: prev?.createdAt ?? now, updatedAt: now, ...r.ok };
   await store.savePlaybook(pb);
+  forgetKeywordPlaybooks();
   console.log(`[playbook] ${prev ? "edited" : "created"} "${pb.name}" (${triggerLabel(pb.trigger)}, ${pb.steps.length} steps)`);
   return pb;
 }
@@ -211,12 +298,14 @@ export async function setPlaybookEnabled(id: string, enabled: boolean, role?: Ro
   if (!pb) throw new ApiError("That playbook no longer exists", 404);
   const next = { ...pb, enabled, updatedAt: new Date().toISOString() };
   await store.savePlaybook(next);
+  forgetKeywordPlaybooks();
   return next;
 }
 
 export async function deletePlaybook(id: string, role?: Role): Promise<void> {
   if (effectiveRole(role) !== "owner") throw new ApiError("Only org owners can delete playbooks", 403);
   await currentCtx().store.deletePlaybook(id);
+  forgetKeywordPlaybooks();
 }
 
 /** The ticket panel's automation note: its triage (with Undo while it lasts) and playbook runs. */

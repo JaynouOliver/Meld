@@ -64,10 +64,19 @@ const methods: Record<string, Method> = {
     const said = { chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me };
     after(() => followUps.afterHumanMessage(said));
     if (!llm()) return saved;
-    const runs = await dispatch({
+    let runs = await dispatch({
       chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
       text: saved.text, role: api.effectiveRole(input.role),
     });
+    // Keyword playbooks ("a message in #engineering containing outage"): a cached match. When one
+    // takes the message, lurking agents stand down; the playbook's steps answer in its thread.
+    const keyed = { ...said, text: saved.text };
+    if ((await playbooks.matchMessage(keyed).catch(() => [])).length) {
+      const quiet = runs.filter((r) => r.trigger === "proactive");
+      await Promise.all(quiet.map((r) => currentCtx().store.finishRun(r.id, { status: "done", result: { touchedChats: [], openTicket: null, deleted: [] } })));
+      runs = runs.filter((r) => !quiet.includes(r));
+      after(() => playbooks.messageEvent(keyed, api.effectiveRole(input.role)).catch((e) => console.error("[playbook] keyword run failed:", e)));
+    }
     const ours = runsWeExecute(runs);
     if (ours.length) after(() => Promise.all(ours.map((r) => processRun(r.id))));
     // The listener reads every message from a person once, after the response is sent.

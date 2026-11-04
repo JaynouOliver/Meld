@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDownIcon, ArrowUpIcon, ListChecksIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
@@ -29,7 +30,14 @@ const ago = (iso: string) => {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-const triggerText = (p: Pick<PlaybookView, "trigger">) => (p.trigger.kind === "label" ? `a ticket is labeled ${p.trigger.label}` : `a ticket moves to ${p.trigger.status}`);
+type TriggerKind = PlaybookView["trigger"]["kind"];
+
+function triggerText(dir: ReturnType<typeof useDirectory>, p: Pick<PlaybookView, "trigger">) {
+  const tr = p.trigger;
+  if (tr.kind === "label") return `a ticket is labeled ${tr.label}`;
+  if (tr.kind === "status") return `a ticket moves to ${tr.status}`;
+  return `someone writes “${tr.keyword}” in ${dir.chats[tr.chatId] ? chatTitle(dir, tr.chatId) : "a deleted channel"}`;
+}
 
 /** Workspace playbooks: a trigger plus ordered agent steps. Owners edit; everyone else reads. */
 export function PlaybooksScreen() {
@@ -52,7 +60,7 @@ export function PlaybooksScreen() {
       >
         <div className="flex min-w-0 flex-col leading-[1.3]">
           <h1 className="text-base font-semibold">Playbooks</h1>
-          <span className="hidden truncate text-meta text-muted-foreground md:block">When something happens to a ticket, agents take it from there, one step at a time.</span>
+          <span className="hidden truncate text-meta text-muted-foreground md:block">When a ticket changes or a channel message names a keyword, agents take it from there, one step at a time.</span>
         </div>
       </ScreenHeader>
       <div className="flex-1 overflow-y-auto bg-canvas px-4 py-4 sm:px-6">
@@ -92,8 +100,8 @@ function PlaybookCard({ p, owner, onEdit }: { p: PlaybookView; owner: boolean; o
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{p.name}</h2>
           <p className="mt-0.5 text-meta text-muted-foreground">
-            When {triggerText(p)} · {p.steps.length} {p.steps.length === 1 ? "step" : "steps"}
-            {where ? ` · posts in the ticket's thread, or #${where.replace(/^#/, "")}` : ""}
+            When {triggerText(dir, p)} · {p.steps.length} {p.steps.length === 1 ? "step" : "steps"}
+            {p.trigger.kind === "keyword" ? " · runs in the message's thread" : where ? ` · posts in the ticket's thread, or #${where.replace(/^#/, "")}` : ""}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -153,6 +161,14 @@ const RUN_STATUS: Record<PlaybookRun["status"], { label: string; cls: string }> 
 function RecentRuns({ runs }: { runs: PlaybookRun[] }) {
   const { lookup } = useVisibleTickets();
   const openTicket = useUiStore((s) => s.openTicket);
+  const dir = useDirectory();
+  const router = useRouter();
+  // A keyword run lives in its message's thread: open it there.
+  const openThread = (r: PlaybookRun) => {
+    if (!dir.chats[r.chatId]) return;
+    useUiStore.setState({ focus: { chatId: r.chatId, threadId: r.threadId, id: r.messageId ?? r.threadId ?? "" }, ticketId: null });
+    router.push(`/chat/${r.chatId}`);
+  };
   return (
     <div className="mt-3 border-t pt-3">
       <h3 className="text-[12px] font-medium text-muted-foreground">Recent runs</h3>
@@ -161,20 +177,35 @@ function RecentRuns({ runs }: { runs: PlaybookRun[] }) {
       ) : (
         <ul className="mt-1.5 flex flex-col gap-1.5">
           {runs.map((r) => {
-            const t = lookup(r.ticketId).ticket;
+            const t = r.messageId ? null : lookup(r.ticketId).ticket;
+            const author = r.messageId && r.messageAuthor ? personOf(dir, r.messageAuthor) : null;
             const s = RUN_STATUS[r.status];
             const done = r.status === "done" ? r.total : r.step;
             return (
               <li key={r.id} className="flex items-center gap-2.5 text-[13px]">
-                <button
-                  type="button"
-                  onClick={() => t && openTicket(t.id)}
-                  disabled={!t}
-                  className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline disabled:cursor-default disabled:no-underline"
-                >
-                  <span className="font-medium tabular">{r.ticketId}</span>
-                  <span className="text-ink-2"> {t?.title ?? ""}</span>
-                </button>
+                {r.messageId ? (
+                  <button
+                    type="button"
+                    onClick={() => openThread(r)}
+                    disabled={!dir.chats[r.chatId]}
+                    title="Open the thread"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left hover:underline disabled:cursor-default disabled:no-underline"
+                  >
+                    {author && <Avatar person={author} size="xs" />}
+                    <span className="shrink-0 font-medium">{author?.first ?? "Message"}</span>
+                    <span className="truncate text-ink-2">“{r.messageText ?? ""}”</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => t && openTicket(t.id)}
+                    disabled={!t}
+                    className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline disabled:cursor-default disabled:no-underline"
+                  >
+                    <span className="font-medium tabular">{r.ticketId}</span>
+                    <span className="text-ink-2"> {t?.title ?? ""}</span>
+                  </button>
+                )}
                 <span className="hidden items-center gap-1 sm:flex" aria-label={`${done} of ${r.total} steps done`}>
                   {Array.from({ length: r.total }, (_, i) => (
                     <span key={i} className={cn("h-1.5 w-4 rounded-full", i < done ? "bg-brand" : i === r.step && r.status === "running" ? "bg-brand/40" : "bg-input")} />
@@ -203,10 +234,11 @@ function PlaybookDialog({ initial, onClose }: { initial: PlaybookView | null; on
   const agents = agentsOf(dir).filter((a) => a.kind !== "external");
   const labels = useMemo(() => [...new Set(["bug", ...all.flatMap((t) => t.labels ?? [])])].sort(), [all]);
   const [name, setName] = useState(initial?.name ?? "");
-  const [kind, setKind] = useState<"label" | "status">(initial?.trigger.kind ?? "label");
+  const [kind, setKind] = useState<TriggerKind>(initial?.trigger.kind ?? "label");
   const [label, setLabel] = useState(initial?.trigger.kind === "label" ? initial.trigger.label : "bug");
   const [status, setStatus] = useState<TicketStatus>(initial?.trigger.kind === "status" ? initial.trigger.status : "In review");
   const [chatId, setChatId] = useState(initial?.chatId ?? dir.channels.find((c) => dir.chats[c]?.kind === "channel" && /eng/i.test((dir.chats[c] as { label: string }).label)) ?? dir.home);
+  const [keyword, setKeyword] = useState(initial?.trigger.kind === "keyword" ? initial.trigger.keyword : "");
   const [steps, setSteps] = useState<PlaybookStep[]>(initial?.steps ?? [{ agentId: agents[0]?.id ?? "atlas", instruction: "" }]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -221,7 +253,7 @@ function PlaybookDialog({ initial, onClose }: { initial: PlaybookView | null; on
     e.preventDefault();
     const input: PlaybookInput = {
       id: initial?.id, name, chatId, steps, enabled: initial?.enabled ?? true,
-      trigger: kind === "label" ? { kind: "label", label } : { kind: "status", status },
+      trigger: kind === "label" ? { kind: "label", label } : kind === "status" ? { kind: "status", status } : { kind: "keyword", chatId, keyword },
     };
     save.mutate(input, { onSuccess: onClose });
   };
@@ -237,19 +269,22 @@ function PlaybookDialog({ initial, onClose }: { initial: PlaybookView | null; on
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className={field}>
               <Label htmlFor="pb-trigger">When</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as "label" | "status")}>
+              <Select value={kind} onValueChange={(v) => setKind(v as TriggerKind)}>
                 <SelectTrigger id="pb-trigger">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="label">A ticket is labeled…</SelectItem>
                   <SelectItem value="status">A ticket moves to…</SelectItem>
+                  <SelectItem value="keyword">A message in a channel says…</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className={field}>
-              <Label htmlFor="pb-value">{kind === "label" ? "Label" : "Status"}</Label>
-              {kind === "label" ? (
+              <Label htmlFor="pb-value">{kind === "label" ? "Label" : kind === "status" ? "Status" : "Keyword or phrase"}</Label>
+              {kind === "keyword" ? (
+                <Input id="pb-value" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="outage" maxLength={60} />
+              ) : kind === "label" ? (
                 <Select value={label} onValueChange={setLabel}>
                   <SelectTrigger id="pb-value">
                     <SelectValue />
@@ -279,7 +314,7 @@ function PlaybookDialog({ initial, onClose }: { initial: PlaybookView | null; on
             </div>
           </div>
           <div className={field}>
-            <Label htmlFor="pb-chat">Post in</Label>
+            <Label htmlFor="pb-chat">{kind === "keyword" ? "In channel" : "Post in"}</Label>
             <Select value={chatId} onValueChange={setChatId}>
               <SelectTrigger id="pb-chat">
                 <SelectValue />
@@ -292,7 +327,11 @@ function PlaybookDialog({ initial, onClose }: { initial: PlaybookView | null; on
                 ))}
               </SelectContent>
             </Select>
-            <span className="text-[12px] text-muted-foreground">Steps post in the ticket&apos;s watch thread when it has one; otherwise in a new thread here.</span>
+            <span className="text-[12px] text-muted-foreground">
+              {kind === "keyword"
+                ? "Messages from people here that contain the keyword or phrase as whole words, in any case, start it. Steps post in the message's thread."
+                : "Steps post in the ticket's watch thread when it has one; otherwise in a new thread here."}
+            </span>
           </div>
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium">Steps</legend>

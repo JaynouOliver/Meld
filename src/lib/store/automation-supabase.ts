@@ -16,6 +16,8 @@ interface PlaybookRow {
 interface RunRow {
   id: string; playbook_id: string; playbook_name: string; ticket_id: string; chat_id: string; thread_id: string | null; step: number; total: number;
   status: PlaybookRun["status"]; error: string | null; run_ids: string[]; requester: string; created_at: string; updated_at: string; finished_at: string | null;
+  /** Keyword runs (20261111100000_agent_gaps.sql). */
+  message_id?: string | null; message_text?: string | null; message_author?: string | null;
 }
 
 const triageFrom = (r: TriageRow): TicketTriage => ({
@@ -27,6 +29,7 @@ const playbookFrom = (r: PlaybookRow): Playbook => ({
 const runFrom = (r: RunRow): PlaybookRun => ({
   id: r.id, playbookId: r.playbook_id, playbookName: r.playbook_name, ticketId: r.ticket_id, chatId: r.chat_id, threadId: r.thread_id, step: r.step, total: r.total,
   status: r.status, error: r.error, runIds: r.run_ids ?? [], requester: r.requester, createdAt: r.created_at, updatedAt: r.updated_at, finishedAt: r.finished_at,
+  ...(r.message_id ? { messageId: r.message_id, messageText: r.message_text ?? null, messageAuthor: r.message_author ?? null } : {}),
 });
 
 /** The Supabase store's automation methods (tables from 20261110110000_automation.sql). */
@@ -78,6 +81,8 @@ export function automationSupabase(ws: string): Methods {
       const res = await sb().from("playbook_runs").insert({
         id: r.id, workspace_id: ws, playbook_id: r.playbookId, playbook_name: r.playbookName, ticket_id: r.ticketId, chat_id: r.chatId, thread_id: r.threadId,
         step: r.step, total: r.total, status: r.status, error: r.error, run_ids: r.runIds, requester: r.requester, created_at: r.createdAt, updated_at: r.updatedAt, finished_at: r.finishedAt,
+        // Only keyword runs write the message columns, so ticket runs work before the migration is applied.
+        ...(r.messageId ? { message_id: r.messageId, message_text: r.messageText ?? null, message_author: r.messageAuthor ?? null } : {}),
       });
       if (res.error?.code === "23505") return false;
       check(res, "claim playbook run");
