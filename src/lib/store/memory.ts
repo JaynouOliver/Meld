@@ -126,6 +126,12 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async listMissionEvents(missionId) {
     return clone(d().missionEvents.filter((e) => e.missionId === missionId));
   },
+  async listTeamDecisions() {
+    return clone([...(d().teamDecisions ?? new Map()).values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+  async saveTeamDecision(x) {
+    (d().teamDecisions ??= new Map()).set(x.id, clone(x));
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

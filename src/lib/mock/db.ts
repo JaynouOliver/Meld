@@ -1,6 +1,7 @@
 import type { ActionRecord } from "../agent/actions";
 import type { AgentRun } from "../agent/runs";
 import type { Decision, Mission, MissionEvent } from "../missions";
+import type { TeamDecision } from "../team-decisions";
 import { todayIndex } from "../format";
 import type { ChatId, Message, ReplyNode, Ticket, WeekDay } from "../types";
 import { DEMO_WORKSPACE_ID } from "./demo";
@@ -24,6 +25,7 @@ export interface Db {
   missions: Map<string, Mission>;
   decisions: Map<string, Decision>;
   missionEvents: MissionEvent[];
+  teamDecisions: Map<string, TeamDecision>;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));
@@ -42,6 +44,7 @@ function seed(workspaceId: string): Db {
     missions: new Map(),
     decisions: new Map(),
     missionEvents: [],
+    teamDecisions: new Map(),
   };
 }
 

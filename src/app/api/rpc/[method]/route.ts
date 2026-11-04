@@ -14,6 +14,8 @@ import { runInCtx } from "@/server/context";
 import { llm } from "@/server/llm";
 import { pingChanges } from "@/server/realtime";
 import * as missions from "@/server/missions";
+import { listen, shouldListen } from "@/server/listener";
+import * as teamDecisions from "@/server/listener/decisions";
 import * as ws from "@/server/workspace";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
@@ -50,6 +52,9 @@ const methods: Record<string, Method> = {
     });
     const ours = runsWeExecute(runs);
     if (ours.length) after(() => Promise.all(ours.map((r) => processRun(r.id))));
+    // The listener reads every message from a person once, after the response is sent.
+    const heard = { chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me, text: saved.text, role: api.effectiveRole(input.role) };
+    if (shouldListen(heard)) after(() => listen(heard).catch((e) => console.error("[listener] failed:", e)));
     return { ...saved, runs: runs.map(toRunView) };
   },
   getAgentRuns: async () => {
@@ -90,6 +95,8 @@ const methods: Record<string, Method> = {
   cancelMission: async (id: string) => missions.cancelMission(id),
   checkInMission: async (id: string, role?: string) => missions.checkInMission(id, role),
   answerDecision: async (decisionId: string, answer: string, role?: string) => missions.answerDecision(decisionId, answer, role),
+  listTeamDecisions: async () => teamDecisions.listTeamDecisions(),
+  setTeamDecisionStatus: async (id: string, status: "active" | "reopened", role?: string) => teamDecisions.setTeamDecisionStatus(id, status, role),
   createAgent: async (input: ws.AgentInput) => ws.createAgent(currentCtx(), input),
   updateAgent: async (input: ws.AgentInput & { id: string }) => ws.updateAgent(currentCtx(), input),
   deleteAgent: async (id: string) => ws.deleteAgent(currentCtx(), id),

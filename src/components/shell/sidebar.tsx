@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { BookmarkIcon, ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -231,6 +231,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             ) : (
               liveMissions > 0 && <span className="tabular text-xs text-sidebar-muted">{liveMissions}</span>
             )}
+          </NavLink>
+          <NavLink href="/decisions" active={pathname.startsWith("/decisions")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
+            <BookmarkIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
+            <span className="flex-1">Decisions</span>
           </NavLink>
         </div>
         <SectionLabel onAdd={dir.role !== "guest" ? () => setCreateOpen(true) : undefined} addLabel="Create a channel">

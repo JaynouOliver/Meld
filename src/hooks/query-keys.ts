@@ -10,4 +10,5 @@ export const queryKeys = {
   missions: ["missions"] as const,
   mission: (id: string) => ["missions", id] as const,
   decisions: ["decisions"] as const,
+  teamDecisions: ["team-decisions"] as const,
 };

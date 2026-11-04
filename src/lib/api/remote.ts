@@ -4,6 +4,7 @@
  */
 import { displayTime } from "../format";
 import type { Decision, Mission, MissionView } from "../missions";
+import type { TeamDecision } from "../team-decisions";
 import type { Message, ReplyNode, Ticket } from "../types";
 import type * as Local from "./service";
 
@@ -114,4 +115,6 @@ export const createMission = (input: { goal: string; deadline?: string | null; c
 export const launchMission = (id: string, role?: string) => rpc<Mission>("launchMission", [id, role]);
 export const cancelMission = (id: string) => rpc<Mission>("cancelMission", [id]);
 export const checkInMission = (id: string, role?: string) => rpc<{ summary: string }>("checkInMission", [id, role]);
+export const listTeamDecisions = () => rpc<TeamDecision[]>("listTeamDecisions", []);
+export const setTeamDecisionStatus = (id: string, status: "active" | "reopened", role?: string) => rpc<TeamDecision>("setTeamDecisionStatus", [id, status, role]);
 export const answerDecision = (decisionId: string, answer: string, role?: string) => rpc<void>("answerDecision", [decisionId, answer, role]);

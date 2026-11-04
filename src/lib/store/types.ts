@@ -1,4 +1,5 @@
 import type { ActionRecord } from "../agent/actions";
+import type { TeamDecision } from "../team-decisions";
 import type { AgentRun } from "../agent/runs";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
@@ -72,6 +73,9 @@ export interface Store {
   listDecisions(filter?: { missionId?: string; status?: Decision["status"] }): Promise<Decision[]>;
   saveDecision(d: Decision): Promise<void>;
   addMissionEvent(e: MissionEvent): Promise<void>;
+  /** The team's decision memory, newest first. */
+  listTeamDecisions(): Promise<TeamDecision[]>;
+  saveTeamDecision(d: TeamDecision): Promise<void>;
   listMissionEvents(missionId: string): Promise<MissionEvent[]>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;

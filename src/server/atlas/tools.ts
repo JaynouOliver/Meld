@@ -20,7 +20,7 @@ const PEOPLE_ENUM = "__PEOPLE__";
 
 /** Which permission group each tool needs (an agent's `tools`). */
 const TOOL_GROUP: Record<string, AgentTool> = {
-  list_tickets: "read", get_ticket: "read", ticket_discussion: "read", search_messages: "read", catch_up: "read",
+  list_tickets: "read", get_ticket: "read", ticket_discussion: "read", search_messages: "read", catch_up: "read", search_decisions: "read",
   create_ticket: "write", update_ticket: "write", delete_ticket: "delete", start_mission: "write",
 };
 export const toolAllowed = (name: string, allowed: AgentTool[] = ["read", "write", "delete"]) => allowed.includes(TOOL_GROUP[name] ?? "read");
@@ -133,6 +133,20 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           deadline: { type: "string", description: "YYYY-MM-DD if the requester gave a date or day; omit otherwise" },
         },
         required: ["goal"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_decisions",
+      description:
+        'The team\'s decision log: decisions settled in conversation (and answered on missions), with why, what was rejected, who decided and when. Use for "why did we…?", "what did we decide about…?", or before proposing something that may already be decided. Cite the source message id as [[id]].',
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "Words about the topic, e.g. 'onboarding checklist modal'" } },
+        required: ["query"],
         additionalProperties: false,
       },
     },
@@ -447,6 +461,11 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         ok: true, mission: m.goal, deadline: m.deadline, board: `/missions/${m.id}`,
         note: "The plan is being drafted now, live on the mission board and in the mission's own thread; someone reviews and launches it there. Tell the requester that in one sentence; don't invent tasks.",
       };
+    }
+    case "search_decisions": {
+      const { searchTeamDecisions } = await import("../listener/decisions");
+      const found = await searchTeamDecisions(str(args.query) ?? "");
+      return { decisions: found, note: found.length ? "Answer from these; say if one was reopened or replaced." : "Nothing in the decision log matches. Say so; don't guess." };
     }
     case "catch_up":
       return catchUp({ role, sinceHours: typeof args.since_hours === "number" ? args.since_hours : undefined, chat: str(args.chat) });
