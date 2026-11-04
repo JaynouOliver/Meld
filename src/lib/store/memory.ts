@@ -4,6 +4,7 @@ import { setDemoStoreFactory } from "../context";
 import { appendMessage, bumpWeek, dbFor, resetDb, type Db } from "../mock/db";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import type { ChatId, Message, ReplyNode } from "../types";
+import { automationMemory } from "./automation-memory";
 import type { MessageHit, PinnedHit, Store } from "./types";
 
 const clone = <T,>(x: T): T => structuredClone(x);
@@ -227,6 +228,7 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async listThreadLinks() {
     return clone([...(d().links ?? new Map()).values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 300);
   },
+  ...automationMemory(d),
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

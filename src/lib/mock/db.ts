@@ -2,6 +2,7 @@ import type { ActionRecord } from "../agent/actions";
 import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
 import type { OpenQuestion, ThreadLink } from "../proactive";
+import type { AutomationDb } from "../store/automation-memory";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
 import type { Reminder } from "../scheduled";
@@ -36,6 +37,7 @@ export interface Db {
   timeZones?: Map<string, string>;
   questions?: Map<string, OpenQuestion>;
   links?: Map<string, ThreadLink>;
+  automation?: AutomationDb;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));

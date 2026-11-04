@@ -16,6 +16,8 @@ import { runAtlasAgent } from "./run";
 import { finishAssignment } from "../agents/assignment";
 import { runSummary } from "./summary";
 import { runNotes } from "../notes";
+import { isPlaybookStep } from "@/lib/automation";
+import { afterPlaybookStep } from "../automation/playbooks";
 
 /**
  * The agent queue (docs/architecture.md §4, docs/agent-platform.md). A run is a row in
@@ -41,11 +43,14 @@ async function execute(run: AgentRun, workspaceId: string) {
   if (!agent) {
     // The agent was deleted while the run waited.
     await store.finishRun(run.id, { status: "failed", error: "agent no longer exists", result: { touchedChats: [], openTicket: null, deleted: [] } });
+    if (isPlaybookStep(run.id)) await afterPlaybookStep(run, false);
     return;
   }
   // The agent reads only the chats it's a member of (and the requester can see).
   const scoped = { ...currentCtx(), dir: scopeFor(dir, agent.id), scopedTo: agent.id, run: { id: run.id, depth: run.depth, role: run.role } };
   const out = await runInCtx(scoped, () => executeAs(agent, run, workspaceId));
+  // Playbook steps: the next step starts once this one has replied (src/server/automation/playbooks.ts).
+  if (isPlaybookStep(run.id)) await afterPlaybookStep(run, !!out?.reply);
   // Hand-offs: agents this reply @mentions pick it up, one level deeper (governed in dispatch).
   // (A thread summary or meeting notes only report: names in them aren't hand-offs.)
   if (out?.reply && run.trigger !== "summary" && run.trigger !== "notes") {

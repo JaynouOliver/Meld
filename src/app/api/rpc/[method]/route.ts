@@ -22,6 +22,8 @@ import * as summary from "@/server/atlas/summary";
 import * as meetingNotes from "@/server/notes";
 import * as scheduled from "@/server/scheduled";
 import * as followUps from "@/server/proactive/followups";
+import * as playbooks from "@/server/automation/playbooks";
+import { undoTriage } from "@/server/automation/triage";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -133,6 +135,13 @@ const methods: Record<string, Method> = {
   postDigestNow: async (chatId: ChatId) => scheduled.postDigest(chatId, { force: true }),
   // Proactive Atlas: follow up on open questions now (Atlas's profile card).
   checkFollowUps: async (role?: Role) => followUps.checkFollowUps(role),
+  // Workflow automation: playbooks, and the ticket panel's triage note and playbook runs.
+  listPlaybooks: async () => playbooks.listPlaybooks(),
+  savePlaybook: async (input: import("@/lib/automation").PlaybookInput, role?: Role) => playbooks.savePlaybook(input, role),
+  setPlaybookEnabled: async (id: string, enabled: boolean, role?: Role) => playbooks.setPlaybookEnabled(id, enabled, role),
+  deletePlaybook: async (id: string, role?: Role) => playbooks.deletePlaybook(id, role),
+  ticketAutomation: async (ticketId: string, role?: Role) => playbooks.ticketAutomation(ticketId, role),
+  undoTriage: async (ticketId: string, role?: Role) => undoTriage(ticketId, role),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
@@ -216,6 +225,8 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
     case "deleteAgent":
     case "setChannelAgent":
       return { chats: [], tickets: false, directory: true };
+    case "undoTriage":
+      return { chats: (result as { chats: ChatId[] }).chats, tickets: true };
     default:
       return { chats: [], tickets: false };
   }

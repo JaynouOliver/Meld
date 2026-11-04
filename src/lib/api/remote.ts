@@ -153,3 +153,11 @@ export const cancelReminder = (id: string, role?: string) => rpc<{ ok: true }>("
 export const postDigestNow = (chatId: string) => rpc<{ messageId: string; text: string } | null>("postDigestNow", [chatId]);
 // Proactive Atlas: follow up on open questions now.
 export const checkFollowUps = (role?: string) => rpc<{ followedUp: { questionId: string; chatId: string; messageId: string }[]; answered: number; dropped: number; waiting: number }>("checkFollowUps", [role]);
+// Workflow automation (src/server/automation).
+type PlaybookInput = import("../automation").PlaybookInput;
+export const listPlaybooks = () => rpc<import("../automation").PlaybookView[]>("listPlaybooks", []);
+export const savePlaybook = (input: PlaybookInput, role?: string) => rpc<import("../automation").Playbook>("savePlaybook", [input, role]);
+export const setPlaybookEnabled = (id: string, enabled: boolean, role?: string) => rpc<import("../automation").Playbook>("setPlaybookEnabled", [id, enabled, role]);
+export const deletePlaybook = (id: string, role?: string) => rpc<null>("deletePlaybook", [id, role]);
+export const ticketAutomation = (ticketId: string, role?: string) => rpc<import("../automation").TicketAutomationView>("ticketAutomation", [ticketId, role]);
+export const undoTriage = (ticketId: string, role?: string) => rpc<{ chats: string[] }>("undoTriage", [ticketId, role]);
