@@ -82,9 +82,11 @@ export function buildDigestData(input: {
   const scoped = tickets.filter((t) => !team || t.team === team || (t.missionId && ownMissions.has(t.missionId)) || mentioned.has(t.id));
   const byId = new Map(tickets.map((t) => [t.id, t]));
 
-  const shipped = scoped
+  // Wins are news for everyone: shipped counts the whole workspace, not just the channel's scope.
+  const shipped = tickets
     .filter((t) => t.status === "Done" && t.activity.some((a) => /\bDone\b/.test(a.text) && Date.parse(a.time) > since && Date.parse(a.time) <= now.getTime()))
-    .map((t) => ({ id: t.id, owner: first(t.assignee) }));
+    .map((t) => ({ id: t.id, owner: first(t.assignee) }))
+    .slice(0, 8);
   const inProgress = scoped
     .filter((t) => t.status === "In progress" || t.status === "In review")
     .map((t) => ({ id: t.id, owner: first(t.assignee), status: t.status }));
@@ -130,6 +132,7 @@ export function buildDigestData(input: {
   };
 }
 
+const shortDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const lateness = (n: number) => (n <= 0 ? "due today" : n === 1 ? "1 day overdue" : `${n} days overdue`);
 
 /** The digest post. Ticket ids render as chips, @First mentions notify owners of late work. */
@@ -146,7 +149,7 @@ export function renderDigest(d: DigestData, focus: string | null): string {
   section("Needs a decision", d.decisions.map((x) => `${x.question}${x.mission ? ` (${x.mission})` : ""}`));
   section("Decided", d.logged);
   if (out.length === 1) out.push("Quiet day: nothing shipped, blocked or due. Enjoy it.");
-  if (d.missions.length) out.push(d.missions.map((m) => `Mission "${m.title}": ${m.done} of ${m.total} done${m.deadline ? `, due ${m.deadline}` : ""}. ${m.health}`).join("\n"));
+  if (d.missions.length) out.push(d.missions.map((m) => `Mission "${m.title}": ${m.done} of ${m.total} done${m.deadline ? `, due ${shortDay(m.deadline)}` : ""}. ${m.health}`).join("\n"));
   if (focus) out.push(`**Focus today:** ${focus}`);
   return out.join("\n\n");
 }
@@ -234,14 +237,16 @@ export async function deliverDueDigests(now = new Date()): Promise<ChatId[]> {
   const channels = digestChannels(dir);
   if (!channels.length) return [];
   const [{ tz }, last] = await Promise.all([timeZoneFor("*"), store.lastDigests()]);
-  const posted: ChatId[] = [];
-  for (const { chatId } of channels) {
-    if (!digestDue(now, tz, last[chatId] ?? null)) continue;
-    try {
-      if (await postDigest(chatId, { now })) posted.push(chatId);
-    } catch (e) {
-      console.error(`[digest] ${chatId} failed:`, (e as Error).message);
-    }
-  }
-  return posted;
+  // Channels in parallel (each is one model call); the claim keeps each to one post.
+  const posted = await Promise.all(
+    channels.filter(({ chatId }) => digestDue(now, tz, last[chatId] ?? null)).map(async ({ chatId }) => {
+      try {
+        return (await postDigest(chatId, { now })) ? chatId : null;
+      } catch (e) {
+        console.error(`[digest] ${chatId} failed:`, (e as Error).message);
+        return null;
+      }
+    }),
+  );
+  return posted.filter((c): c is ChatId => !!c);
 }

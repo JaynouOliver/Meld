@@ -240,7 +240,7 @@ async function main() {
   assert.equal(buildDigestData({ dir, chatId: "eng", tickets, messages: [], missions: [], decisions: [], logged: [], now: new Date("2026-11-09T10:00:00Z"), tz: "UTC" }).window, "since Friday", "Mondays cover the weekend");
 
   const text = renderDigest(data, fallbackFocus(data));
-  for (const want of ["**Shipped yesterday**\n- T-1 (Bo)", "- T-5 (Cy) waits on T-3 (Cy, in progress)", "- T-6 2 days overdue, @Bo", "- T-7 due today, @Ada", "Cy: 2 open, 16 points (T-3, T-5)", "Annual discount? (Launch)", 'Mission "Launch": 0 of 1 done'])
+  for (const want of ["**Shipped yesterday**\n- T-1 (Bo)", "- T-5 (Cy) waits on T-3 (Cy, in progress)", "- T-6 2 days overdue, @Bo", "- T-7 due today, @Ada", "Cy: 2 open, 16 points (T-3, T-5)", "Annual discount? (Launch)", 'Mission "Launch": 0 of 1 done, due Tue, Nov 10'])
     assert.ok(text.includes(want), `digest says: ${want}\n---\n${text}`);
   assert.equal(fallbackFocus(data), "Close out T-6 (Bo), it's 2 days overdue.");
   assert.match(renderDigest({ ...data, shipped: [], inProgress: [], blocked: [], due: [], overloaded: [], decisions: [], logged: [], missions: [] }, null), /Quiet day/);

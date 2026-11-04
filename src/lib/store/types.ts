@@ -117,7 +117,7 @@ export interface Store {
   addAgentMemory(m: AgentMemory): Promise<void>;
   /** False if there was no such memory. */
   deleteAgentMemory(id: string): Promise<boolean>;
-  /** Reminders (src/lib/scheduled.ts), soonest first (at most 500). */
+  /** Reminders (src/lib/scheduled.ts), at most 500: pending soonest first, any other status latest first. */
   addReminder(r: Reminder): Promise<void>;
   listReminders(filter?: { status?: ReminderStatus }): Promise<Reminder[]>;
   getReminder(id: string): Promise<Reminder | null>;

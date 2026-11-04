@@ -161,7 +161,7 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async listReminders(filter = {}) {
     return clone([...(d().reminders ?? new Map()).values()])
       .filter((r) => !filter.status || r.status === filter.status)
-      .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
+      .sort((a, b) => (filter.status === "pending" ? 1 : -1) * a.dueAt.localeCompare(b.dueAt))
       .slice(0, 500);
   },
   async getReminder(id) {

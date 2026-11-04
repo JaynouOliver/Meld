@@ -350,7 +350,7 @@ export function supabaseStore(ws: string): Store {
   async listReminders(filter = {}) {
     let q = sb().from("reminders").select("*").eq("workspace_id", ws);
     if (filter.status) q = q.eq("status", filter.status);
-    const rows = check(await q.order("due_at").limit(500), "list reminders") as ReminderRow[];
+    const rows = check(await q.order("due_at", { ascending: filter.status === "pending" }).limit(500), "list reminders") as ReminderRow[];
     return rows.map(reminderFrom);
   },
   async getReminder(id) {

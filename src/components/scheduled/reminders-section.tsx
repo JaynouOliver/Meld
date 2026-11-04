@@ -41,7 +41,7 @@ export function RemindersSection() {
               {toChannel ? <HashIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" /> : <AlarmClockIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-[14px] font-medium" title={r.text}>
-                  {r.text}
+                  {r.text.charAt(0).toUpperCase() + r.text.slice(1)}
                 </span>
                 <span className="text-[12px] text-muted-foreground">
                   {formatWhen(r.dueAt, zone)} · for {where}
