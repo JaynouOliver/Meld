@@ -4,6 +4,8 @@ Everything here works in the live demo: https://meld-fawn.vercel.app, then **Try
 - **People:** Alex Rivera (you, founder), Maya Chen (design), Jonas Weber (backend), Priya Raman (frontend), Tom Okafor (growth) and Sofia Rossi (product).
 - **Agents:** Atlas (lead), Tess (@tess, triage), Rex (@rex, reviews) and Sunny (@sunny, standups).
 
+**Start in #tour.** New demos open on #tour, first in the sidebar. It has one card per feature: a chip that jumps to the conversation where that feature happens, and a "Try" line with the exact text to type. Every feature has a real example conversation somewhere in the workspace. The Atlas DM holds "What did I miss?", agent memory and a reminder.
+
 Status key: ✅ built and live · 🟡 partly built · ❌ not built.
 
 Agent replies take about 1–10 seconds. A live "working" bubble shows while an agent works.
