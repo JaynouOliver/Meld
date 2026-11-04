@@ -65,10 +65,13 @@ function MemberRow({ id }: { id: string }) {
 
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
-      <Avatar person={p} size="md" />
+      <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="cursor-pointer rounded-[6px]">
+        <Avatar person={p} size="md" />
+      </button>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold">
-          {p.name} {self && <span className="font-normal text-muted-foreground">(you)</span>}
+          <button type="button" data-profile={p.id} className="cursor-pointer hover:underline">{p.name}</button>{" "}
+          {self && <span className="font-normal text-muted-foreground">(you)</span>}
         </div>
         {error && <div className="text-meta text-destructive">{error}</div>}
       </div>

@@ -7,7 +7,7 @@ import { Popover } from "radix-ui";
 import { useDirectory } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { STATUS_COLORS } from "@/lib/constants";
-import { personOf } from "@/lib/directory";
+import { agentsOf, ATLAS_ID, personOf } from "@/lib/directory";
 import { isSinglePara, parseMessage, type InlinePart, type ListItem } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -75,8 +75,19 @@ function List({ items }: { items: ListItem[] }) {
   );
 }
 
+/** Who an @mention names: an agent by handle ("@agent" is Atlas), or a person by first name. */
+function mentionTarget(dir: ReturnType<typeof useDirectory>, text: string): string | null {
+  const h = text.slice(1).toLowerCase();
+  if (h === "agent") return ATLAS_ID;
+  const agent = agentsOf(dir).find((a) => a.handle.toLowerCase() === h);
+  if (agent) return agent.id;
+  const person = Object.values(dir.people).find((p) => !p.isAgent && p.first.toLowerCase() === h);
+  return person?.id ?? null;
+}
+
 /** One run of formatted text: mentions, ticket chips, citations, code, links, bold and italic. */
 function Inline({ parts: input }: { parts: InlinePart[] }) {
+  const dir = useDirectory();
   const { lookup } = useVisibleTickets();
   const openTicket = useUiStore((s) => s.openTicket);
   // Copied: trailing punctuation is moved onto the chip below.
@@ -111,11 +122,18 @@ function Inline({ parts: input }: { parts: InlinePart[] }) {
       continue;
     }
     if (part.kind === "mention") {
+      const who = mentionTarget(dir, part.text);
       out.push(
         styled(
-          <span key={i} className="rounded-sm bg-mention px-[3px] font-medium text-mention-foreground">
-            {part.text}
-          </span>,
+          who ? (
+            <button key={i} type="button" data-profile={who} className="no-press cursor-pointer rounded-sm bg-mention px-[3px] font-medium text-mention-foreground hover:underline">
+              {part.text}
+            </button>
+          ) : (
+            <span key={i} className="rounded-sm bg-mention px-[3px] font-medium text-mention-foreground">
+              {part.text}
+            </span>
+          ),
         ),
       );
       continue;
