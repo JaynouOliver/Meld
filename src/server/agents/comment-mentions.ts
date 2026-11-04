@@ -192,9 +192,9 @@ export function commentTask(dir: Directory, agent: AgentInfo, t: Ticket, c: Tick
   const author = personOf(dir, c.who);
   const recent = (t.comments ?? []).slice(-6).map((x) => `• ${personOf(dir, x.who).name}: ${x.text.replace(/\s+/g, " ").slice(0, 300)}`);
   const how = writes(agent)
-    ? `- Post your answer on the ticket with comment_on_ticket (id ${t.id}), addressed to @${author.first}: a few sentences, or at most five "• " lines, specific to this ticket.
+    ? `- Post your answer on the ticket with comment_on_ticket (id ${t.id}), addressed to @${author.first}: two or three sentences, or at most four short "• " lines (under 600 characters), specific to this ticket.
 - Then reply here in one short line, e.g. "Replied on ${t.id}."`
-    : `- You can't write to tickets, so write your answer as your reply here, addressed to @${author.first}: a few sentences, or at most five "• " lines, specific to this ticket. Meld posts it on ${t.id} as your comment.`;
+    : `- You can't write to tickets, so write your answer as your reply here, addressed to @${author.first}: two or three sentences, or at most four short "• " lines (under 600 characters), specific to this ticket. Meld posts it on ${t.id} as your comment.`;
   return `${author.name} mentioned you in a comment on ticket ${t.id} (comment ${c.id}): "${t.title || "Untitled"}"
 ${t.status} · ${t.priority} priority · ${teamName(dir, t.team)} · owner ${personOf(dir, t.assignee).name}${(t.labels ?? []).length ? ` · labels ${t.labels!.join(", ")}` : ""}
 Description: ${t.description.trim().slice(0, 1200) || "(none)"}
