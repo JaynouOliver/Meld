@@ -21,6 +21,8 @@ Agent replies take about 1–10 seconds. A live "working" bubble shows while an 
 | Emoji reactions | ✅ | Hover a message, then the smiley, then pick 🎉. Click the chip again to remove it. |
 | Pinned messages | ✅ | #design, then **Pinned 1** in the header, then click the pin to jump to the decision. Pin any message from the hover toolbar. |
 | Search (Cmd/Ctrl+K) | ✅ | Press Cmd+K and type `pricing`. You get the ticket ORB-5 and messages across channels; Enter jumps to one. |
+| Search on phones | ✅ | On a phone, tap the magnifier in the chat header (or next to your avatar on Home). Full-screen search; type `Safari` and tap the ticket or a message. |
+| Jump to old messages | ✅ | A search hit, pin or citation older than the loaded history loads the conversation around it, scrolls there and flashes it. **Load older messages** at the top, **Jump to latest** at the bottom. (Demo channels are short; see docs/demo/chat-gaps.md to make a long one on camera.) |
 | Formatting | ✅ | Type `**ship it** on _Friday_ with \`flag=on\``. |
 | Real-time, instant sending | ✅ | Two browser windows on the same demo: messages appear in the other window instantly. |
 
@@ -144,8 +146,6 @@ Tom: I'll come back on that.
 ## Not built (honest list)
 
 - Playbook trigger "message in #channel matching a keyword" (label and status triggers work).
-- Search on phones (Cmd+K is desktop only).
-- Jumping to a very old pinned or searched message (beyond the latest 100 conversations) doesn't scroll to it.
 - @mentions inside ticket comments don't notify anyone.
 - Editing a message doesn't re-run the agents on the new text.
 
