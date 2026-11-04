@@ -6,6 +6,7 @@ import { todayIndex } from "../format";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
 import type { AgentMemory } from "../agent/memory";
+import type { Reminder } from "../scheduled";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
@@ -114,6 +115,18 @@ const teamDecisionFrom = (r: TeamDecisionRow): TeamDecision => ({
 
 interface MemoryRow { id: string; agent_id: string; text: string; created_by: string; created_at: string }
 const memoryFrom = (r: MemoryRow): AgentMemory => ({ id: r.id, agentId: r.agent_id, text: r.text, createdBy: r.created_by, createdAt: r.created_at });
+
+interface ReminderRow {
+  id: string; created_by: string; target_kind: Reminder["target"]["kind"]; target_id: string; text: string; due_at: string; time_zone: string;
+  status: Reminder["status"]; attempts: number; source_chat_id: string | null; source_thread_id: string | null; source_message_id: string | null;
+  created_at: string; sent_at: string | null;
+}
+const reminderFrom = (r: ReminderRow): Reminder => ({
+  id: r.id, createdBy: r.created_by, target: { kind: r.target_kind, id: r.target_id }, text: r.text, dueAt: new Date(r.due_at).toISOString(),
+  timeZone: r.time_zone, status: r.status, attempts: r.attempts,
+  source: r.source_chat_id && r.source_message_id ? { chatId: r.source_chat_id, threadId: r.source_thread_id, messageId: r.source_message_id } : null,
+  createdAt: r.created_at, sentAt: r.sent_at,
+});
 
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
   const roots: Message[] = [];
@@ -323,6 +336,52 @@ export function supabaseStore(ws: string): Store {
   async deleteAgentMemory(id) {
     const rows = check(await sb().from("agent_memories").delete().eq("workspace_id", ws).eq("id", id).select("id"), "delete memory") as { id: string }[];
     return rows.length > 0;
+  },
+  async addReminder(r) {
+    check(
+      await sb().from("reminders").insert({
+        id: r.id, workspace_id: ws, created_by: r.createdBy, target_kind: r.target.kind, target_id: r.target.id, text: r.text, due_at: r.dueAt,
+        time_zone: r.timeZone, status: r.status, attempts: r.attempts, source_chat_id: r.source?.chatId ?? null, source_thread_id: r.source?.threadId ?? null,
+        source_message_id: r.source?.messageId ?? null, created_at: r.createdAt, sent_at: r.sentAt,
+      }),
+      "add reminder",
+    );
+  },
+  async listReminders(filter = {}) {
+    let q = sb().from("reminders").select("*").eq("workspace_id", ws);
+    if (filter.status) q = q.eq("status", filter.status);
+    const rows = check(await q.order("due_at").limit(500), "list reminders") as ReminderRow[];
+    return rows.map(reminderFrom);
+  },
+  async getReminder(id) {
+    const r = check(await sb().from("reminders").select("*").eq("workspace_id", ws).eq("id", id).maybeSingle(), "get reminder") as ReminderRow | null;
+    return r ? reminderFrom(r) : null;
+  },
+  async claimDueReminders(now, limit) {
+    // One UPDATE ... FOR UPDATE SKIP LOCKED in Postgres: each due reminder goes to one sweep.
+    const rows = check(await sb().rpc("claim_due_reminders", { p_ws: ws, p_now: now, p_limit: limit }), "claim reminders") as ReminderRow[];
+    return rows.map(reminderFrom);
+  },
+  async transitionReminder(id, from, to) {
+    const rows = check(await sb().from("reminders").update({ status: to }).eq("workspace_id", ws).eq("id", id).in("status", from).select("id"), "transition reminder") as { id: string }[];
+    return rows.length > 0;
+  },
+  async claimDigest(chatId, day, force) {
+    return check(await sb().rpc("claim_channel_digest", { p_ws: ws, p_chat: chatId, p_day: day, p_force: !!force }), "claim digest") as boolean;
+  },
+  async lastDigests() {
+    const rows = check(await sb().from("channel_digests").select("chat_id,last_digest_day").eq("workspace_id", ws), "last digests") as { chat_id: string; last_digest_day: string }[];
+    return Object.fromEntries(rows.map((r) => [r.chat_id, r.last_digest_day]));
+  },
+  async timeZones() {
+    const rows = check(await sb().from("member_time_zones").select("user_id,time_zone").eq("workspace_id", ws), "time zones") as { user_id: string; time_zone: string }[];
+    return Object.fromEntries(rows.map((r) => [r.user_id, r.time_zone]));
+  },
+  async setTimeZone(userId, tz) {
+    check(
+      await sb().from("member_time_zones").upsert({ workspace_id: ws, user_id: userId, time_zone: tz, updated_at: new Date().toISOString() }, { onConflict: "workspace_id,user_id" }),
+      "set time zone",
+    );
   },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.

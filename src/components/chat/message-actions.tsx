@@ -5,6 +5,7 @@ import { Popover } from "radix-ui";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { RichText } from "@/components/common/rich-text";
+import { RemindButton } from "@/components/scheduled/remind-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -62,7 +63,7 @@ export function MessageToolbar({
     <>
       <div
         className={cn(
-          "absolute -top-3.5 right-5 z-[1] flex rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity pointer-coarse:hidden group-focus-within:opacity-100 group-hover:opacity-100",
+          "absolute -top-3.5 right-5 z-[1] flex rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity pointer-coarse:hidden group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100",
           (picker || confirm) && "opacity-100",
           className,
         )}
@@ -75,6 +76,7 @@ export function MessageToolbar({
           </EmojiPicker>
         )}
         {children}
+        {can.canReact && <RemindButton chatId={chatId} node={node} className={TOOL} />}
         {can.canPin && (
           <button
             type="button"

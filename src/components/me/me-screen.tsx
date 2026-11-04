@@ -4,6 +4,7 @@ import { BookmarkIcon, CheckIcon, ChevronRightIcon, MonitorIcon, MoonIcon, SunIc
 import Link from "next/link";
 
 import { Avatar } from "@/components/common/avatar";
+import { RemindersSection } from "@/components/scheduled/reminders-section";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { ACCENTS } from "@/lib/constants";
@@ -63,6 +64,8 @@ export function MeScreen() {
               </Link>
             ))}
           </nav>
+
+          <RemindersSection />
 
           {viewAs.length > 1 && (
             <fieldset className="flex flex-col gap-2">

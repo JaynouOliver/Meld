@@ -13,6 +13,7 @@ import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
 import { buildContext, systemPromptFor, workspaceBlock } from "./prompt";
 import { memoryBlock } from "../agents/memory";
+import { clockBlock } from "../scheduled/reminders";
 import { stepLabel, type Progress } from "./progress";
 import { planToOps, runTool, toolsFor, type Effects } from "./tools";
 
@@ -78,11 +79,13 @@ export async function runAtlasAgent(
     : "";
   // What this agent was asked to remember in earlier conversations (src/server/agents/memory.ts).
   const memory = await memoryBlock(agent.id);
+  // The requester's local time and zone, for "remind me tomorrow at 9" (src/server/scheduled).
+  const clock = await clockBlock();
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: `${systemPromptFor(agent, currentDir())}\n\n${workspaceBlock(currentDir())}` },
     {
       role: "user",
-      content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}${memory ? `\n${memory}` : ""}
+      content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}${memory ? `\n${memory}` : ""}\n${clock}
 
 Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.text}${lastHop}`,
     },

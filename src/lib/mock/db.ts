@@ -3,6 +3,7 @@ import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
+import type { Reminder } from "../scheduled";
 import { todayIndex } from "../format";
 import type { ChatId, Message, ReplyNode, Ticket, WeekDay } from "../types";
 import { DEMO_WORKSPACE_ID } from "./demo";
@@ -28,6 +29,10 @@ export interface Db {
   missionEvents: MissionEvent[];
   teamDecisions: Map<string, TeamDecision>;
   memories?: AgentMemory[];
+  /** Reminders, each channel's last digest, and reported time zones (src/lib/scheduled.ts). */
+  reminders?: Map<string, Reminder>;
+  digests?: Map<ChatId, { at: string; day: string }>;
+  timeZones?: Map<string, string>;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));

@@ -6,6 +6,7 @@ import { storeFor } from "@/lib/store";
 import type { Mission, PlanTask } from "@/lib/missions";
 import type { Priority, Ticket, TicketStatus } from "@/lib/types";
 import { registry } from "./workspace";
+import { seedScheduled } from "./seeds/scheduled";
 
 /**
  * "Try the live demo": a private copy of a seeded company for one visitor, so anyone can
@@ -257,6 +258,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await store.updateMessage(posted.d1d.id, { pinnedAt: ago(1455), pinnedBy: maya }).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   await seedAgentSkills(store, { me: me.id, ch, ag, people: { jonas } });
+  await seedScheduled(store, { me, ch, ag, ids, posted, people: { maya, jonas, priya, sofia, tom } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }
 

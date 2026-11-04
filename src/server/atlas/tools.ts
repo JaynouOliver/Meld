@@ -262,10 +262,34 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "set_reminder",
+      description:
+        'Set a reminder that you post when it\'s due: "remind me tomorrow at 9 to send the deck", "remind #engineering Friday 10am to demo the webhooks", "remind Maya in 2 hours about the pricing mocks". People get it in their DM with you; a channel gets it in the channel. Give either `when` or `in_minutes`.',
+      parameters: {
+        type: "object",
+        properties: {
+          when: {
+            type: "string",
+            description: 'Local date and time in the requester\'s time zone (see "Now" in the context), YYYY-MM-DDTHH:mm, e.g. "2026-11-05T09:00". Resolve "tomorrow at 9", "Friday 10am" against Now. A date alone means 9:00.',
+          },
+          in_minutes: { type: "number", description: 'For relative times: "in 1 minute" = 1, "in 2 hours" = 120.' },
+          text: { type: "string", description: 'What to remind about, short, without "remind me", e.g. "send the deck".' },
+          target: { type: "string", description: '"me" (the requester), a person id from the roster, or a channel as #name.' },
+        },
+        required: ["text", "target"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // Agent memory changes what every later conversation sees, so it needs write.
 TOOL_GROUP.remember = TOOL_GROUP.forget = "write";
+// Reminders post into chats later, as the agent.
+TOOL_GROUP.set_reminder = "write";
 
 /**
  * Changes staged during one Atlas run, keyed by ticket. Nothing is written until the
@@ -611,6 +635,21 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if ("ok" in t) return t;
       const found = visibleHits(await store.messagesMentioning(t.id, 12));
       return { ok: true, ticket: ticketLine(t), messages: found.reverse().map(hitLine) };
+    }
+    case "set_reminder": {
+      const { createReminder } = await import("../scheduled/reminders");
+      try {
+        const r = await createReminder({
+          when: str(args.when) ?? null, inMinutes: typeof args.in_minutes === "number" ? args.in_minutes : null, text: String(args.text ?? ""),
+          target: str(args.target) ?? "me", role, source: null,
+        });
+        return {
+          ok: true, reminder: r.reminder.text, to: r.to, when: r.when,
+          note: `Confirm in one sentence with the exact time as given in "when"${r.zoneNote ? `, and add: "${r.zoneNote}"` : ""}. It can be canceled from the You screen.`,
+        };
+      } catch (e) {
+        return err((e as Error).message);
+      }
     }
     default:
       return err(`Unknown tool ${name}.`);
