@@ -465,7 +465,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
     case "search_decisions": {
       const { searchTeamDecisions } = await import("../listener/decisions");
       const found = await searchTeamDecisions(str(args.query) ?? "");
-      return { decisions: found, note: found.length ? "Answer from these; say if one was reopened or replaced." : "Nothing in the decision log matches. Say so; don't guess." };
+      return { decisions: found, note: found.length ? "Answer from these; say if one was reopened or replaced." : "Nothing logged for this yet. It may only have been discussed: call search_messages next and answer from those messages, citing them." };
     }
     case "catch_up":
       return catchUp({ role, sinceHours: typeof args.since_hours === "number" ? args.since_hours : undefined, chat: str(args.chat) });

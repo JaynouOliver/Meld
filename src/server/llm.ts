@@ -19,4 +19,10 @@ export function llm(): OpenAI | null {
 
 /** Atlas defaults: Muse Spark 1.3 at low effort keeps chat replies fast; override per deploy. */
 export const ATLAS_MODEL = process.env.ATLAS_MODEL ?? "muse-spark-1.3";
+/**
+ * Fast model for the per-message checks (listener, proactive triage): same accuracy as
+ * 1.3 on those evals (evals/listener-eval.ts: 28/28 both) at ~2.3x the speed. Not for
+ * Atlas itself: it failed a permissions case there (evals/atlas.eval.ts).
+ */
+export const FAST_MODEL = process.env.FAST_MODEL ?? "muse-spark-1.2";
 export const ATLAS_EFFORT = (process.env.ATLAS_REASONING_EFFORT ?? "low") as OpenAI.ReasoningEffort;

@@ -27,7 +27,8 @@ export interface Store {
   insertTicket(t: Ticket): Promise<void>;
   saveTicket(t: Ticket): Promise<void>;
   deleteTicket(id: string): Promise<void>;
-  listMessages(chatId: ChatId): Promise<Message[]>;
+  /** A chat's latest conversations (default 100 top-level messages) with their replies, oldest first. */
+  listMessages(chatId: ChatId, opts?: { limit?: number }): Promise<Message[]>;
   /** Top-level message, or a reply in a thread. Threads are flat: replies can't have replies. */
   appendMessage(chatId: ChatId, msg: Omit<Message, "replies">, threadId?: string | null): Promise<Message | ReplyNode>;
   searchMessages(terms: string[], limit: number): Promise<MessageHit[]>;

@@ -197,7 +197,7 @@ export async function callTool(agent: AgentInfo, name: string, args: Args): Prom
           await store.react(r.triggerMessageId, "👀", agent.id, true).catch(() => {});
           await pingChanges({ chats: [r.chatId], tickets: false, runs: true, origin: null, workspaceId: ws });
         }
-        const list = await store.listMessages(r.chatId);
+        const list = await store.listMessages(r.chatId, { limit: 50 });
         const root = r.threadId ? list.find((m) => m.id === r.threadId) : null;
         const context = root ? [root, ...root.replies] : list.slice(-12);
         items.push({
@@ -240,7 +240,7 @@ export async function callTool(agent: AgentInfo, name: string, args: Args): Prom
     }
     case "read_channel": {
       const chat = findChat(String(args.channel ?? ""));
-      const list = await store.listMessages(chat);
+      const list = await store.listMessages(chat, { limit: 50 });
       const limit = Math.min(Math.max(Number(args.limit) || 30, 1), 100);
       if (str(args.thread_id)) {
         const root = list.find((m) => m.id === args.thread_id);
