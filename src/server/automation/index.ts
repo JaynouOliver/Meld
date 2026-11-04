@@ -6,6 +6,7 @@ import { currentCtx } from "@/lib/context";
 import { agentById, ATLAS_ID } from "@/lib/directory";
 import { isPlaybookStep } from "@/lib/automation";
 import type { Store } from "@/lib/store";
+import { layer, servesCtx } from "@/lib/store/layers";
 import type { Ticket } from "@/lib/types";
 import { llm } from "../llm";
 
@@ -61,12 +62,12 @@ export function withAutomation(inner: Store): Store {
       if (before) await guarded(wrapped, before, t);
     },
   };
-  return wrapped;
+  return layer(inner, wrapped);
 }
 
 /** Automation never fails the save that caused it. Only writes made through this request's store count. */
 async function guarded(store: Store, before: Ticket | null, t: Ticket) {
-  if (currentCtx().store !== store) return;
+  if (!servesCtx(store, currentCtx().store)) return;
   try {
     await onTicketChange(before, t);
   } catch (e) {

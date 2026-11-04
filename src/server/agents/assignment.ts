@@ -8,6 +8,7 @@ import { stamp } from "@/lib/format";
 import { blockerNotices } from "@/lib/agent/blockers";
 import { MAX_AGENT_DEPTH, RATE_ALL, RATE_WINDOW_MS, type AgentRun } from "@/lib/agent/runs";
 import type { Store } from "@/lib/store";
+import { layer, servesCtx } from "@/lib/store/layers";
 import type { ChatId, Ticket, TicketStatus } from "@/lib/types";
 import { llm } from "../llm";
 import { pingChanges } from "../realtime";
@@ -76,12 +77,12 @@ export function withAssignmentPickup(inner: Store): Store {
       if (before && before.assignee !== t.assignee) await (person ? balanced(wrapped, before, t) : guarded(wrapped, before, t));
     },
   };
-  return wrapped;
+  return layer(inner, wrapped);
 }
 
 /** The pick-up never fails the save that caused it. Only writes made through this request's store count. */
 async function guarded(store: Store, before: Ticket | null, t: Ticket) {
-  if (currentCtx().store !== store) return;
+  if (!servesCtx(store, currentCtx().store)) return;
   try {
     await pickUpAssignment(before, t);
   } catch (e) {
@@ -91,7 +92,7 @@ async function guarded(store: Store, before: Ticket | null, t: Ticket) {
 
 /** A person was assigned: maybe suggest someone less loaded (src/server/proactive/workload.ts). Never fails the save. */
 async function balanced(store: Store, before: Ticket | null, t: Ticket) {
-  if (currentCtx().store !== store) return;
+  if (!servesCtx(store, currentCtx().store)) return;
   try {
     await balanceAssignment(before, t);
   } catch (e) {
