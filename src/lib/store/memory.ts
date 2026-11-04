@@ -155,6 +155,78 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     d().memories = (d().memories ?? []).filter((m) => m.id !== id);
     return d().memories!.length < before;
   },
+  async addReminder(r) {
+    (d().reminders ??= new Map()).set(r.id, clone(r));
+  },
+  async listReminders(filter = {}) {
+    return clone([...(d().reminders ?? new Map()).values()])
+      .filter((r) => !filter.status || r.status === filter.status)
+      .sort((a, b) => (filter.status === "pending" ? 1 : -1) * a.dueAt.localeCompare(b.dueAt))
+      .slice(0, 500);
+  },
+  async getReminder(id) {
+    const r = d().reminders?.get(id);
+    return r ? clone(r) : null;
+  },
+  async claimDueReminders(now, limit) {
+    // Synchronous between the read and the write, so concurrent sweeps can't share one.
+    const t = Date.parse(now);
+    const due = [...(d().reminders ?? new Map()).values()]
+      .filter((r) => r.status === "pending" && Date.parse(r.dueAt) <= t)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
+      .slice(0, limit);
+    for (const r of due) Object.assign(r, { status: "sent", sentAt: now, attempts: r.attempts + 1 });
+    return clone(due);
+  },
+  async transitionReminder(id, from, to) {
+    const r = d().reminders?.get(id);
+    if (!r || !from.includes(r.status)) return false;
+    r.status = to;
+    return true;
+  },
+  async claimDigest(chatId, day, force) {
+    const m = (d().digests ??= new Map());
+    const last = m.get(chatId);
+    if (!force && last && last.day >= day) return false;
+    m.set(chatId, { at: new Date().toISOString(), day });
+    return true;
+  },
+  async lastDigests() {
+    return Object.fromEntries([...(d().digests ?? new Map()).entries()].map(([k, v]) => [k, v.day]));
+  },
+  async timeZones() {
+    return Object.fromEntries(d().timeZones ?? new Map());
+  },
+  async setTimeZone(userId, tz) {
+    (d().timeZones ??= new Map()).set(userId, tz);
+  },
+  async listOpenQuestions(filter = {}) {
+    return clone([...(d().questions ?? new Map()).values()])
+      .filter((q) => !filter.status || q.status === filter.status)
+      .sort((a, b) => b.askedAt.localeCompare(a.askedAt))
+      .slice(0, 200);
+  },
+  async saveOpenQuestion(q) {
+    (d().questions ??= new Map()).set(q.id, clone(q));
+  },
+  async transitionQuestion(id, from, to, patch = {}) {
+    const q = d().questions?.get(id);
+    if (!q || !from.includes(q.status)) return false;
+    q.status = to;
+    q.resolvedAt = new Date().toISOString();
+    if (patch.followUpId !== undefined) q.followUpId = patch.followUpId;
+    if (patch.resolvedBy !== undefined) q.resolvedBy = patch.resolvedBy;
+    return true;
+  },
+  async addThreadLink(l) {
+    const links = (d().links ??= new Map());
+    if (links.has(l.key)) return false;
+    links.set(l.key, clone(l));
+    return true;
+  },
+  async listThreadLinks() {
+    return clone([...(d().links ?? new Map()).values()]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 300);
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },
