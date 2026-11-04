@@ -37,9 +37,9 @@ Meld
 
 Meld is Slack and Jira in one app, with AI agents as teammates.
 
-Teams decide things in chat and track them in tickets, and work gets lost in between. In Meld, agents listen to the conversation and keep the work up to date without being asked: "I'll do it by Friday" becomes a ticket, "it's up for review" moves one, and if someone reopens a settled decision, Atlas links them to where and why it was decided. Give Atlas a goal and it plans the tickets, tracks them and asks you only when a decision is needed.
+Teams decide things in chat and track them in tickets, and work gets lost in between. Meld's agents listen to the conversation and keep the work up to date on their own: "I'll do it by Friday" becomes a ticket, "it's up for review" moves one, and a decision that gets reopened is linked back to where and why it was made. Give Meld a goal and it plans the tickets, tracks progress and asks you only when a decision is needed.
 
-Every agent action can be undone, and agents only see what the asking person can see.
+Every agent action can be undone, and agents only see what the person asking can see.
 
 Try it, no sign-up: https://meld-fawn.vercel.app ("Try the live demo"). Built on the Meta Model API (Muse Spark).
 
