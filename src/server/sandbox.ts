@@ -84,11 +84,17 @@ export async function createSandbox(me: { id: string; first: string }) {
     ["random", "Anything goes", null],
   ] as const;
   for (const [name] of channels) ch[name] = `ch${uid()}`;
+  // #tour (first in the sidebar, where the demo opens) and the visitor's Atlas DM, both seeded by seedShowcase.
+  ch.tour = `ch${uid()}`;
+  const atlasDm = `dm${uid()}`;
+  // Saved first, so it lists first in the sidebar.
+  await reg.createChannel({ id: ch.tour, workspaceId: wsId, kind: "channel", name: "tour", topic: "Start here: every feature, with a jump to where it happens", team: null, members: null, createdBy: me.id, createdAt: at(-5) });
   const dm: Record<string, string> = { [maya]: `dm${uid()}`, [jonas]: `dm${uid()}` };
   await Promise.all([
     ...channels.map(([name, topic, team], i) =>
       reg.createChannel({ id: ch[name], workspaceId: wsId, kind: "channel", name, topic, team, members: null, createdBy: me.id, createdAt: at(i) }),
     ),
+    reg.createChannel({ id: atlasDm, workspaceId: wsId, kind: "dm", name: null, topic: "", team: null, members: [me.id, ATLAS_ID], createdBy: me.id, createdAt: at(9) }),
     ...[maya, jonas].map((who, i) =>
       reg.createChannel({ id: dm[who], workspaceId: wsId, kind: "dm", name: null, topic: "", team: null, members: [me.id, who], createdBy: who, createdAt: at(10 + i) }),
     ),
@@ -262,7 +268,9 @@ export async function createSandbox(me: { id: string; first: string }) {
   await seedScheduled(store, { me, ch, ag, ids, posted, people: { maya, jonas, priya, sofia, tom } });
   await (await import("./seeds/proactive")).seedProactive(store, { me: me.id, workspaceId: wsId, ch, posted, people: { maya, jonas, priya, tom, sofia } });
   await (await import("./seeds/automation")).seedAutomation(store, { me: me.id, ch, ag, ids, people: { jonas, priya, sofia } });
-  return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
+  // Last: it points at what every seed above posted.
+  await (await import("./seeds/showcase")).seedShowcase(store, { me: me.id, ch, ag, ids, posted, people: { maya, jonas, priya, tom, sofia }, tour: ch.tour, atlasDm });
+  return { workspaceId: wsId, home: ch.tour, ticketIds: ids };
 }
 
 /**
