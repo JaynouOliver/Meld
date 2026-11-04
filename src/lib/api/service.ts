@@ -12,7 +12,10 @@ import { currentDir, deliverNotices } from "../context";
 import { ATLAS_ID, personOf, type Directory } from "../directory";
 import { stamp, uid } from "../format";
 import { canCreateIn, canDelete, canSee, clampRole, viewerOf } from "../rbac";
+import { canDeleteMessage, canEditMessage, canPinMessage, deleteKeepsPlaceholder, searchTerms, validReaction, visibleHits } from "../message-ops";
 import { getStore } from "../store";
+import { cleanEstimate, cleanLabels, isValidDue, MAX_CHECKLIST_ITEMS, MAX_COMMENT_LENGTH } from "../ticket-fields";
+import type { MessageHit, PinnedHit } from "../store/types";
 import type { ChatId, GitHubLink, Message, PersonId, ReplyNode, Role, Ticket, TicketImage, WeekDay } from "../types";
 
 // Simulated network latency only when running in the browser (preview mode).
@@ -115,6 +118,116 @@ export async function postMessage(input: PostMessageInput): Promise<PostedMessag
   return saved;
 }
 
+// ---------------------------------------------------------------- message edits, pins, reactions
+
+/** Where a message change happened (drives the realtime ping) and what it now holds. */
+export interface MessageChange {
+  chatId: ChatId;
+  threadId: string | null;
+  at: string;
+}
+
+/** A message in a chat this person can see. Unknown and hidden ids get the same answer. */
+async function requireMessage(id: string) {
+  const m = await (await getStore()).getMessage(String(id));
+  if (!m || !currentDir().chats[m.chatId]) throw new ApiError("That message no longer exists", 404);
+  return m;
+}
+
+const isAgentAuthor = (who: PersonId) => {
+  const dir = currentDir();
+  return who === ATLAS_ID || !!dir.people[who]?.isAgent || !!dir.agents?.some((a) => a.id === who);
+};
+const factsOf = (m: { who: PersonId; deletedAt: string | null }) => ({ who: m.who, byAgent: isAgentAuthor(m.who), deletedAt: m.deletedAt });
+const actor = (role?: Role) => ({ me: currentDir().me, role: effectiveRole(role) });
+
+export interface EditMessageInput {
+  id: string;
+  text: string;
+  role?: Role;
+}
+
+/** Change the text of your own message. Agents' messages can't be edited by people. */
+export async function editMessage(input: EditMessageInput): Promise<MessageChange & { text: string }> {
+  await wait(60);
+  const m = await requireMessage(input.id);
+  if (!canEditMessage(actor(input.role), factsOf(m))) throw new ApiError("You can only edit your own messages", 403);
+  const text = String(input.text ?? "").trim().slice(0, 8000);
+  if (!text) throw new ApiError("Message is empty");
+  const at = new Date().toISOString();
+  if (text === m.text) return { chatId: m.chatId, threadId: m.threadId, at: m.editedAt ?? at, text };
+  const store = await getStore();
+  await Promise.all([
+    store.updateMessage(m.id, { text, editedAt: at }),
+    store.logEvent({ kind: "message.edited", actor: currentDir().me, chatId: m.chatId, payload: { id: m.id } }),
+  ]);
+  return { chatId: m.chatId, threadId: m.threadId, at, text };
+}
+
+/**
+ * Delete your own message (org owners: anyone's, including agents'). A thread root with
+ * replies becomes a "This message was deleted" placeholder so the thread survives; the
+ * placeholder goes away with its last reply.
+ */
+export async function deleteMessage(input: { id: string; role?: Role }): Promise<MessageChange> {
+  await wait(60);
+  const m = await requireMessage(input.id);
+  if (!canDeleteMessage(actor(input.role), factsOf(m))) {
+    throw new ApiError(isAgentAuthor(m.who) ? "Only org owners can delete agent messages" : "You can only delete your own messages", 403);
+  }
+  const store = await getStore();
+  const at = new Date().toISOString();
+  if (deleteKeepsPlaceholder(!m.threadId, m.replyCount)) {
+    await store.updateMessage(m.id, { text: "", deletedAt: at, pinnedAt: null, pinnedBy: null, clearReactions: true });
+  } else {
+    await store.removeMessage(m.id);
+    if (m.threadId) {
+      const root = await store.getMessage(m.threadId);
+      if (root?.deletedAt && root.replyCount === 0) await store.removeMessage(root.id);
+    }
+  }
+  await store.logEvent({ kind: "message.deleted", actor: currentDir().me, chatId: m.chatId, payload: { id: m.id, by: m.who } });
+  return { chatId: m.chatId, threadId: m.threadId, at };
+}
+
+/** Pin or unpin a message in its chat (any member; guests can't). */
+export async function pinMessage(input: { id: string; on: boolean; role?: Role }): Promise<MessageChange & { pinnedBy: PersonId | null }> {
+  await wait(60);
+  if (!canPinMessage(effectiveRole(input.role))) throw new ApiError("Guests can't pin messages", 403);
+  const m = await requireMessage(input.id);
+  if (m.deletedAt) throw new ApiError("That message was deleted", 410);
+  const at = new Date().toISOString();
+  const by = input.on ? currentDir().me : null;
+  await (await getStore()).updateMessage(m.id, { pinnedAt: input.on ? at : null, pinnedBy: by });
+  return { chatId: m.chatId, threadId: m.threadId, at, pinnedBy: by };
+}
+
+/** A chat's pinned messages, newest pin first. */
+export async function getPinned(chatId: ChatId): Promise<PinnedHit[]> {
+  await wait();
+  requireChat(chatId);
+  return (await getStore()).listPinned(chatId, 50);
+}
+
+/** Add or remove your reaction on a message. */
+export async function toggleReaction(input: { id: string; emoji: string; on: boolean }): Promise<MessageChange> {
+  await wait(40);
+  if (!validReaction(input.emoji)) throw new ApiError("That isn't a reaction");
+  const m = await requireMessage(input.id);
+  if (m.deletedAt) throw new ApiError("That message was deleted", 410);
+  await (await getStore()).react(m.id, input.emoji, currentDir().me, !!input.on);
+  return { chatId: m.chatId, threadId: m.threadId, at: new Date().toISOString() };
+}
+
+/** Full-text search over the messages this person can see (the Cmd+K palette). */
+export async function searchMessages(query: string): Promise<MessageHit[]> {
+  await wait();
+  const terms = searchTerms(query);
+  if (!terms.length) return [];
+  const hits = await (await getStore()).searchMessages(terms, 20);
+  return visibleHits(hits, currentDir().chats, terms).slice(0, 20);
+}
+
 export interface AskAtlasInput extends PostMessageInput {
   role: Role;
 }
@@ -203,7 +316,7 @@ export async function createTicket(preset: Partial<Ticket>, role: Role): Promise
   return t;
 }
 
-export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team" | "due">>;
+export type TicketPatch = Partial<Pick<Ticket, "title" | "description" | "status" | "priority" | "assignee" | "team" | "due" | "labels" | "estimate">>;
 
 export interface UpdateTicketInput {
   id: string;
@@ -216,6 +329,13 @@ export interface UpdateTicketInput {
   /** Mark this ticket blocked by another (id), or remove that. */
   addBlocker?: string;
   removeBlocker?: string;
+  /** Comment as the signed-in person (anyone who can see the ticket). */
+  addComment?: string;
+  /** Delete a comment: your own, or anyone's for org owners. */
+  removeCommentId?: string;
+  addChecklistItem?: string;
+  toggleChecklistId?: string;
+  removeChecklistId?: string;
 }
 
 export interface UpdateTicketResult {
@@ -257,10 +377,51 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   if (p.title !== undefined) t.title = p.title;
   if (p.description !== undefined) t.description = p.description;
   if (p.due !== undefined && p.due !== (t.due ?? null)) {
-    if (p.due !== null && !/^\d{4}-\d{2}-\d{2}$/.test(p.due)) throw new ApiError("Due date must be YYYY-MM-DD");
+    if (p.due !== null && !isValidDue(p.due)) throw new ApiError("Due date must be a real date, YYYY-MM-DD");
     t.due = p.due;
     note = p.due ? `set the due date to ${p.due}` : "cleared the due date";
   }
+  if (p.labels !== undefined) {
+    const r = cleanLabels(p.labels);
+    if ("error" in r) throw new ApiError(r.error);
+    const prev = t.labels ?? [];
+    const added = r.labels.filter((l) => !prev.includes(l));
+    const removed = prev.filter((l) => !r.labels.includes(l));
+    t.labels = r.labels;
+    if (added.length) note = `added label ${added.join(", ")}`;
+    else if (removed.length) note = `removed label ${removed.join(", ")}`;
+  }
+  if (p.estimate !== undefined && p.estimate !== (t.estimate ?? null)) {
+    const r = cleanEstimate(p.estimate);
+    if ("error" in r) throw new ApiError(r.error);
+    t.estimate = r.estimate;
+    note = r.estimate === null ? "cleared the estimate" : `estimated it at ${r.estimate} ${r.estimate === 1 ? "point" : "points"}`;
+  }
+  if (input.addComment !== undefined) {
+    const text = String(input.addComment).trim();
+    if (!text) throw new ApiError("Comment is empty");
+    if (text.length > MAX_COMMENT_LENGTH) throw new ApiError(`Comments are limited to ${MAX_COMMENT_LENGTH} characters`);
+    t.comments = [...(t.comments ?? []), { id: uid(), who: currentDir().me, text, time: stamp() }];
+  }
+  if (input.removeCommentId) {
+    const c = (t.comments ?? []).find((x) => x.id === input.removeCommentId);
+    if (!c) throw new ApiError("That comment no longer exists", 404);
+    if (c.who !== currentDir().me && effectiveRole(input.role) !== "owner") throw new ApiError("You can only delete your own comments", 403);
+    t.comments = (t.comments ?? []).filter((x) => x.id !== c.id);
+  }
+  if (input.addChecklistItem !== undefined) {
+    const text = String(input.addChecklistItem).trim().slice(0, 200);
+    if (!text) throw new ApiError("Checklist item is empty");
+    if ((t.checklist ?? []).length >= MAX_CHECKLIST_ITEMS) throw new ApiError(`A checklist can have at most ${MAX_CHECKLIST_ITEMS} items`);
+    t.checklist = [...(t.checklist ?? []), { id: uid(), text, done: false }];
+  }
+  if (input.toggleChecklistId) {
+    const item = (t.checklist ?? []).find((x) => x.id === input.toggleChecklistId);
+    if (!item) throw new ApiError("That checklist item no longer exists", 404);
+    item.done = !item.done;
+    if (item.done) note = `checked off “${item.text}”`;
+  }
+  if (input.removeChecklistId) t.checklist = (t.checklist ?? []).filter((x) => x.id !== input.removeChecklistId);
   if (p.status && p.status !== t.status) {
     t.status = p.status;
     note = announce = `moved it to ${p.status}`;
@@ -304,6 +465,7 @@ export async function updateTicket(input: UpdateTicketInput): Promise<UpdateTick
   if (note) t.activity.push({ who: myName(), text: note, time: stamp() });
   const writes: Promise<unknown>[] = [store.saveTicket(t)];
   if (note) writes.push(store.bumpWeek("p"), store.logEvent({ kind: "ticket.updated", actor: currentDir().me, ticketId: t.id, payload: { note } }));
+  if (input.addComment !== undefined) writes.push(store.logEvent({ kind: "ticket.commented", actor: currentDir().me, ticketId: t.id }));
   let broadcastChat: ChatId | null = null;
   if (announce && t.watch) {
     writes.push(store.appendMessage(t.watch.chat, { id: uid(), who: ATLAS_ID, time: stamp(), text: `Update on ${t.id}: ${myName()} ${announce}.` }, t.watch.thread));

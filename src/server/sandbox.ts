@@ -35,19 +35,19 @@ const PEOPLE = [
 
 const AGENTS = [
   {
-    key: "triage", name: "Triage", color: "#0EA5E9", tools: ["read", "write"] as ("read" | "write")[],
-    description: "Turns bug reports into well-formed tickets with the right owner.",
+    key: "triage", handle: "tess", name: "Tess", color: "#0EA5E9", tools: ["read", "write"] as ("read" | "write")[],
+    description: "Triage: turns bug reports into well-formed tickets with the right owner.",
     instructions:
-      "When someone reports a bug, file one ticket with steps to reproduce, impact and the likely owner team (Engineering for code, Design for UI copy). Ask one question if the report is too vague. Ask @reviewer for rollout risks when a fix is risky.",
+      "When someone reports a bug, file one ticket with steps to reproduce, impact and the likely owner team (Engineering for code, Design for UI copy). Ask one question if the report is too vague. Ask @rex for rollout risks when a fix is risky.",
   },
   {
-    key: "reviewer", name: "Reviewer", color: "#059669", tools: ["read"] as ("read" | "write")[],
-    description: "Reviews plans and changes for edge cases and rollout risks.",
+    key: "reviewer", handle: "rex", name: "Rex", color: "#059669", tools: ["read"] as ("read" | "write")[],
+    description: "Reviewer: checks plans and changes for edge cases and rollout risks.",
     instructions: "Look for missing edge cases, rollout risks and unclear ownership. Be concrete and brief: at most four risks, each with a suggested fix. Tag a person only for product decisions.",
   },
   {
-    key: "standup", name: "Standup", color: "#D97706", tools: ["read"] as ("read" | "write")[],
-    description: "Summarizes what changed, what's blocked and what needs a decision.",
+    key: "standup", handle: "sunny", name: "Sunny", color: "#D97706", tools: ["read"] as ("read" | "write")[],
+    description: "Standup: what changed, what's blocked and what needs a decision.",
     instructions: "When asked, give five bullets: shipped, in progress, blocked (and by what), needs a decision, next. Use ticket ids.",
   },
 ];
@@ -99,7 +99,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await Promise.all([
     ...AGENTS.map((a, i) =>
       reg.createAgent({
-        id: ag[a.key], workspaceId: wsId, handle: a.key, name: a.name, description: a.description, instructions: a.instructions,
+        id: ag[a.key], workspaceId: wsId, handle: a.handle, name: a.name, description: a.description, instructions: a.instructions,
         tools: a.tools, kind: "custom", color: a.color, tokenHash: null, createdBy: me.id, createdAt: at(20 + i),
       }),
     ),
@@ -111,20 +111,46 @@ export async function createSandbox(me: { id: string; first: string }) {
 
   // Tickets ORB-1..12, some blocking others.
   const store = await storeFor(ws);
-  type T = [string, string, TicketStatus, Priority, string, string, { pr?: string; issue?: string; blocked?: number[]; watch?: string; desc?: string }?];
+  type Extra = {
+    pr?: string; issue?: string; blocked?: number[]; watch?: string; desc?: string;
+    /** Labels, due in days from today, story points, checklist ([text, done]), comments ([who, minutes ago, text]). */
+    labels?: string[]; due?: number; pts?: number; check?: [string, boolean][]; talk?: [string, number, string][];
+  };
+  type T = [string, string, TicketStatus, Priority, string, string, Extra?];
+  const inDays = (n: number) => new Date(Date.now() + n * 86400_000).toISOString().slice(0, 10);
   const tickets: T[] = [
-    ["engineering", "Google Calendar two-way sync", "In progress", "High", jonas, sofia, { pr: "214", watch: "engineering", desc: "Sync events both ways; handle recurring events and deletions." }],
-    ["design", "Onboarding checklist redesign", "In review", "Medium", maya, me.id, { pr: "220", watch: "design", desc: "Checklist moves to a sidebar card that stays until all 4 steps are done (decided in #design)." }],
-    ["engineering", "Team scheduling links", "To do", "High", priya, sofia, { desc: "Round-robin and collective links for teams." }],
-    ["engineering", "Stripe webhooks for plan upgrades", "In progress", "High", jonas, ATLAS_ID, { issue: "198", watch: "engineering", desc: "Handle checkout.session.completed and customer.subscription.updated; idempotent." }],
-    ["design", "Pricing page refresh", "To do", "Medium", maya, tom, { desc: "Annual toggle default on, show monthly equivalent." }],
-    ["growth", "Launch email sequence", "To do", "Medium", tom, tom, { blocked: [5], desc: "3 emails: announce, how-to, last call. Needs final pricing." }],
-    ["engineering", "In-app upgrade flow in Settings", "To do", "High", priya, sofia, { blocked: [4] }],
-    ["engineering", "Timezone bug in weekly view", "Done", "High", priya, maya, { pr: "209", watch: "engineering" }],
-    ["growth", "Product Hunt launch kit", "In progress", "Medium", tom, tom],
-    ["product", "Analytics events for the onboarding funnel", "To do", "Low", sofia, sofia],
-    ["design", "Dark mode polish", "Backburner", "Low", maya, maya],
-    ["product", "Q4 roadmap doc", "In review", "Medium", me.id, sofia, { desc: "One page: themes, bets, what we're not doing." }],
+    ["engineering", "Google Calendar two-way sync", "In progress", "High", jonas, sofia, {
+      pr: "214", watch: "engineering", desc: "Sync events both ways; handle recurring events and deletions.", labels: ["integrations", "launch"], due: 3, pts: 8,
+      check: [["OAuth consent screen approved", true], ["Push changes to Google", true], ["Pull changes with sync tokens", false], ["Recurring events and exceptions", false], ["Deletions both ways", false]],
+    }],
+    ["design", "Onboarding checklist redesign", "In review", "Medium", maya, me.id, { pr: "220", watch: "design", desc: "Checklist moves to a sidebar card that stays until all 4 steps are done (decided in #design).", labels: ["design", "onboarding"], due: -2, pts: 3 }],
+    ["engineering", "Team scheduling links", "To do", "High", priya, sofia, { desc: "Round-robin and collective links for teams.", labels: ["launch"], due: 9, pts: 13 }],
+    ["engineering", "Stripe webhooks for plan upgrades", "In progress", "High", jonas, ATLAS_ID, {
+      issue: "198", watch: "engineering", desc: "Handle checkout.session.completed and customer.subscription.updated; idempotent.", labels: ["billing", "launch"], pts: 5,
+      talk: [
+        [jonas, 520, "checkout.session.completed is handled and idempotent on the event id. Working on subscription.updated next."],
+        [priya, 300, "@Jonas I need the plan field on the customer record for ORB-7. Will it be there after this lands?"],
+        [jonas, 240, "Yes, the webhook writes plan and seats. I'll ping you when it's on staging, should be tomorrow morning."],
+      ],
+    }],
+    ["design", "Pricing page refresh", "To do", "Medium", maya, tom, {
+      desc: "Annual toggle default on, show monthly equivalent.", labels: ["design", "billing", "launch"], pts: 3,
+      talk: [
+        [tom, 900, "The launch emails (ORB-6) quote prices, so I need the final numbers before I can schedule them."],
+        [maya, 610, "Mocks are done, waiting on Sofia to confirm the annual discount. 20% is the current proposal."],
+        [sofia, 180, "@Maya 20% is fine for launch. Let's ship it and revisit after a month of data."],
+      ],
+    }],
+    ["growth", "Launch email sequence", "To do", "Medium", tom, tom, { blocked: [5], desc: "3 emails: announce, how-to, last call. Needs final pricing.", labels: ["launch", "marketing"], pts: 3 }],
+    ["engineering", "In-app upgrade flow in Settings", "To do", "High", priya, sofia, { blocked: [4], labels: ["billing", "launch"], pts: 5 }],
+    ["engineering", "Timezone bug in weekly view", "Done", "High", priya, maya, { pr: "209", watch: "engineering", labels: ["bug"], pts: 2 }],
+    ["growth", "Product Hunt launch kit", "In progress", "Medium", tom, tom, {
+      labels: ["launch", "marketing"], pts: 2,
+      check: [["Tagline", true], ["Gallery images", true], ["Maker comment", true], ["Hunter lined up", false]],
+    }],
+    ["product", "Analytics events for the onboarding funnel", "To do", "Low", sofia, sofia, { labels: ["onboarding", "analytics"], due: 12, pts: 3 }],
+    ["design", "Dark mode polish", "Backburner", "Low", maya, maya, { labels: ["design"] }],
+    ["product", "Q4 roadmap doc", "In review", "Medium", me.id, sofia, { desc: "One page: themes, bets, what we're not doing.", labels: ["planning"], due: 2 }],
   ];
   const ids: string[] = [];
   const nameOf = (id: string) => (id === me.id ? "Alex Rivera" : id === ATLAS_ID ? "Atlas" : (PEOPLE.find((p) => p.id === id)?.name ?? "Someone"));
@@ -139,6 +165,11 @@ export async function createSandbox(me: { id: string; first: string }) {
       ],
       watch: x.watch ? { chat: ch[x.watch], thread: null } : null,
       blockedBy: (x.blocked ?? []).map((n) => `ORB-${n}`),
+      labels: x.labels ?? [],
+      due: x.due === undefined ? null : inDays(x.due),
+      estimate: x.pts ?? null,
+      checklist: (x.check ?? []).map(([text, done], j) => ({ id: `ck${i}-${j}`, text, done })),
+      comments: (x.talk ?? []).map(([who, min, text], j) => ({ id: `cm${i}-${j}`, who, text, time: ago(min) })),
       activity: [{ who: nameOf(reporter), text: "created this ticket", time: ago(3100) }],
     };
     await store.insertTicket(t);
@@ -147,7 +178,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   const you = `@${me.first}`;
   const conversations: [string, Msg[]][] = [
     ["general", [
-      { k: "g1", who: me.id, min: 1600, text: "Welcome to Orbit Labs on Meld 👋 Tickets live next to the conversation, and our agents can file, update and chase them. Tag @atlas, @triage, @reviewer or @standup." },
+      { k: "g1", who: me.id, min: 1600, text: "Welcome to Orbit Labs on Meld 👋 Tickets live next to the conversation, and our agents can file, update and chase them. Tag @atlas, or our agents @tess (triage), @rex (reviews) and @sunny (standups)." },
       { k: "g2", who: ATLAS_ID, min: 1599, text: "Hi all! Tag @atlas anywhere to create, update or find tickets (they start with ORB-), ask where things stand, or turn a thread into tasks. I act with the permissions of whoever asks." },
       { k: "g3", who: sofia, min: 300, text: `Reminder: the Q4 launch is two weeks out. Planning thread is in #product. ${you} can you sign off on the roadmap doc (ORB-12) by Friday?` },
       { k: "g4", who: tom, min: 95, text: "We crossed 1,000 waitlist signups this morning 🎉" },
@@ -222,6 +253,8 @@ export async function createSandbox(me: { id: string; first: string }) {
     flags: 0, lastFlaggedAt: null, source: "chat", createdAt: ago(1460),
   });
   await store.react(posted.d1d.id, "📌", ATLAS_ID, true).catch(() => {});
+  // Pinned in #design, as a team would: the "Pinned" list then has something to show.
+  await store.updateMessage(posted.d1d.id, { pinnedAt: ago(1455), pinnedBy: maya }).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }

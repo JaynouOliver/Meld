@@ -11,6 +11,7 @@ import { useMissions } from "@/hooks/use-missions";
 import { personOf } from "@/lib/directory";
 import { MissionStatusTag, ProgressBar, fmtDay } from "./mission-bits";
 import { NewMissionDialog } from "./new-mission-dialog";
+import { CardSkeletons } from "@/components/common/skeleton";
 
 /** All missions: what's being driven, how far along, and what needs a person. */
 export function MissionsScreen() {
@@ -38,7 +39,7 @@ export function MissionsScreen() {
         </div>
       </ScreenHeader>
       <div className="flex-1 overflow-y-auto bg-canvas px-4 py-4 sm:px-6">
-        {isPending && <p className="text-meta text-muted-foreground">Loading missions…</p>}
+        {isPending && <CardSkeletons count={4} className="lg:grid lg:grid-cols-2" />}
         {data && !data.length && (
           <div className="mx-auto mt-10 max-w-md rounded-md border bg-card p-6 text-center">
             <FlagIcon className="mx-auto size-5 text-muted-foreground" />
@@ -54,7 +55,7 @@ export function MissionsScreen() {
             )}
           </div>
         )}
-        <ul className="grid gap-3 lg:grid-cols-2">
+        <ul className="fade-in grid gap-3 lg:grid-cols-2">
           {data?.map((m) => {
             const pct = m.total ? Math.round((m.done / m.total) * 100) : 0;
             return (

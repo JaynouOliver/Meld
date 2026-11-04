@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/common/avatar";
 import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
 import { CatchUpButton } from "./catch-up-button";
+import { PinnedButton } from "./pinned-button";
 import { ChannelAgents } from "@/components/agents/channel-agents";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
@@ -25,10 +26,22 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
     const p = personOf(dir, meta.who);
     const topic = meta.who === ATLAS_ID ? `Agent · works on tickets with your permissions (${roleLabel(dir, role)})` : meta.topic;
     return (
-      <ScreenHeader back="/home" actions={meta.who === ATLAS_ID ? <CatchUpButton compact className="max-sm:hidden" /> : undefined}>
-        <Avatar person={p} size="md" />
+      <ScreenHeader
+        back="/home"
+        actions={
+          <div className="flex shrink-0 items-center gap-2">
+            <PinnedButton chatId={chatId} />
+            {meta.who === ATLAS_ID && <CatchUpButton compact className="max-sm:hidden" />}
+          </div>
+        }
+      >
+        <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="cursor-pointer rounded-[6px]">
+          <Avatar person={p} size="md" />
+        </button>
         <div className="flex min-w-0 flex-col leading-[1.3]">
-          <h1 className="truncate text-[15px] font-semibold">{p.name}</h1>
+          <h1 className="truncate text-[15px] font-semibold">
+            <button type="button" data-profile={p.id} className="cursor-pointer hover:underline">{p.name}</button>
+          </h1>
           <span className="truncate text-meta text-muted-foreground">{topic}</span>
         </div>
       </ScreenHeader>
@@ -40,6 +53,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div className="flex shrink-0 items-center gap-2">
+        <PinnedButton chatId={chatId} />
         <ChannelAgents chatId={chatId} />
         {canEdit && (
           <>

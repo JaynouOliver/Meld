@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/lib/api";
 import { ATLAS_ID, atlasDmOf, personOf } from "@/lib/directory";
 import { clock, displayTime } from "@/lib/format";
+import { deleteInList, editInList, pinInList, reactInList } from "@/lib/message-ops";
 import { mentionsAgent } from "@/lib/text";
 import type { PostMessageInput } from "@/lib/api";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
@@ -103,4 +104,67 @@ export function insertMessage(list: Message[], node: Draft, threadId?: string | 
 function replaceMessage(list: Message[], pendingId: string, saved: Message | ReplyNode): Message[] {
   const swap = <T extends { id: string; time: string }>(n: T): T => (n.id === pendingId ? { ...n, id: saved.id, time: saved.time } : n);
   return list.map((m) => ({ ...swap(m), replies: m.replies.map(swap) }));
+}
+
+// ---------------------------------------------------------------- edit, delete, pin, react
+
+/**
+ * Optimistic change to one chat's cached messages: apply `fn` now, roll back if the
+ * server refuses, and refetch the chat's pins afterwards (they live under its key).
+ */
+function useMessageChange<I extends { chatId: ChatId }>(run: (input: I) => Promise<unknown>, fn: (list: Message[], input: I) => Message[]) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: run,
+    onMutate: async (input: I) => {
+      const key = queryKeys.messages(input.chatId);
+      await qc.cancelQueries({ queryKey: key, exact: true });
+      const before = qc.getQueryData<Message[]>(key);
+      if (before) qc.setQueryData<Message[]>(key, fn(before, input));
+      return { before };
+    },
+    onError: (_e, input, ctx) => {
+      if (ctx?.before) qc.setQueryData(queryKeys.messages(input.chatId), ctx.before);
+      qc.invalidateQueries({ queryKey: queryKeys.messages(input.chatId) });
+    },
+    onSettled: (_d, _e, input) => qc.invalidateQueries({ queryKey: queryKeys.pins(input.chatId) }),
+  });
+}
+
+export function useEditMessage() {
+  const role = useRole();
+  return useMessageChange(
+    (i: { chatId: ChatId; id: string; text: string }) => api.editMessage({ id: i.id, text: i.text, role }),
+    (list, i) => editInList(list, i.id, i.text.trim(), new Date().toISOString()),
+  );
+}
+
+export function useDeleteMessage() {
+  const role = useRole();
+  return useMessageChange(
+    (i: { chatId: ChatId; id: string }) => api.deleteMessage({ id: i.id, role }),
+    (list, i) => deleteInList(list, i.id, new Date().toISOString()),
+  );
+}
+
+export function usePinMessage() {
+  const role = useRole();
+  const me = useDirectory().me;
+  return useMessageChange(
+    (i: { chatId: ChatId; id: string; on: boolean }) => api.pinMessage({ id: i.id, on: i.on, role }),
+    (list, i) => pinInList(list, i.id, i.on ? new Date().toISOString() : null, i.on ? me : null),
+  );
+}
+
+export function useToggleReaction() {
+  const me = useDirectory().me;
+  return useMessageChange(
+    (i: { chatId: ChatId; id: string; emoji: string; on: boolean }) => api.toggleReaction({ id: i.id, emoji: i.emoji, on: i.on }),
+    (list, i) => reactInList(list, i.id, i.emoji, me, i.on),
+  );
+}
+
+/** A chat's pinned messages (server list: pins can be older than the loaded window). */
+export function usePinned(chatId: ChatId, enabled = true) {
+  return useQuery({ queryKey: queryKeys.pins(chatId), queryFn: () => api.getPinned(chatId), enabled });
 }

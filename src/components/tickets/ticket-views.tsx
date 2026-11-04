@@ -1,8 +1,9 @@
 "use client";
 
-import { BotIcon, ChartColumnIcon } from "lucide-react";
+import { BotIcon, ChartColumnIcon, KanbanIcon, TableIcon } from "lucide-react";
 
 import { useDirectory } from "@/hooks/use-directory";
+import { useTicketLayout, type TicketLayout } from "@/hooks/use-ticket-layout";
 import { matchQuery, DEFAULT_TICKET_QUERY } from "@/lib/query-language";
 import type { Ticket, TicketScope } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,7 @@ export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: Tick
           );
         })}
       </div>
+      <LayoutToggle />
       <button
         type="button"
         aria-pressed={showInsights}
@@ -86,6 +88,36 @@ export function TicketViews({ tickets, scope }: { tickets: Ticket[]; scope: Tick
         <ChartColumnIcon aria-hidden className="size-4" />
         <span className="hidden sm:inline">Insights</span>
       </button>
+    </div>
+  );
+}
+
+const LAYOUTS: { value: TicketLayout; label: string; Icon: typeof TableIcon }[] = [
+  { value: "table", label: "Table", Icon: TableIcon },
+  { value: "board", label: "Board", Icon: KanbanIcon },
+];
+
+/** Table | Board, remembered per person (see useTicketLayout). */
+function LayoutToggle() {
+  const [layout, setLayout] = useTicketLayout();
+  return (
+    <div role="group" aria-label="Layout" className="flex h-8 shrink-0 rounded-md border border-input bg-muted p-0.5">
+      {LAYOUTS.map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={layout === value}
+          aria-label={label}
+          onClick={() => setLayout(value)}
+          className={cn(
+            "inline-flex cursor-pointer items-center gap-1.5 rounded-[4px] px-2 text-[13px] font-medium transition-colors",
+            layout === value ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icon aria-hidden className="size-4" />
+          <span className="hidden lg:inline">{label}</span>
+        </button>
+      ))}
     </div>
   );
 }

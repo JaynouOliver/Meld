@@ -25,12 +25,20 @@ export const getAgentRuns = impl.getAgentRuns;
 export const getDirectory = impl.getDirectory;
 export const markRead = impl.markRead;
 export const getBoot = impl.getBoot;
+export const editMessage = impl.editMessage;
+export const deleteMessage = impl.deleteMessage;
+export const pinMessage = impl.pinMessage;
+export const getPinned = impl.getPinned;
+export const toggleReaction = impl.toggleReaction;
+export const searchMessages = impl.searchMessages;
 
 export type {
   AskAtlasInput,
   AskAtlasResult,
   DecideActionInput,
   DecideActionResult,
+  EditMessageInput,
+  MessageChange,
   PostMessageInput,
   PostedMessage,
   TicketPatch,

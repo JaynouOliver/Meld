@@ -66,7 +66,30 @@ export interface Ticket {
   missionId?: string | null;
   /** Due date, YYYY-MM-DD. */
   due?: string | null;
+  /** Free-form tags, lowercase, e.g. "billing". */
+  labels?: string[];
+  /** Story points, or null when not estimated. */
+  estimate?: number | null;
+  /** Subtasks lite: small steps ticked off inside the ticket. */
+  checklist?: ChecklistItem[];
+  /** Discussion on the ticket, oldest first. Mentions and ticket ids render as chips. */
+  comments?: TicketComment[];
   activity: Activity[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TicketComment {
+  id: string;
+  /** Person or agent id. */
+  who: PersonId;
+  text: string;
+  /** Stored time (ISO on the server); show with displayTime(). */
+  time: string;
 }
 
 /** What the chat shows for an Atlas action (confirm card or undo). */
@@ -93,6 +116,13 @@ export interface ReplyNode {
   action?: ActionView | null;
   /** Emoji → who reacted (people or agents), e.g. an agent's 👀 while it works. */
   reactions?: Record<string, PersonId[]>;
+  /** When its author last edited the text (ISO). */
+  editedAt?: string | null;
+  /** Deleted thread root kept as a placeholder because it still has replies (ISO). */
+  deletedAt?: string | null;
+  /** Pinned to the chat (ISO), and by whom. */
+  pinnedAt?: string | null;
+  pinnedBy?: PersonId | null;
 }
 
 export interface Message {
@@ -107,6 +137,13 @@ export interface Message {
   /** Filled in when listing messages. */
   action?: ActionView | null;
   reactions?: Record<string, PersonId[]>;
+  /** When its author last edited the text (ISO). */
+  editedAt?: string | null;
+  /** Deleted thread root kept as a placeholder because it still has replies (ISO). */
+  deletedAt?: string | null;
+  /** Pinned to the chat (ISO), and by whom. */
+  pinnedAt?: string | null;
+  pinnedBy?: PersonId | null;
   replies: ReplyNode[];
 }
 

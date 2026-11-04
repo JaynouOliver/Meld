@@ -74,6 +74,8 @@ export function stepLabel(name: string, args: Record<string, unknown>) {
       return typeof args.title === "string" ? `Drafting “${args.title.slice(0, 48)}”` : "Drafting a ticket";
     case "update_ticket":
       return `Updating ${id || "a ticket"}`;
+    case "comment_on_ticket":
+      return `Commenting on ${id || "a ticket"}`;
     case "delete_ticket":
       return `Preparing to delete ${id || "a ticket"}`;
     case "catch_up":

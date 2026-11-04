@@ -36,6 +36,12 @@ const methods: Record<string, Method> = {
   getTickets: api.getTickets,
   getWeekActivity: api.getWeekActivity,
   markRead: api.markRead,
+  editMessage: api.editMessage,
+  deleteMessage: api.deleteMessage,
+  pinMessage: api.pinMessage,
+  getPinned: api.getPinned,
+  toggleReaction: api.toggleReaction,
+  searchMessages: api.searchMessages,
   // An @Atlas message enqueues a run in the same request; it runs once the response is
   // sent and the reply arrives over realtime. Without a model, the browser calls the
   // rule-based askAtlas instead (no runId).
@@ -146,6 +152,14 @@ function changes(method: string, args: unknown[], result: unknown): { chats: Cha
   switch (method) {
     case "postMessage":
       return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false, runs: !!(result as api.PostedMessage).runs?.length };
+    // Edits, deletes, pins and reactions: the chat refetches, but it isn't new activity.
+    case "editMessage":
+    case "deleteMessage":
+    case "pinMessage":
+    case "toggleReaction": {
+      const quiet = { chats: [(result as api.MessageChange).chatId], tickets: false, quiet: true };
+      return quiet;
+    }
     case "teammateReply":
       return { chats: [a0 as ChatId], tickets: false };
     case "askAtlas":

@@ -216,7 +216,12 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           <SendIcon className="size-4" />
         </button>
       </div>
-      <div className="hidden px-0.5 pt-1.5 text-xs text-muted-foreground md:block">{hint}</div>
+      <div className="hidden items-baseline justify-between gap-4 px-0.5 pt-1.5 text-xs text-muted-foreground md:flex">
+        <span className="min-w-0 truncate">{hint}</span>
+        <span className="shrink-0 whitespace-nowrap max-lg:hidden">
+          <b className="font-semibold">**bold**</b> <i>_italic_</i> <code className="font-mono text-[11px]">`code`</code>
+        </span>
+      </div>
     </div>
   );
 }

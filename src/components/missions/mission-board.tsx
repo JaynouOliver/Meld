@@ -18,11 +18,17 @@ import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 import { MissionStatusTag, ProgressBar, fmtDay } from "./mission-bits";
+import { CardSkeletons } from "@/components/common/skeleton";
 
 /** One mission: its plan as a dependency graph, live progress, decisions and timeline. */
 export function MissionBoard({ id }: { id: string }) {
   const { data, isPending, error } = useMission(id);
-  if (isPending) return <Shell title="Mission">Loading…</Shell>;
+  if (isPending)
+    return (
+      <Shell title="Mission">
+        <CardSkeletons count={2} className="max-w-3xl" />
+      </Shell>
+    );
   if (error || !data) return <Shell title="Mission">This mission doesn&apos;t exist or was removed.</Shell>;
   return <Board view={data} />;
 }

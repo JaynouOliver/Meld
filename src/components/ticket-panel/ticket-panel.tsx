@@ -5,7 +5,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
+import { Checklist } from "./checklist";
+import { Comments } from "./comments";
 import { Dependencies } from "./dependencies";
+import { DueField, EstimateField, LabelsField } from "./planning-fields";
 import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,6 +205,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
               </SelectContent>
             </Select>
           </Field>
+          <DueField ticket={t} />
+          <EstimateField ticket={t} />
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">Reporter</span>
             <span className="flex min-h-[38px] items-center gap-2 text-sm">
@@ -211,6 +216,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             </span>
           </div>
         </div>
+
+        <LabelsField ticket={t} />
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="tk-desc" className={sectionLabel}>
@@ -225,6 +232,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             placeholder="Describe the work, acceptance criteria, links…"
           />
         </div>
+
+        <Checklist ticket={t} />
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
@@ -319,6 +328,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
           </div>
           <span className="text-xs text-muted-foreground">{dir.workspace.repo ? `Repository: ${dir.workspace.repo}` : "No default repository set for this workspace"}</span>
         </div>
+
+        <Comments ticket={t} />
 
         <div className="flex flex-col gap-2">
           <span className={sectionLabel}>Activity</span>
