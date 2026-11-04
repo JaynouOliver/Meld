@@ -35,19 +35,19 @@ const PEOPLE = [
 
 const AGENTS = [
   {
-    key: "triage", name: "Triage", color: "#0EA5E9", tools: ["read", "write"] as ("read" | "write")[],
-    description: "Turns bug reports into well-formed tickets with the right owner.",
+    key: "triage", handle: "tess", name: "Tess", color: "#0EA5E9", tools: ["read", "write"] as ("read" | "write")[],
+    description: "Triage: turns bug reports into well-formed tickets with the right owner.",
     instructions:
-      "When someone reports a bug, file one ticket with steps to reproduce, impact and the likely owner team (Engineering for code, Design for UI copy). Ask one question if the report is too vague. Ask @reviewer for rollout risks when a fix is risky.",
+      "When someone reports a bug, file one ticket with steps to reproduce, impact and the likely owner team (Engineering for code, Design for UI copy). Ask one question if the report is too vague. Ask @rex for rollout risks when a fix is risky.",
   },
   {
-    key: "reviewer", name: "Reviewer", color: "#059669", tools: ["read"] as ("read" | "write")[],
-    description: "Reviews plans and changes for edge cases and rollout risks.",
+    key: "reviewer", handle: "rex", name: "Rex", color: "#059669", tools: ["read"] as ("read" | "write")[],
+    description: "Reviewer: checks plans and changes for edge cases and rollout risks.",
     instructions: "Look for missing edge cases, rollout risks and unclear ownership. Be concrete and brief: at most four risks, each with a suggested fix. Tag a person only for product decisions.",
   },
   {
-    key: "standup", name: "Standup", color: "#D97706", tools: ["read"] as ("read" | "write")[],
-    description: "Summarizes what changed, what's blocked and what needs a decision.",
+    key: "standup", handle: "sunny", name: "Sunny", color: "#D97706", tools: ["read"] as ("read" | "write")[],
+    description: "Standup: what changed, what's blocked and what needs a decision.",
     instructions: "When asked, give five bullets: shipped, in progress, blocked (and by what), needs a decision, next. Use ticket ids.",
   },
 ];
@@ -99,7 +99,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await Promise.all([
     ...AGENTS.map((a, i) =>
       reg.createAgent({
-        id: ag[a.key], workspaceId: wsId, handle: a.key, name: a.name, description: a.description, instructions: a.instructions,
+        id: ag[a.key], workspaceId: wsId, handle: a.handle, name: a.name, description: a.description, instructions: a.instructions,
         tools: a.tools, kind: "custom", color: a.color, tokenHash: null, createdBy: me.id, createdAt: at(20 + i),
       }),
     ),
@@ -147,7 +147,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   const you = `@${me.first}`;
   const conversations: [string, Msg[]][] = [
     ["general", [
-      { k: "g1", who: me.id, min: 1600, text: "Welcome to Orbit Labs on Meld 👋 Tickets live next to the conversation, and our agents can file, update and chase them. Tag @atlas, @triage, @reviewer or @standup." },
+      { k: "g1", who: me.id, min: 1600, text: "Welcome to Orbit Labs on Meld 👋 Tickets live next to the conversation, and our agents can file, update and chase them. Tag @atlas, or our agents @tess (triage), @rex (reviews) and @sunny (standups)." },
       { k: "g2", who: ATLAS_ID, min: 1599, text: "Hi all! Tag @atlas anywhere to create, update or find tickets (they start with ORB-), ask where things stand, or turn a thread into tasks. I act with the permissions of whoever asks." },
       { k: "g3", who: sofia, min: 300, text: `Reminder: the Q4 launch is two weeks out. Planning thread is in #product. ${you} can you sign off on the roadmap doc (ORB-12) by Friday?` },
       { k: "g4", who: tom, min: 95, text: "We crossed 1,000 waitlist signups this morning 🎉" },

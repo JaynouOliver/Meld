@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { useUiStore } from "@/stores/ui-store";
+import { AppSkeleton } from "@/components/common/skeleton";
+import { ProfileDialog, useProfileClicks } from "@/components/profile/profile-dialog";
 import { TicketPanel } from "@/components/ticket-panel/ticket-panel";
 import { Button } from "@/components/ui/button";
 import { useAgentRunsSync } from "@/hooks/use-agent-runs";
@@ -44,14 +46,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (isPending || !data) {
-    return (
-      <div className="flex h-dvh w-full items-center justify-center gap-2 bg-background text-sm text-muted-foreground" role="status">
-        <LoaderCircleIcon className="size-4 animate-spin" />
-        Loading your workspace…
-      </div>
-    );
-  }
+  // First load (nothing cached yet): the app's own shape, not a spinner.
+  if (isPending || !data) return <AppSkeleton />;
   return <Shell>{children}</Shell>;
 }
 
@@ -65,6 +61,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   useSheetHistory();
   useRealtimeSync();
   useAgentRunsSync();
+  useProfileClicks();
   const pathname = usePathname();
   useEffect(() => {
     useUiStore.setState((s) => ({ navDepth: s.navDepth + 1 }));
@@ -78,6 +75,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
       <TabBar />
       <TicketPanel />
+      <ProfileDialog />
     </div>
   );
 }

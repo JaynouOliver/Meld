@@ -31,10 +31,12 @@ function ThreadReply({ node }: { node: ReplyNode }) {
   return (
     <div ref={ref} className={cn("px-4 transition-colors duration-700 hover:bg-muted sm:px-5", flashing && "bg-mention")}>
       <div className="flex gap-2.5 py-1.5">
-        <Avatar person={p} size="xl" />
+        <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="h-fit shrink-0 cursor-pointer rounded-[6px] transition-transform active:scale-95">
+          <Avatar person={p} size="xl" />
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-body font-semibold">{p.name}</span>
+            <button type="button" data-profile={p.id} className="cursor-pointer text-body font-semibold hover:underline">{p.name}</button>
             {p.isAgent && <AgentBadge />}
             <span className="text-xs text-muted-foreground">{node.time}</span>
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
+import { CardSkeletons } from "@/components/common/skeleton";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useSetDecisionStatus, useTeamDecisions } from "@/hooks/use-team-decisions";
@@ -56,7 +57,7 @@ export function DecisionsScreen() {
               </span>
             )}
           </div>
-          {isPending && <p className="text-meta text-muted-foreground">Loading decisions…</p>}
+          {isPending && <CardSkeletons count={3} />}
           {data && !data.length && (
             <div className="mt-10 rounded-md border bg-card p-6 text-center">
               <BookmarkIcon className="mx-auto size-5 text-muted-foreground" />
@@ -67,7 +68,7 @@ export function DecisionsScreen() {
               </p>
             </div>
           )}
-          <ul className="flex flex-col gap-3">
+          <ul className="fade-in flex flex-col gap-3">
             {list.map((d) => (
               <DecisionItem key={d.id} d={d} />
             ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { RowSkeletons } from "@/components/common/skeleton";
 import { ChevronDownIcon, CircleDashedIcon, CircleDotIcon, PlusIcon } from "lucide-react";
 
 import { Avatar } from "@/components/common/avatar";
@@ -79,7 +80,7 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
           <span className="border-l px-3 py-2">Priority</span>
         </div>
 
-        {loading && <div className="px-4 py-7 text-center text-sm text-muted-foreground">Loading tickets…</div>}
+        {loading && <RowSkeletons count={8} />}
 
         {groups.map((g) => {
           const ck = `${groupBy}:${g.key}`;

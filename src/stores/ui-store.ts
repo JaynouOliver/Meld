@@ -30,6 +30,8 @@ interface UiState {
   // panels
   threadId: string | null;
   ticketId: string | null;
+  /** Person or agent whose profile card is open. */
+  profileId: string | null;
 
   // live
   typing: Typing | null;
@@ -58,6 +60,7 @@ interface UiState {
   closeThread: () => void;
   openTicket: (id: string) => void;
   closeTicket: () => void;
+  openProfile: (id: string | null) => void;
 
   setTyping: (t: Typing | null) => void;
   markRead: (chat: ChatId) => void;
@@ -79,6 +82,7 @@ export const useUiStore = create<UiState>()(
       // In the sample workspace, desktop opens on the home channel's invite thread (see ChatScreen); phones start clean.
       threadId: null,
       ticketId: null,
+      profileId: null,
 
       typing: null,
       unread: SEED_UNREAD,
@@ -101,6 +105,7 @@ export const useUiStore = create<UiState>()(
       closeThread: () => set({ threadId: null }),
       openTicket: (ticketId) => set({ ticketId }),
       closeTicket: () => set({ ticketId: null }),
+      openProfile: (profileId) => set({ profileId }),
 
       setTyping: (typing) => set({ typing }),
       markRead: (chat) => set((s) => ({ unread: { ...s.unread, [chat]: 0 } })),
