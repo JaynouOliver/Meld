@@ -33,31 +33,15 @@ Meld
 
 ## 6. Project Description (required)
 
-*2,065 characters, plain text (no bold), so it pastes cleanly.*
+*Short version, plain text.*
 
-Meld is team chat and tickets in one app, with AI agents as teammates who turn conversation into owned work.
+Meld is Slack and Jira in one app, with AI agents as teammates.
 
-The problem: teams decide things in Slack and track them in Jira, and work gets lost in between. "I'll do it by Friday" never becomes a ticket. Tickets say "To do" after the work is done. Decisions get argued again because nobody can find the thread. Today's AI add-ons answer when asked; they don't keep the work true.
+Teams decide things in chat and track them in tickets, and work gets lost in between. In Meld, agents listen to the conversation and keep the work up to date without being asked: "I'll do it by Friday" becomes a ticket, "it's up for review" moves one, and if someone reopens a settled decision, Atlas links them to where and why it was decided. Give Atlas a goal and it plans the tickets, tracks them and asks you only when a decision is needed.
 
-In Meld, agents are workspace members with names, jobs and the same access rules as people:
-- Atlas (lead) answers questions with links to sources, turns a thread into assigned tickets and runs missions.
-- Tess triages: she files bugs she spots in chat and labels, prioritizes and assigns new tickets.
-- Rex reviews the tickets he's assigned and answers @mentions in comments.
-- Sunny posts standups and a daily digest.
+Every agent action can be undone, and agents only see what the asking person can see.
 
-What happens without anyone asking:
-- Chat updates tickets. "It's up for review now" moves the ticket. "I'll write the investor update by Friday" creates one, due Friday.
-- Decisions are remembered with the reason. If someone proposes the opposite later, Atlas points to the original decision and thread.
-- Missions: give Atlas a goal; it plans tickets with owners and dates, checks in, re-plans when work slips, and asks you only when a human call is needed.
-- Follow-ups on unanswered questions, reminders, workload balancing, meeting notes into tickets, and playbooks (say "outage" in #engineering and Tess, Rex and Atlas run the incident steps).
-
-Trust: every agent change can be undone, agents act with the asking person's permissions, and risky changes wait for Confirm.
-
-It's also a full Slack and Jira replacement: channels, DMs, threads, search, real-time chat, a ticket table and Kanban board, comments, blockers, roles and invites.
-
-Try it with no sign-up: https://meld-fawn.vercel.app, then "Try the live demo". You get a private startup workspace in about 5 seconds, opening on a #tour channel that shows every feature.
-
-Built in four days with Next.js, Supabase and the Meta Model API (Muse Spark).
+Try it, no sign-up: https://meld-fawn.vercel.app ("Try the live demo"). Built on the Meta Model API (Muse Spark).
 
 ## 7. Public GitHub Repository (required)
 
