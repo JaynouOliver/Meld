@@ -9,7 +9,20 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: { default: "Meld", template: "%s · Meld" },
-  description: "Team chat with an agent that files and updates your tickets.",
+  description: "Team chat and tickets in one place, with AI agents as teammates who turn conversation into owned work.",
+  applicationName: "Meld",
+  // The card image comes from app/opengraph-image.png and twitter-image.png.
+  openGraph: {
+    type: "website",
+    siteName: "Meld",
+    title: "Meld: Slack is where work gets talked about. Meld is where it gets done.",
+    description: "Team chat and tickets in one place, with AI agents as teammates who turn conversation into owned work.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Meld: Slack is where work gets talked about. Meld is where it gets done.",
+    description: "Team chat and tickets in one place, with AI agents as teammates who turn conversation into owned work.",
+  },
 };
 
 export const viewport: Viewport = {
