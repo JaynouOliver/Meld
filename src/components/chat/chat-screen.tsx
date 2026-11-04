@@ -2,11 +2,14 @@
 
 import * as api from "@/lib/api";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { ThreadPanel } from "@/components/thread/thread-panel";
 import { useDirectory } from "@/hooks/use-directory";
+import { loadAround } from "@/hooks/use-chat-history";
 import { useMessages } from "@/hooks/use-messages";
+import { resolveFocus } from "@/lib/chat-history";
 import type { ChatId } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { ChatHeader } from "./chat-header";
@@ -33,15 +36,28 @@ export function ChatScreen({ chatId }: { chatId: ChatId }) {
     save();
     return save;
   }, [chatId]);
-  // Jump to a cited message once this chat's messages are loaded.
+  // Jump to a cited, searched or pinned message once this chat's messages are loaded.
+  // Older than the loaded window: fetch the conversation around it first.
   const focus = useUiStore((s) => s.focus);
-  const loaded = !!messages;
+  const qc = useQueryClient();
+  const fetching = useRef<string | null>(null);
   useEffect(() => {
-    if (!focus || focus.chatId !== chatId || !loaded) return;
-    const ui = useUiStore.getState();
-    if (focus.threadId) ui.openThread(focus.threadId);
+    if (!focus || focus.chatId !== chatId || !messages) return;
+    const r = resolveFocus(messages, focus);
+    if (r.status === "missing") {
+      if (fetching.current === focus.id) return;
+      fetching.current = focus.id;
+      const drop = () => useUiStore.setState((s) => (s.focus?.id === focus.id ? { focus: null } : s));
+      void loadAround(qc, chatId, focus.id)
+        .then((found) => !found && drop(), drop)
+        .finally(() => {
+          if (fetching.current === focus.id) fetching.current = null;
+        });
+      return;
+    }
+    if (r.threadId) useUiStore.getState().openThread(r.threadId);
     useUiStore.setState({ focus: null, flashId: focus.id });
-  }, [focus, chatId, loaded, messages]);
+  }, [focus, chatId, messages, qc]);
 
   // Leaving the chat closes its thread, so it doesn't reappear on return.
   useEffect(() => () => useUiStore.getState().closeThread(), [chatId]);

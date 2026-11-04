@@ -11,6 +11,7 @@ import type { PostMessageInput } from "@/lib/api";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { trackRun, useAtlasAnswered } from "./use-agent-runs";
+import { fetchLatest } from "./use-chat-history";
 import { useDirectory, useRole } from "./use-directory";
 import { useHydrated } from "./use-hydrated";
 import { useNotifyChat } from "./use-notify-chat";
@@ -18,9 +19,11 @@ import { queryKeys } from "./query-keys";
 
 export function useMessages(chatId: ChatId | null) {
   const hydrated = useHydrated();
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: chatId ? queryKeys.messages(chatId) : ["messages", "none"],
-    queryFn: () => api.getMessages(chatId as ChatId),
+    // The latest window, keeping older history the person jumped to (use-chat-history.ts).
+    queryFn: () => fetchLatest(qc, chatId as ChatId),
     enabled: !!chatId,
   });
   // Until hydration finishes, match the server's HTML (no messages yet); see use-hydrated.ts.

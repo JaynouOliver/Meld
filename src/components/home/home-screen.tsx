@@ -1,17 +1,18 @@
 "use client";
 
 import { CatchUpButton } from "@/components/chat/catch-up-button";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon, HashIcon } from "lucide-react";
 import Link from "next/link";
 
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
 import { ScreenHeader } from "@/components/shell/screen-header";
+import { SearchButton } from "@/components/shell/search-palette";
 import { queryKeys } from "@/hooks/query-keys";
+import { fetchLatest } from "@/hooks/use-chat-history";
 import { useDirectory } from "@/hooks/use-directory";
 import { useHydrated } from "@/hooks/use-hydrated";
-import * as api from "@/lib/api";
 import { ATLAS_ID, atlasDmOf, personOf, type Directory } from "@/lib/directory";
 import type { ChatId, Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,9 @@ export function HomeScreen() {
   const atlasDm = atlasDmOf(dir);
   const dms = dir.dms.filter((d) => d !== atlasDm);
   const all: ChatId[] = [...dir.channels, ...dms, ...(atlasDm ? [atlasDm] : [])];
+  const qc = useQueryClient();
   const results = useQueries({
-    queries: all.map((id) => ({ queryKey: queryKeys.messages(id), queryFn: () => api.getMessages(id) })),
+    queries: all.map((id) => ({ queryKey: queryKeys.messages(id), queryFn: () => fetchLatest(qc, id) })),
   });
   const hydrated = useHydrated(); // match the server HTML during hydration; see use-hydrated.ts
   const last = (id: ChatId) => {
@@ -37,10 +39,13 @@ export function HomeScreen() {
     <main className="flex min-w-0 flex-1 flex-col bg-background">
       <ScreenHeader
         actions={
+          <div className="flex items-center gap-1 md:hidden">
+          <SearchButton />
           <Link href="/me" className="-mr-1.5 flex size-11 items-center justify-center md:hidden">
             <Avatar person={personOf(dir, dir.me)} size="lg" />
             <span className="sr-only">Your profile</span>
           </Link>
+          </div>
         }
       >
         <h1 className="text-xl font-semibold md:text-[15px]">{dir.workspace.name}</h1>

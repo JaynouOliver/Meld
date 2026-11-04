@@ -31,6 +31,7 @@ export const pinMessage = impl.pinMessage;
 export const getPinned = impl.getPinned;
 export const toggleReaction = impl.toggleReaction;
 export const searchMessages = impl.searchMessages;
+export const getMessagesAround = impl.getMessagesAround;
 
 export type {
   AskAtlasInput,

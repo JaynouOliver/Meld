@@ -10,6 +10,7 @@ import { CatchUpButton } from "./catch-up-button";
 import { PinnedButton } from "./pinned-button";
 import { ChannelAgents } from "@/components/agents/channel-agents";
 import { ScreenHeader } from "@/components/shell/screen-header";
+import { SearchButton } from "@/components/shell/search-palette";
 import { useDirectory, useRole } from "@/hooks/use-directory";
 import { ATLAS_ID, personOf } from "@/lib/directory";
 import { roleLabel } from "@/lib/rbac";
@@ -31,6 +32,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
         back="/home"
         actions={
           <div className="flex shrink-0 items-center gap-2">
+            <SearchButton className="-mr-1 size-9" />
             <PinnedButton chatId={chatId} />
             {meta.who === ATLAS_ID && <CatchUpButton compact className="max-sm:hidden" />}
           </div>
@@ -54,6 +56,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div className="flex shrink-0 items-center gap-2">
+        <SearchButton className="-mr-1 size-9" />
         <PinnedButton chatId={chatId} />
         <ChannelAgents chatId={chatId} />
         {canEdit && (

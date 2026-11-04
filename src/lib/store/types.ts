@@ -162,6 +162,12 @@ export interface Store {
   claimPlaybookRun(r: PlaybookRun): Promise<boolean>;
   /** Atomically update a running run still at `step`; false if someone else moved it on. */
   advancePlaybookRun(id: string, step: number, patch: Partial<Pick<PlaybookRun, "step" | "status" | "error" | "runIds" | "chatId" | "threadId" | "finishedAt">>): Promise<boolean>;
+  /**
+   * The conversations around one message (a reply centers on its thread root): up to
+   * `before` older and `after` newer top-level messages with their replies, oldest first,
+   * shaped like listMessages. Empty if the message isn't in this chat.
+   */
+  listMessagesAround(chatId: ChatId, messageId: string, before?: number, after?: number): Promise<Message[]>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */
