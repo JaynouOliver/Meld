@@ -1,6 +1,7 @@
 import type { ActionRecord } from "../agent/actions";
 import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
+import type { OpenQuestion, ThreadLink } from "../proactive";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
 import { todayIndex } from "../format";
@@ -28,6 +29,8 @@ export interface Db {
   missionEvents: MissionEvent[];
   teamDecisions: Map<string, TeamDecision>;
   memories?: AgentMemory[];
+  questions?: Map<string, OpenQuestion>;
+  links?: Map<string, ThreadLink>;
 }
 
 const EMPTY_WEEK: WeekDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({ d, p: 0, a: 0 }));

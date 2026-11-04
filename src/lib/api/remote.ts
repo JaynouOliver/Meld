@@ -131,3 +131,6 @@ export const answerDecision = (decisionId: string, answer: string, role?: string
 export const listAgentMemories = (agentId: string) => rpc<import("../agent/memory").AgentMemory[]>("listAgentMemories", [agentId]);
 export const forgetAgentMemory = (id: string, role?: string) => rpc<{ ok: true }>("forgetAgentMemory", [id, role]);
 export const summarizeThread = (chatId: string, threadId: string, role?: string) => rpc<import("../agent/runs").RunView>("summarizeThread", [chatId, threadId, role]);
+
+// Proactive Atlas: follow up on open questions now.
+export const checkFollowUps = (role?: string) => rpc<{ followedUp: { questionId: string; chatId: string; messageId: string }[]; answered: number; dropped: number; waiting: number }>("checkFollowUps", [role]);

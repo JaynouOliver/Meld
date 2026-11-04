@@ -11,6 +11,7 @@ import type { Store } from "@/lib/store";
 import type { ChatId, Ticket, TicketStatus } from "@/lib/types";
 import { llm } from "../llm";
 import { pingChanges } from "../realtime";
+import { balanceAssignment, workloadEnabled } from "../proactive/workload";
 
 /**
  * Agents work on tickets assigned to them. The hook is the workspace store itself: every
@@ -49,6 +50,14 @@ export function configureAssignments(opts: { enabled?: () => boolean; schedule?:
 }
 
 const isAgent = (t: Ticket) => !!agentById(currentCtx().dir, t.assignee);
+/** Assigned to a person, inside a request (the balancer needs one). */
+const toPerson = (t: Ticket) => {
+  try {
+    return !isAgent(t);
+  } catch {
+    return false;
+  }
+};
 
 /** The store, plus: a ticket newly assigned to an agent starts that agent's run. */
 export function withAssignmentPickup(inner: Store): Store {
@@ -57,12 +66,14 @@ export function withAssignmentPickup(inner: Store): Store {
     async insertTicket(t) {
       await inner.insertTicket(t);
       if (enabled() && isAgent(t)) await guarded(wrapped, null, t);
+      else if (workloadEnabled() && toPerson(t)) await balanced(wrapped, null, t);
     },
     async saveTicket(t) {
-      // Only an agent assignee needs the previous state (one read); people's tickets don't.
-      const before = enabled() && isAgent(t) ? await inner.getTicket(t.id) : null;
+      // An agent assignee needs the previous state (one read); so does the workload balancer for people.
+      const person = workloadEnabled() && toPerson(t);
+      const before = (enabled() && isAgent(t)) || person ? await inner.getTicket(t.id) : null;
       await inner.saveTicket(t);
-      if (before && before.assignee !== t.assignee) await guarded(wrapped, before, t);
+      if (before && before.assignee !== t.assignee) await (person ? balanced(wrapped, before, t) : guarded(wrapped, before, t));
     },
   };
   return wrapped;
@@ -75,6 +86,16 @@ async function guarded(store: Store, before: Ticket | null, t: Ticket) {
     await pickUpAssignment(before, t);
   } catch (e) {
     console.error(`[assignment] ${t.id} → ${t.assignee} failed:`, e);
+  }
+}
+
+/** A person was assigned: maybe suggest someone less loaded (src/server/proactive/workload.ts). Never fails the save. */
+async function balanced(store: Store, before: Ticket | null, t: Ticket) {
+  if (currentCtx().store !== store) return;
+  try {
+    await balanceAssignment(before, t);
+  } catch (e) {
+    console.error(`[workload] ${t.id} → ${t.assignee} failed:`, e);
   }
 }
 

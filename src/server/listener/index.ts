@@ -5,11 +5,14 @@ import { createsCycle } from "@/lib/agent/blockers";
 import { currentCtx } from "@/lib/context";
 import { agentById, agentModeIn, ATLAS_ID, mentionedAgents, personOf } from "@/lib/directory";
 import { stamp, uid } from "@/lib/format";
+import { mayAsk } from "@/lib/proactive";
 import { viewerOf } from "@/lib/rbac";
 import type { TeamDecision } from "@/lib/team-decisions";
 import type { ChatId, PersonId, Role, Ticket } from "@/lib/types";
 import { llm } from "../llm";
 import { pingChanges } from "../realtime";
+import { trackQuestion } from "../proactive/followups";
+import { claimLink, relatedCandidate } from "../proactive/links";
 import { analyze, type Analysis } from "./analyze";
 import { mayMatter } from "./prefilter";
 
@@ -54,8 +57,9 @@ export async function listen(m: Heard) {
   const started = Date.now();
   const { dir, store } = currentCtx();
   // Free check first: most chat ("sounds good", "lunch?") can't change anything.
-  const decisions = await store.listTeamDecisions();
-  if (!mayMatter(m.text, decisions, dir.workspace.ticketPrefix)) {
+  // Also free: a question to someone, or a conversation in another channel on the same topic.
+  const [decisions, related] = await Promise.all([store.listTeamDecisions(), relatedCandidate(m).catch(() => null)]);
+  if (!mayMatter(m.text, decisions, dir.workspace.ticketPrefix) && !mayAsk(m.text) && !related) {
     console.log(`[listener] ${dir.workspace.id}/${m.chatId} skipped (prefilter) ${Date.now() - started}ms`);
     return;
   }
@@ -64,10 +68,11 @@ export async function listen(m: Heard) {
   // The conversation it belongs to: the thread, or the channel's recent messages.
   const root = m.threadId ? messages.find((x) => x.id === m.threadId) : null;
   const context = (root ? [root, ...root.replies] : messages.slice(-10)).filter((x) => x.id !== m.messageId).slice(-14);
-  const a = await analyze({ chatId: m.chatId, threadId: m.threadId, text: m.text, author: m.authorId, context, tickets, decisions });
+  const a = await analyze({ chatId: m.chatId, threadId: m.threadId, text: m.text, author: m.authorId, context, tickets, decisions, related });
+  if (a.question) await trackQuestion(m, a.question).catch((e) => console.error("[listener] question not tracked:", e));
   await respond(m, a, { context, tickets, decisions });
   console.log(
-    `[listener] ${dir.workspace.id}/${m.chatId} decision=${!!a.decision} conflict=${!!a.conflict} updates=${a.updates.length} commitment=${!!a.commitment} ${Date.now() - started}ms`,
+    `[listener] ${dir.workspace.id}/${m.chatId} decision=${!!a.decision} conflict=${!!a.conflict} updates=${a.updates.length} commitment=${!!a.commitment} question=${!!a.question} related=${related ? (a.related ? "linked" : "no") : "-"} ${Date.now() - started}ms`,
   );
 }
 
@@ -79,10 +84,11 @@ export async function respond(
 ): Promise<{ replyId: string | null }> {
   const { dir, store } = currentCtx();
   const { context, tickets, decisions } = data;
-  if (!a.decision && !a.conflict && !a.updates.length && !a.commitment) return { replyId: null };
+  if (!a.decision && !a.conflict && !a.updates.length && !a.commitment && !a.related) return { replyId: null };
 
   const lines: string[] = [];
   const replyThread = m.threadId ?? m.messageId;
+  const replyId = uid();
   let decisionsChanged = false;
 
   // 1. A decision was just made: remember it, with the why.
@@ -170,9 +176,13 @@ export async function respond(
         lines.push(`Tracking it: ${o.after.id} "${o.after.title}" for ${personOf(dir, o.after.assignee).first}${o.after.due ? `, due ${fmtDay(o.after.due)}` : ""}.`);
     }
   }
+  // 5. The same topic is being discussed in another channel: link it (once per pair).
+  if (a.related) {
+    const link = await claimLink(m, a.related, replyId);
+    if (link) lines.push(link);
+  }
   if (!lines.length) return { replyId: null };
 
-  const replyId = uid();
   if (action) {
     action.messageId = replyId;
     await store.insertAction(action);

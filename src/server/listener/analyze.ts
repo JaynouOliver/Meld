@@ -18,6 +18,10 @@ export interface Analysis {
   conflict: { decisionId: string; why: string } | null;
   updates: { ticketId: string; status: TicketStatus | null; blockedBy: string | null; due: string | null; evidence: string }[];
   commitment: { title: string; due: string | null } | null;
+  /** A direct question to a teammate (or the channel) that needs an answer: tracked for a follow-up (src/server/proactive). */
+  question?: { addressee: PersonId | null; summary: string } | null;
+  /** The related conversation shown to the model is about the same topic: Atlas links it. */
+  related?: { chatId: ChatId; rootId: string; who?: PersonId; text?: string } | null;
 }
 
 export const NOTHING: Analysis = { decision: null, conflict: null, updates: [], commitment: null };
@@ -37,11 +41,16 @@ const SYSTEM = `You watch a team chat so nothing said there gets lost. For each 
 3. updates: the speaker reports progress on one of THEIR OWN open tickets listed below: finished it (Done), put it up for review (In review), started it (In progress), is blocked by another ticket (blocked_by, a ticket id from the full list), or moved its date ("pushing to Friday" -> due). Only clear statements about that specific work; no guesses. Quote the words that show it as evidence.
 4. commitment: the speaker personally commits to a concrete piece of work, usually with a time ("I'll do X by Thursday", "I'll write the release notes"), and none of their open tickets already covers it. A short imperative ticket title, and the due date if they gave one. Not things others should do, not vague intentions ("I'll take a look"), not replies to "@agent" requests.
 
+5. question: the speaker asks a specific teammate (by @name or by name) or the whole channel a direct question or request that needs an answer from them: a status, an ETA, a file, access, a decision, a yes/no. Not rhetorical, not small talk ("lunch?"), not to an agent, not already answered in the conversation. "to" is the teammate's name exactly as listed below, or "channel" when it's asked of everyone. "about" is what it's about as a short noun phrase (2-8 words, e.g. "the Stripe test keys", "the ETA for the pricing mocks").
+6. related: only when a "Possibly related conversation" is shown below. true only if the new message is clearly about the same specific thing (the same feature, ticket, bug, launch item or decision), not merely sharing words. Otherwise false.
+
 Resolve relative dates ("Thursday", "tomorrow", "end of week" = Friday) against today. Answer with JSON only:
 {"decision": null | {"topic": "", "statement": "", "rationale": "", "rejected": [""], "replaces": null | "<decision id>"},
  "conflict": null | {"decision_id": "", "why": ""},
  "updates": [{"ticket": "<id>", "status": null | "To do" | "In progress" | "In review" | "Done", "blocked_by": null | "<id>", "due": null | "YYYY-MM-DD", "evidence": ""}],
- "commitment": null | {"title": "", "due": null | "YYYY-MM-DD"}}`;
+ "commitment": null | {"title": "", "due": null | "YYYY-MM-DD"},
+ "question": null | {"to": "<name> | channel", "about": ""},
+ "related": false}`;
 
 export async function analyze(input: {
   chatId: ChatId;
@@ -51,6 +60,8 @@ export async function analyze(input: {
   context: Message[] | { who: PersonId; time: string; text: string }[];
   tickets: Ticket[];
   decisions: TeamDecision[];
+  /** A conversation in another channel that shares many words with this one (src/lib/proactive.ts linkCandidate). */
+  related?: { chatId: ChatId; rootId: string; who: PersonId; text: string; body: string } | null;
 }): Promise<Analysis> {
   const client = llm();
   if (!client) return NOTHING;
@@ -78,13 +89,15 @@ ${others.filter((t) => t.assignee !== input.author).map((t) => `${t.id} | ${pers
 Conversation so far (oldest first):
 ${input.context.map((m) => `[${displayTime(m.time)}] ${personOf(dir, m.who).name}: ${m.text.slice(0, 280)}`).join("\n") || "(none)"}
 
+Teammates: ${Object.values(dir.people).filter((p) => !p.isAgent && p.id !== input.author).map((p) => p.name).join(", ") || "(none)"}
+${relatedBlock(dir, input.related)}
 New message from ${speaker.name}:
 ${input.text.slice(0, 1500)}`;
 
   const res = await client.chat.completions.create({
     model: LISTENER_MODEL,
     reasoning_effort: "minimal",
-    prompt_cache_key: `meld-listener-v1-${dir.workspace.id}`,
+    prompt_cache_key: `meld-listener-v2-${dir.workspace.id}`,
     messages: [
       { role: "system", content: SYSTEM },
       { role: "user", content: prompt },
@@ -96,6 +109,8 @@ ${input.text.slice(0, 1500)}`;
     conflict?: { decision_id?: string; why?: string } | null;
     updates?: { ticket?: string; status?: string | null; blocked_by?: string | null; due?: string | null; evidence?: string }[];
     commitment?: { title?: string; due?: string | null } | null;
+    question?: { to?: string; about?: string } | null;
+    related?: boolean;
   };
   let out: Raw;
   try {
@@ -135,5 +150,24 @@ ${input.text.slice(0, 1500)}`;
     .filter((u) => mineIds.has(u.ticketId) && (u.status || u.blockedBy || u.due))
     .slice(0, 3);
   const commitment = out.commitment && str(out.commitment.title, 120) ? { title: str(out.commitment.title, 120), due: futureDate(out.commitment.due) } : null;
-  return { decision, conflict, updates, commitment };
+  return { decision, conflict, updates, commitment, question: questionOf(dir, input.author, out.question), related: out.related === true && input.related ? { chatId: input.related.chatId, rootId: input.related.rootId, who: input.related.who, text: input.related.text } : null };
+}
+
+/** The candidate conversation from another channel, for the model to confirm (or not). */
+function relatedBlock(dir: ReturnType<typeof currentCtx>["dir"], r: { chatId: ChatId; who: PersonId; body: string } | null | undefined) {
+  if (!r) return "";
+  const meta = dir.chats[r.chatId];
+  return `\nPossibly related conversation in #${meta?.kind === "channel" ? meta.label : "another channel"} (started by ${personOf(dir, r.who).name}):\n${r.body.slice(0, 700)}\n`;
+}
+
+/** A question only counts when "to" is a real teammate (not the speaker, not an agent) or the channel. */
+function questionOf(dir: ReturnType<typeof currentCtx>["dir"], author: PersonId, q: { to?: string; about?: string } | null | undefined): Analysis["question"] {
+  const about = String(q?.about ?? "").trim().replace(/[.?!]+$/, "").slice(0, 80);
+  const to = String(q?.to ?? "").trim().replace(/^@/, "").toLowerCase();
+  if (!q || !about || !to) return null;
+  if (to === "channel" || to === "everyone") return { addressee: null, summary: about };
+  const people = Object.values(dir.people).filter((p) => !p.isAgent && p.id !== author);
+  const hit = people.find((p) => p.name.toLowerCase() === to) ?? people.filter((p) => p.first.toLowerCase() === to.split(/\s+/)[0]);
+  const person = Array.isArray(hit) ? (hit.length === 1 ? hit[0] : null) : hit;
+  return person ? { addressee: person.id, summary: about } : null;
 }

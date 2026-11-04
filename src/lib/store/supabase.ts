@@ -6,6 +6,7 @@ import { todayIndex } from "../format";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { TeamDecision } from "../team-decisions";
 import type { AgentMemory } from "../agent/memory";
+import type { OpenQuestion, ThreadLink } from "../proactive";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import { SEED_CHATS, SEED_TICKETS, SEED_WEEK } from "../mock/seed";
 import type { ChatId, Message, PersonId, Ticket, WeekDay } from "../types";
@@ -114,6 +115,19 @@ const teamDecisionFrom = (r: TeamDecisionRow): TeamDecision => ({
 
 interface MemoryRow { id: string; agent_id: string; text: string; created_by: string; created_at: string }
 const memoryFrom = (r: MemoryRow): AgentMemory => ({ id: r.id, agentId: r.agent_id, text: r.text, createdBy: r.created_by, createdAt: r.created_at });
+
+interface QuestionRow {
+  id: string; chat_id: string; thread_id: string | null; message_id: string; asker: string; addressee: string | null; summary: string;
+  status: OpenQuestion["status"]; asked_at: string; due_at: string; follow_up_id: string | null; resolved_at: string | null; resolved_by: string | null;
+}
+const questionFrom = (r: QuestionRow): OpenQuestion => ({
+  id: r.id, chatId: r.chat_id, threadId: r.thread_id, messageId: r.message_id, asker: r.asker, addressee: r.addressee, summary: r.summary,
+  status: r.status, askedAt: r.asked_at, dueAt: r.due_at, followUpId: r.follow_up_id, resolvedAt: r.resolved_at, resolvedBy: r.resolved_by,
+});
+interface LinkRow { key: string; chat_id: string; message_id: string; to_chat_id: string; to_message_id: string; reply_id: string; created_at: string }
+const linkFrom = (r: LinkRow): ThreadLink => ({
+  key: r.key, chatId: r.chat_id, messageId: r.message_id, toChatId: r.to_chat_id, toMessageId: r.to_message_id, replyId: r.reply_id, createdAt: r.created_at,
+});
 
 function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map()): Message[] {
   const roots: Message[] = [];
@@ -323,6 +337,41 @@ export function supabaseStore(ws: string): Store {
   async deleteAgentMemory(id) {
     const rows = check(await sb().from("agent_memories").delete().eq("workspace_id", ws).eq("id", id).select("id"), "delete memory") as { id: string }[];
     return rows.length > 0;
+  },
+  async listOpenQuestions(filter = {}) {
+    let q = sb().from("open_questions").select("*").eq("workspace_id", ws);
+    if (filter.status) q = q.eq("status", filter.status);
+    const rows = check(await q.order("asked_at", { ascending: false }).limit(200), "open questions") as QuestionRow[];
+    return rows.map(questionFrom);
+  },
+  async saveOpenQuestion(x) {
+    check(
+      await sb().from("open_questions").upsert({
+        id: x.id, workspace_id: ws, chat_id: x.chatId, thread_id: x.threadId, message_id: x.messageId, asker: x.asker, addressee: x.addressee,
+        summary: x.summary, status: x.status, asked_at: x.askedAt, due_at: x.dueAt, follow_up_id: x.followUpId, resolved_at: x.resolvedAt, resolved_by: x.resolvedBy,
+      }),
+      "save question",
+    );
+  },
+  async transitionQuestion(id, from, to, patch = {}) {
+    const update: Record<string, unknown> = { status: to, resolved_at: new Date().toISOString() };
+    if (patch.followUpId !== undefined) update.follow_up_id = patch.followUpId;
+    if (patch.resolvedBy !== undefined) update.resolved_by = patch.resolvedBy;
+    // Conditional update: only one caller can move it out of `from`.
+    const rows = check(await sb().from("open_questions").update(update).eq("workspace_id", ws).eq("id", id).in("status", from).select("id"), "transition question") as { id: string }[];
+    return rows.length > 0;
+  },
+  async addThreadLink(l) {
+    const res = await sb().from("thread_links").insert({
+      workspace_id: ws, key: l.key, chat_id: l.chatId, message_id: l.messageId, to_chat_id: l.toChatId, to_message_id: l.toMessageId, reply_id: l.replyId, created_at: l.createdAt,
+    });
+    if (res.error?.code === "23505") return false; // linked before
+    check(res, "add thread link");
+    return true;
+  },
+  async listThreadLinks() {
+    const rows = check(await sb().from("thread_links").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(300), "thread links") as LinkRow[];
+    return rows.map(linkFrom);
   },
   async deleteChatMessages(chatId) {
     // Replies first: they reference their thread roots.

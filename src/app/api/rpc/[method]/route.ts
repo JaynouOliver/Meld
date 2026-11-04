@@ -19,6 +19,7 @@ import * as teamDecisions from "@/server/listener/decisions";
 import * as ws from "@/server/workspace";
 import * as agentMemory from "@/server/agents/memory";
 import * as summary from "@/server/atlas/summary";
+import * as followUps from "@/server/proactive/followups";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -53,6 +54,9 @@ const methods: Record<string, Method> = {
   // browser calls the rule-based askAtlas instead (no runs).
   postMessage: async (input: api.PostMessageInput) => {
     const saved = await api.postMessage(input);
+    // Free, with or without a model: does it answer a tracked question? Now and then, follow up on due ones.
+    const said = { chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me };
+    after(() => followUps.afterHumanMessage(said));
     if (!llm()) return saved;
     const runs = await dispatch({
       chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
@@ -114,6 +118,8 @@ const methods: Record<string, Method> = {
   listAgentMemories: async (agentId: string) => agentMemory.listAgentMemories(agentId),
   forgetAgentMemory: async (id: string, role?: Role) => agentMemory.forgetMemory(id, role),
   summarizeThread: async (chatId: ChatId, threadId: string, role?: Role) => summary.summarizeThread(chatId, threadId, role),
+  // Proactive Atlas: follow up on open questions now (Atlas's profile card).
+  checkFollowUps: async (role?: Role) => followUps.checkFollowUps(role),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
