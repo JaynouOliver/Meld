@@ -21,6 +21,8 @@ export interface ChangePing {
   workspaceId: string;
   /** A new message, so browsers can show it without refetching the chat. */
   message?: { chatId: ChatId; threadId: string | null; message: unknown };
+  /** The chats' messages changed in place (edit, delete, pin, reaction): refetch, no unread bump. */
+  quiet?: boolean;
   /** Browser tab that caused the change, so it can ignore its own ping. */
   origin: string | null;
 }

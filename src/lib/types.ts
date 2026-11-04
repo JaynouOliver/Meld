@@ -116,6 +116,13 @@ export interface ReplyNode {
   action?: ActionView | null;
   /** Emoji → who reacted (people or agents), e.g. an agent's 👀 while it works. */
   reactions?: Record<string, PersonId[]>;
+  /** When its author last edited the text (ISO). */
+  editedAt?: string | null;
+  /** Deleted thread root kept as a placeholder because it still has replies (ISO). */
+  deletedAt?: string | null;
+  /** Pinned to the chat (ISO), and by whom. */
+  pinnedAt?: string | null;
+  pinnedBy?: PersonId | null;
 }
 
 export interface Message {
@@ -130,6 +137,13 @@ export interface Message {
   /** Filled in when listing messages. */
   action?: ActionView | null;
   reactions?: Record<string, PersonId[]>;
+  /** When its author last edited the text (ISO). */
+  editedAt?: string | null;
+  /** Deleted thread root kept as a placeholder because it still has replies (ISO). */
+  deletedAt?: string | null;
+  /** Pinned to the chat (ISO), and by whom. */
+  pinnedAt?: string | null;
+  pinnedBy?: PersonId | null;
   replies: ReplyNode[];
 }
 

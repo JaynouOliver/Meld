@@ -8,7 +8,7 @@ import { useDirectory } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import { STATUS_COLORS } from "@/lib/constants";
 import { personOf } from "@/lib/directory";
-import { splitText, type TextPart } from "@/lib/text";
+import { isSinglePara, parseMessage, type InlinePart, type ListItem } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -18,26 +18,105 @@ const HIT = "relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:co
 /**
  * Message body: highlights @mentions and turns ticket ids (NW-121) into ticket chips.
  * Chips respect RBAC: tickets the role can't see render as "Restricted",
- * deleted tickets render as plain text.
+ * deleted tickets render as plain text. Formatting (src/lib/markdown.ts): **bold**,
+ * _italic_, `code`, ``` code blocks ```, "- " lists and links. `after` (e.g. "(edited)")
+ * ends the last paragraph.
  */
-export function RichText({ text, className }: { text: string; className?: string }) {
+export function RichText({ text, className, after }: { text: string; className?: string; after?: React.ReactNode }) {
+  const dir = useDirectory();
+  const blocks = parseMessage(text, dir.workspace.ticketPrefix);
+
+  // A plain message stays one <p>, exactly as before.
+  if (isSinglePara(blocks)) {
+    return (
+      <p className={cn("whitespace-pre-wrap [overflow-wrap:anywhere]", className)}>
+        <Inline parts={blocks[0].parts} />
+        {after}
+      </p>
+    );
+  }
+  const lastPara = blocks[blocks.length - 1].kind === "para";
+  return (
+    <div className={cn("flex flex-col gap-1.5 [overflow-wrap:anywhere]", className)}>
+      {blocks.map((b, i) => {
+        const end = i === blocks.length - 1 && lastPara ? after : null;
+        if (b.kind === "para") {
+          return (
+            <p key={i} className="whitespace-pre-wrap">
+              <Inline parts={b.parts} />
+              {end}
+            </p>
+          );
+        }
+        if (b.kind === "code") {
+          return (
+            <pre key={i} className="max-w-full overflow-x-auto rounded-md border bg-muted px-3 py-2 font-mono text-[12.5px] leading-[1.55] whitespace-pre [overflow-wrap:normal]">
+              <code>{b.text}</code>
+            </pre>
+          );
+        }
+        return <List key={i} items={b.items} />;
+      })}
+      {!lastPara && after ? <span>{after}</span> : null}
+    </div>
+  );
+}
+
+function List({ items }: { items: ListItem[] }) {
+  return (
+    <ul className="list-disc space-y-0.5 pl-5 marker:text-muted-foreground [&_ul]:mt-0.5 [&_ul]:list-[circle]">
+      {items.map((it, i) => (
+        <li key={i} className="whitespace-pre-wrap">
+          <Inline parts={it.parts} />
+          {it.children.length > 0 && <List items={it.children} />}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** One run of formatted text: mentions, ticket chips, citations, code, links, bold and italic. */
+function Inline({ parts: input }: { parts: InlinePart[] }) {
   const { lookup } = useVisibleTickets();
   const openTicket = useUiStore((s) => s.openTicket);
-  const dir = useDirectory();
-  const parts = splitText(text, dir.workspace.ticketPrefix);
+  // Copied: trailing punctuation is moved onto the chip below.
+  const parts = [...input];
 
   const out: React.ReactNode[] = [];
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
+    const styled = (node: React.ReactNode) => (part.bold || part.italic ? <span key={i} className={cn(part.bold && "font-semibold", part.italic && "italic")}>{node}</span> : node);
+    if (part.kind === "code") {
+      out.push(
+        styled(
+          <code key={i} className="rounded-[4px] border bg-muted px-1 py-px font-mono text-[0.86em] text-foreground">
+            {part.text}
+          </code>,
+        ),
+      );
+      continue;
+    }
+    if (part.kind === "link") {
+      out.push(
+        styled(
+          <a key={i} href={part.href} target="_blank" rel="noopener noreferrer" className="text-link underline-offset-2 hover:underline">
+            {part.text}
+          </a>,
+        ),
+      );
+      continue;
+    }
     if (part.kind === "cite") {
       out.push(<CiteChip key={i} chatId={part.chatId} threadId={part.threadId} id={part.id} />);
       continue;
     }
     if (part.kind === "mention") {
       out.push(
-        <span key={i} className="rounded-sm bg-mention px-[3px] font-medium text-mention-foreground">
-          {part.text}
-        </span>,
+        styled(
+          <span key={i} className="rounded-sm bg-mention px-[3px] font-medium text-mention-foreground">
+            {part.text}
+          </span>,
+        ),
       );
       continue;
     }
@@ -64,10 +143,10 @@ export function RichText({ text, className }: { text: string; className?: string
       }
       if (chip) {
         // Keep trailing punctuation ("NW-121:") on the chip's line instead of wrapping alone.
-        const next: TextPart | undefined = parts[i + 1];
+        const next: InlinePart | undefined = parts[i + 1];
         const punct = next?.kind === "text" ? next.text.match(/^[:.,;!?)]+/)?.[0] : undefined;
         if (punct && next) {
-          parts[i + 1] = { kind: "text", text: next.text.slice(punct.length) };
+          parts[i + 1] = { ...next, kind: "text", text: next.text.slice(punct.length) };
           out.push(
             <span key={i} className="inline-flex max-w-full items-baseline whitespace-nowrap">
               {chip}
@@ -78,10 +157,9 @@ export function RichText({ text, className }: { text: string; className?: string
         continue;
       }
     }
-    if (part.text) out.push(<span key={i}>{part.text}</span>);
+    if (part.text) out.push(part.bold || part.italic ? styled(part.text) : <span key={i}>{part.text}</span>);
   }
-
-  return <p className={cn("whitespace-pre-wrap [overflow-wrap:anywhere]", className)}>{out}</p>;
+  return <>{out}</>;
 }
 
 /**

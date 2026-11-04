@@ -4,8 +4,7 @@ import { MessageCircleIcon } from "lucide-react";
 
 import { AgentBadge } from "@/components/common/agent-badge";
 import { Avatar } from "@/components/common/avatar";
-import { RichText } from "@/components/common/rich-text";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useFlash } from "@/hooks/use-flash";
 import { useStickToBottom } from "@/hooks/use-stick-to-bottom";
@@ -16,7 +15,8 @@ import type { ChatId, Message, Person } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 import { AtlasLive } from "./atlas-live";
-import { Reactions } from "./reactions";
+import { MessageBody, MessageToolbar, PinnedLabel } from "./message-actions";
+import { DeletedAvatar, MessageReactions } from "./reactions";
 import { ActionCard } from "./action-card";
 import { TicketCard } from "./ticket-card";
 
@@ -39,7 +39,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
         <span className="h-px flex-1 bg-border" />
       </div>
       {!messages && <MessageSkeleton />}
-      {messages?.map((m) => <MessageRow key={m.id} message={m} />)}
+      {messages?.map((m) => <MessageRow key={m.id} chatId={chatId} message={m} />)}
       <AtlasLive chatId={chatId} threadId={null} className="px-3 sm:px-5" />
       {typingLabel && <div className="pt-1.5 pr-3 pl-[60px] text-meta sm:pr-5 sm:pl-[68px] text-muted-foreground italic">{typingLabel}</div>}
       </div>
@@ -47,7 +47,7 @@ export function MessageList({ chatId, messages }: { chatId: ChatId; messages: Me
   );
 }
 
-function MessageRow({ message: m }: { message: Message }) {
+function MessageRow({ chatId, message: m }: { chatId: ChatId; message: Message }) {
   const threadId = useUiStore((s) => s.threadId);
   const openThread = useUiStore((s) => s.openThread);
   const dir = useDirectory();
@@ -59,6 +59,8 @@ function MessageRow({ message: m }: { message: Message }) {
   });
   const pending = m.id.startsWith("pending-");
   const { ref, flashing } = useFlash<HTMLDivElement>(m.id);
+  const [editing, setEditing] = useState(false);
+  const deleted = !!m.deletedAt;
 
   // Touch screens have no hover toolbar: tapping a message opens its thread,
   // unless the tap was on a link, chip or button inside it.
@@ -79,19 +81,26 @@ function MessageRow({ message: m }: { message: Message }) {
         pending && "opacity-60",
       )}
     >
-      <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="h-fit shrink-0 cursor-pointer rounded-[6px] transition-transform active:scale-95">
-        <Avatar person={p} size="xl" />
-      </button>
+      {deleted ? (
+        <DeletedAvatar />
+      ) : (
+        <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="h-fit shrink-0 cursor-pointer rounded-[6px]">
+          <Avatar person={p} size="xl" />
+        </button>
+      )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <button type="button" data-profile={p.id} className="cursor-pointer text-body font-semibold hover:underline">{p.name}</button>
-          {p.isAgent && <AgentBadge />}
-          <span className="text-xs text-muted-foreground">{m.time}</span>
-        </div>
-        <RichText text={m.text} className="text-body" />
-        {m.ticket && <TicketCard id={m.ticket} />}
-        {m.action && <ActionCard action={m.action} />}
-        <Reactions reactions={m.reactions} />
+        <PinnedLabel node={m} />
+        {!deleted && (
+          <div className="flex items-baseline gap-2">
+            <button type="button" data-profile={p.id} className="cursor-pointer text-body font-semibold hover:underline">{p.name}</button>
+            {p.isAgent && <AgentBadge />}
+            <span className="text-xs text-muted-foreground">{m.time}</span>
+          </div>
+        )}
+        <MessageBody chatId={chatId} node={m} editing={editing} onDone={() => setEditing(false)} />
+        {!deleted && m.ticket && <TicketCard id={m.ticket} />}
+        {!deleted && m.action && <ActionCard action={m.action} />}
+        <MessageReactions chatId={chatId} node={m} />
         {n > 0 && (
           <button
             type="button"
@@ -108,17 +117,18 @@ function MessageRow({ message: m }: { message: Message }) {
           </button>
         )}
       </div>
-      {!pending && (
-        <div className="absolute -top-3.5 right-5 flex pointer-coarse:hidden rounded-md border bg-card p-0.5 opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      {!pending && !editing && (
+        <MessageToolbar chatId={chatId} node={m} onEdit={() => setEditing(true)}>
           <button
             type="button"
             onClick={() => openThread(m.id)}
             aria-label="Reply in thread"
+            title="Reply in thread"
             className="flex size-7 cursor-pointer items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <MessageCircleIcon className="size-4" />
           </button>
-        </div>
+        </MessageToolbar>
       )}
     </div>
   );

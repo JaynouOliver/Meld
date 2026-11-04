@@ -59,6 +59,14 @@ export const decideAction = call("decideAction");
 export const getAgentRuns = call("getAgentRuns");
 export const getDirectory = call("getDirectory");
 export const markRead = call("markRead");
+export const editMessage = call("editMessage");
+export const deleteMessage = call("deleteMessage");
+export const pinMessage = call("pinMessage");
+const getPinnedRaw = call("getPinned");
+export const getPinned: typeof getPinnedRaw = async (...a) => (await getPinnedRaw(...a)).map((h) => ({ ...h, time: displayTime(h.time) }));
+export const toggleReaction = call("toggleReaction");
+const searchMessagesRaw = call("searchMessages");
+export const searchMessages: typeof searchMessagesRaw = async (...a) => (await searchMessagesRaw(...a)).map((h) => ({ ...h, time: displayTime(h.time) }));
 
 /** Everything the app needs to start, in one round trip (directory, tickets, week, every chat's messages). */
 export async function getBoot() {

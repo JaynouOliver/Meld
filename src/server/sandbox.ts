@@ -253,6 +253,8 @@ export async function createSandbox(me: { id: string; first: string }) {
     flags: 0, lastFlaggedAt: null, source: "chat", createdAt: ago(1460),
   });
   await store.react(posted.d1d.id, "📌", ATLAS_ID, true).catch(() => {});
+  // Pinned in #design, as a team would: the "Pinned" list then has something to show.
+  await store.updateMessage(posted.d1d.id, { pinnedAt: ago(1455), pinnedBy: maya }).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }

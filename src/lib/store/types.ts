@@ -14,6 +14,31 @@ export interface MessageHit {
   text: string;
 }
 
+/** One stored message, with what edit/delete/pin checks need. */
+export interface StoredMessage extends MessageHit {
+  replyCount: number;
+  editedAt: string | null;
+  deletedAt: string | null;
+  pinnedAt: string | null;
+}
+
+/** Fields a message edit, delete (placeholder) or pin changes. Undefined keys are left alone. */
+export interface MessagePatch {
+  text?: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+  pinnedAt?: string | null;
+  pinnedBy?: PersonId | null;
+  /** Clear reactions (a deleted root keeps none). */
+  clearReactions?: boolean;
+}
+
+/** A pinned message in a chat. */
+export interface PinnedHit extends MessageHit {
+  pinnedAt: string;
+  pinnedBy: PersonId | null;
+}
+
 /**
  * Where workspace data lives. Two implementations with the same behaviour:
  * - memory: in-process (the single-file preview, evals, local dev without Supabase)
@@ -58,6 +83,13 @@ export interface Store {
   countRunsSince(chatId: ChatId, since: string): Promise<number>;
   /** Add or remove a reaction (emoji) by someone on a message. */
   react(messageId: string, emoji: string, who: PersonId, on: boolean): Promise<void>;
+  /** One message or reply by id, or null. */
+  getMessage(id: string): Promise<StoredMessage | null>;
+  updateMessage(id: string, patch: MessagePatch): Promise<void>;
+  /** Hard delete (a root takes its replies with it). */
+  removeMessage(id: string): Promise<void>;
+  /** A chat's pinned messages, newest pin first. */
+  listPinned(chatId: ChatId, limit: number): Promise<PinnedHit[]>;
   /** Runs that are queued/running, or finished within RUN_RECENT_MS. */
   listRecentRuns(): Promise<AgentRun[]>;
   /** Messages posted after `since` (ISO), oldest first, across the workspace. */

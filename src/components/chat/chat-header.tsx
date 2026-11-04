@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/common/avatar";
 import { ChannelSettingsDialog, useCanEditChannel } from "@/components/workspace/channel-dialogs";
 import { CatchUpButton } from "./catch-up-button";
+import { PinnedButton } from "./pinned-button";
 import { ChannelAgents } from "@/components/agents/channel-agents";
 import { ScreenHeader } from "@/components/shell/screen-header";
 import { useDirectory, useRole } from "@/hooks/use-directory";
@@ -25,7 +26,15 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
     const p = personOf(dir, meta.who);
     const topic = meta.who === ATLAS_ID ? `Agent · works on tickets with your permissions (${roleLabel(dir, role)})` : meta.topic;
     return (
-      <ScreenHeader back="/home" actions={meta.who === ATLAS_ID ? <CatchUpButton compact className="max-sm:hidden" /> : undefined}>
+      <ScreenHeader
+        back="/home"
+        actions={
+          <div className="flex shrink-0 items-center gap-2">
+            <PinnedButton chatId={chatId} />
+            {meta.who === ATLAS_ID && <CatchUpButton compact className="max-sm:hidden" />}
+          </div>
+        }
+      >
         <button type="button" data-profile={p.id} aria-label={`${p.name}'s profile`} className="cursor-pointer rounded-[6px]">
           <Avatar person={p} size="md" />
         </button>
@@ -44,6 +53,7 @@ export function ChatHeader({ chatId }: { chatId: ChatId }) {
       back="/home"
       actions={
         <div className="flex shrink-0 items-center gap-2">
+        <PinnedButton chatId={chatId} />
         <ChannelAgents chatId={chatId} />
         {canEdit && (
           <>
