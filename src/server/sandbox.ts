@@ -257,6 +257,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await store.updateMessage(posted.d1d.id, { pinnedAt: ago(1455), pinnedBy: maya }).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
   await seedAgentSkills(store, { me: me.id, ch, ag, people: { jonas } });
+  await (await import("./seeds/meeting-notes")).seedMeetingNotes(store, { me: me.id, product: ch.product, people: { maya, jonas, priya, tom, sofia } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }
 

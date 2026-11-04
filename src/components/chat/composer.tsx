@@ -1,9 +1,9 @@
 "use client";
 
-import { AtSignIcon, SendIcon, TicketIcon } from "lucide-react";
+import { AtSignIcon, NotebookPenIcon, SendIcon, TicketIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { useDirectory } from "@/hooks/use-directory";
+import { useDirectory, useRole } from "@/hooks/use-directory";
 import { useSendMessage } from "@/hooks/use-messages";
 import { useUiStore } from "@/stores/ui-store";
 import { useVisibleTickets } from "@/hooks/use-tickets";
@@ -11,6 +11,7 @@ import { STATUS_COLORS } from "@/lib/constants";
 import { agentModeIn, agentsOf, ATLAS_ID, personOf, teamName } from "@/lib/directory";
 import type { ChatId } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { MeetingNotesDialog } from "./meeting-notes-dialog";
 
 type Pop = { kind: "people" | "tickets"; q: string } | null;
 
@@ -47,6 +48,10 @@ export function Composer({ chatId }: { chatId: ChatId }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const send = useSendMessage();
   const { visible } = useVisibleTickets();
+  // Meeting notes: channels with Atlas in them, for anyone who can file tickets.
+  const role = useRole();
+  const [notesOpen, setNotesOpen] = useState(false);
+  const canAddNotes = meta?.kind === "channel" && !!agentModeIn(dir, chatId, ATLAS_ID) && role !== "guest";
 
   const options: Option[] = useMemo(() => {
     if (!pop) return [];
@@ -189,6 +194,11 @@ export function Composer({ chatId }: { chatId: ChatId }) {
         <ComposerIconButton label="Mention a ticket" onClick={() => startToken("#", "tickets")}>
           <TicketIcon className="size-4" />
         </ComposerIconButton>
+        {canAddNotes && (
+          <ComposerIconButton label="Add meeting notes" onClick={() => setNotesOpen(true)}>
+            <NotebookPenIcon className="size-4" />
+          </ComposerIconButton>
+        )}
         <label htmlFor="main-input" className="sr-only">
           {placeholder}
         </label>
@@ -222,6 +232,7 @@ export function Composer({ chatId }: { chatId: ChatId }) {
           <b className="font-semibold">**bold**</b> <i>_italic_</i> <code className="font-mono text-[11px]">`code`</code>
         </span>
       </div>
+      {canAddNotes && <MeetingNotesDialog chatId={chatId} open={notesOpen} onOpenChange={setNotesOpen} />}
     </div>
   );
 }
@@ -234,6 +245,7 @@ function ComposerIconButton({ label, onClick, children }: { label: string; onCli
     <button
       type="button"
       aria-label={label}
+      title={label}
       onClick={onClick}
       onMouseDown={keepFocus}
       className="flex size-10 shrink-0 md:size-8 cursor-pointer items-center justify-center rounded-[5px] text-muted-foreground hover:bg-accent hover:text-foreground"

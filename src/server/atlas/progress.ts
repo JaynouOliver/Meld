@@ -82,6 +82,8 @@ export function stepLabel(name: string, args: Record<string, unknown>) {
       return "Catching up on what you missed";
     case "start_mission":
       return "Planning the mission: tasks, owners, dates";
+    case "process_meeting_notes":
+      return "Reading the meeting notes";
     default:
       return "Working on it";
   }
