@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkIcon, ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { BookmarkIcon, ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -29,6 +29,7 @@ import { PeopleDialog } from "@/components/workspace/people-dialog";
 import { AgentDialog } from "@/components/agents/agent-dialog";
 import { useWorkingAgents } from "@/hooks/use-agent-runs";
 import { SettingsDialog } from "@/components/workspace/settings-dialog";
+import { SearchPalette, useSearchShortcut } from "./search-palette";
 import { ACCENTS } from "@/lib/constants";
 import { agentDmOf, agentsOf, personOf } from "@/lib/directory";
 import { THEME_OPTIONS } from "@/lib/theme";
@@ -122,6 +123,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useSearchShortcut(setSearchOpen);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState<{ id: string | null } | null>(null);
   const workingAgents = useWorkingAgents();
@@ -209,6 +212,17 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label="Search (Ctrl+K)"
+          title="Search  ⌘K"
+          onClick={() => setSearchOpen(true)}
+          className="flex size-8 cursor-pointer items-center justify-center rounded-md border border-sidebar-border bg-sidebar-input text-sidebar-foreground hover:text-sidebar-strong"
+        >
+          <SearchIcon className="size-4" />
+        </button>
+        <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
         <button
           type="button"
           aria-label="New message"
@@ -217,6 +231,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         >
           <SquarePenIcon className="size-4" />
         </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pt-1 pb-3">
