@@ -14,6 +14,7 @@ import { matchQuery } from "@/lib/query-language";
 import type { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
+import { ChecklistCount, DueDate, LabelChips } from "./ticket-meta";
 
 const COLS = "grid-cols-[44px_minmax(260px,1fr)_170px_130px_110px_90px]";
 
@@ -139,6 +140,11 @@ export function TicketTable({ tickets, loading }: { tickets: Ticket[]; loading: 
                             {linked && ` · ${t.links[0].kind === "PR" ? "PR " : ""}#${t.links[0].num}`}
                           </span>
                           <BlockedBadge t={t} />
+                          <span className="ml-auto flex shrink-0 items-center gap-2 pl-1">
+                            <LabelChips labels={t.labels} max={2} className="flex-nowrap" />
+                            <ChecklistCount t={t} />
+                            <DueDate t={t} />
+                          </span>
                         </span>
                         <span className="flex h-full min-w-0 items-center gap-2 border-l border-line-soft px-3">
                           <Avatar person={a} size="xs" />
@@ -206,6 +212,9 @@ function TicketCardRow({ t, selected, onOpen }: { t: Ticket; selected: boolean; 
           <span aria-hidden>·</span>
           <span>{t.id}</span>
           {link && <span>· {link.kind === "PR" ? "PR " : ""}#{link.num}</span>}
+          <DueDate t={t} />
+          <ChecklistCount t={t} />
+          <LabelChips labels={t.labels} max={2} />
           <span className="ml-auto flex items-center gap-1.5">
             <Avatar person={a} size="xs" />
             <span className="max-w-[110px] truncate">{t.assignee === dir.me ? "You" : a.first}</span>

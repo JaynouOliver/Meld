@@ -172,7 +172,7 @@ Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.
           if (badArgs.has(call.id)) throw new Error("they weren't valid JSON; call the tool again with valid JSON arguments");
           args = JSON.parse(call.function.arguments || "{}");
           progress?.step(stepLabel(call.function.name, args));
-          result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store, allowed: agent.tools });
+          result = await runTool(call.function.name, args, { role: input.role, where, threadId: input.threadId, effects, store, allowed: agent.tools, agentId: agent.id });
         } catch (e) {
           result = { ok: false, error: `Invalid arguments: ${(e as Error).message}` };
         }

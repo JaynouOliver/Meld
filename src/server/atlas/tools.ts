@@ -10,6 +10,7 @@ import { needsConfirmation, type TicketOp } from "@/lib/agent/actions";
 import { blockersOf, createsCycle } from "@/lib/agent/blockers";
 import { matchQuery } from "@/lib/query-language";
 import { canCreateIn, canDelete, canSee, viewerOf } from "@/lib/rbac";
+import { cleanEstimate, cleanLabels, isValidDue, MAX_COMMENT_LENGTH } from "@/lib/ticket-fields";
 import type { ChatId, PersonId, Priority, Role, TeamId, Ticket, TicketStatus } from "@/lib/types";
 import { catchUp } from "./catch-up";
 import { ticketLine } from "./prompt";
@@ -21,7 +22,7 @@ const PEOPLE_ENUM = "__PEOPLE__";
 /** Which permission group each tool needs (an agent's `tools`). */
 const TOOL_GROUP: Record<string, AgentTool> = {
   list_tickets: "read", get_ticket: "read", ticket_discussion: "read", search_messages: "read", catch_up: "read", search_decisions: "read",
-  create_ticket: "write", update_ticket: "write", delete_ticket: "delete", start_mission: "write",
+  create_ticket: "write", update_ticket: "write", comment_on_ticket: "write", delete_ticket: "delete", start_mission: "write",
 };
 export const toolAllowed = (name: string, allowed: AgentTool[] = ["read", "write", "delete"]) => allowed.includes(TOOL_GROUP[name] ?? "read");
 
@@ -48,7 +49,7 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           query: {
             type: "string",
             description:
-              'Optional filter. Free text matches title or ID; also supports status:review assignee:ravi team:payments priority:high is:agent is:draft is:blocked, and "-" to negate (e.g. -status:done).',
+              'Optional filter. Free text matches title or ID; also supports status:review assignee:ravi team:payments priority:high label:billing due:overdue due:week is:agent is:draft is:blocked, and "-" to negate (e.g. -status:done).',
           },
         },
         additionalProperties: false,
@@ -59,7 +60,7 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_ticket",
-      description: "Get one ticket's full details: description, GitHub links and recent activity.",
+      description: "Get one ticket's full details: description, labels, due date, estimate, checklist, GitHub links, latest comments and recent activity.",
       parameters: {
         type: "object",
         properties: { id: { type: "string", description: "Ticket ID, e.g. NW-130" } },
@@ -86,6 +87,9 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           priority: { type: "string", enum: [...PRIORITIES] },
           description: { type: "string", description: "Optional: context, acceptance criteria" },
           pr_number: { type: "string", description: "Optional GitHub pull request number to link" },
+          labels: { type: "array", items: { type: "string" }, description: 'Optional short lowercase tags, e.g. ["billing", "bug"]. Reuse labels the team already uses.' },
+          due: { type: "string", description: "Optional due date, YYYY-MM-DD" },
+          estimate: { type: "number", description: "Optional story points (0-100, whole or half points)" },
         },
         required: ["title", "team", "assignee", "priority"],
         additionalProperties: false,
@@ -114,8 +118,29 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             description: 'Ticket IDs that block this one ("NW-131 blocks NW-130" → update NW-130 with blocked_by_add ["NW-131"]). Owners are notified automatically.',
           },
           blocked_by_remove: { type: "array", items: { type: "string" }, description: "Ticket IDs that no longer block this one" },
+          labels_add: { type: "array", items: { type: "string" }, description: "Labels to add, e.g. [\"bug\"]" },
+          labels_remove: { type: "array", items: { type: "string" }, description: "Labels to remove" },
+          due: { type: "string", description: 'Due date YYYY-MM-DD, or "none" to clear it' },
+          estimate: { type: "number", description: "Story points (0-100, whole or half points)" },
         },
         required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "comment_on_ticket",
+      description:
+        "Add a comment to a ticket, signed by you: a status note, a question for the assignee, or a summary of a discussion. Mention people as @first-name. Use update_ticket for field changes, not comments.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Ticket ID, e.g. NW-130" },
+          text: { type: "string", description: "The comment, plain text, a few sentences at most" },
+        },
+        required: ["id", "text"],
         additionalProperties: false,
       },
     },
@@ -241,6 +266,8 @@ export interface ToolCtx {
   store: Store;
   /** The running agent's tool groups (Atlas: all). */
   allowed?: AgentTool[];
+  /** Who signs comments: the running agent (Atlas when not given). */
+  agentId?: PersonId;
 }
 
 const STOP = new Set(["the", "a", "an", "to", "for", "of", "on", "in", "and", "or", "with", "add", "fix", "make", "new"]);
@@ -339,6 +366,11 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         }),
         blocks: everyone.filter((d) => blockersOf(d).includes(t.id) && canSee(viewer(ctx.role), d)).map(ticketLine),
         description: t.description || "(none)",
+        labels: t.labels ?? [],
+        due: t.due ?? null,
+        estimate: t.estimate ?? null,
+        checklist: (t.checklist ?? []).map((c) => `[${c.done ? "x" : " "}] ${c.text}`),
+        comments: (t.comments ?? []).slice(-5).map((c) => `${personOf(currentDir(), c.who).name} (${displayTime(c.time)}): ${c.text.slice(0, 500)}`),
         reporter: personOf(currentDir(), t.reporter).name,
         recent_activity: t.activity.slice(-5).map((a) => `${a.who} ${a.text} (${displayTime(a.time)})`),
       };
@@ -352,6 +384,8 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       if (!title) return err("A title is required.");
       const assignee = isMember(String(args.assignee)) ? (args.assignee as PersonId) : currentDir().me;
       const priority = PRIORITIES.includes(args.priority as Priority) ? (args.priority as Priority) : "Medium";
+      const fields = ticketFields(args);
+      if ("error" in fields) return err(fields.error);
       // Duplicate check against what the requester can see (including this run's staged tickets).
       if (args.allow_duplicate !== true) {
         const byId = new Map((await store.listTickets()).map((t) => [t.id, t] as [string, Ticket | null]));
@@ -371,7 +405,7 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
         id, team, assignee, priority, title: title.slice(0, 120), status: "To do", reporter: ATLAS_ID,
         description: str(args.description) ?? `Requested by ${personOf(currentDir(), currentDir().me).name} in ${srcLabel(ctx.where)}.`,
         links: pr ? [{ id: uid(), kind: "PR", num: pr, repo: repo() }] : [],
-        images: [], updated: "Just now",
+        images: [], updated: "Just now", ...fields,
         // Atlas posts later updates about this ticket where it was asked for.
         watch: meta?.kind === "channel" ? { chat: ctx.where, thread: ctx.threadId ?? null } : null,
         activity: [{ who: "Atlas", text: `created this ticket from ${srcLabel(ctx.where)} (asked by ${personOf(currentDir(), currentDir().me).name})`, time: stamp() }],
@@ -442,8 +476,49 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
           changes.push(`no longer blocked by ${id}`);
         }
       }
+      if (Array.isArray(args.labels_add) || Array.isArray(args.labels_remove)) {
+        const drop = cleanLabels(Array.isArray(args.labels_remove) ? args.labels_remove : []);
+        const add = cleanLabels([...(t.labels ?? []), ...(Array.isArray(args.labels_add) ? args.labels_add : [])]);
+        if ("error" in drop) return err(drop.error);
+        if ("error" in add) return err(add.error);
+        const next = add.labels.filter((l) => !drop.labels.includes(l));
+        const added = next.filter((l) => !(t.labels ?? []).includes(l));
+        const removed = (t.labels ?? []).filter((l) => !next.includes(l));
+        if (added.length) changes.push(`label +${added.join(", +")}`);
+        if (removed.length) changes.push(`label -${removed.join(", -")}`);
+        t.labels = next;
+      }
+      if (args.due !== undefined) {
+        const due = String(args.due ?? "").trim();
+        const next = !due || due.toLowerCase() === "none" ? null : due;
+        if (next && !isValidDue(next)) return err("due must be a real date in YYYY-MM-DD form, or \"none\".");
+        if (next !== (t.due ?? null)) {
+          changes.push(next ? `due ${next}` : "due date cleared");
+          t.due = next;
+        }
+      }
+      if (args.estimate !== undefined) {
+        const r = cleanEstimate(args.estimate);
+        if ("error" in r) return err(`${r.error}.`);
+        if (r.estimate !== (t.estimate ?? null)) {
+          changes.push(r.estimate === null ? "estimate cleared" : `estimate ${r.estimate} pts`);
+          t.estimate = r.estimate;
+        }
+      }
       if (!changes.length) return { ok: true, unchanged: true, ticket: ticketLine(t) };
       return { ok: true, changes, ticket: ticketLine(t), ...stage(ctx, t.id, before, t, changes) };
+    }
+    case "comment_on_ticket": {
+      const found = await findVisible(ctx, args.id);
+      if ("ok" in found) return found;
+      const text = str(args.text);
+      if (!text) return err("The comment is empty.");
+      if (text.length > MAX_COMMENT_LENGTH) return err(`Keep comments under ${MAX_COMMENT_LENGTH} characters.`);
+      const before = clone(found);
+      const t = found;
+      t.comments = [...(t.comments ?? []), { id: uid(), who: ctx.agentId ?? ATLAS_ID, text, time: stamp() }];
+      const change = `commented “${text.length > 60 ? `${text.slice(0, 57)}…` : text}”`;
+      return { ok: true, ticket: ticketLine(t), ...stage(ctx, t.id, before, t, [change]) };
     }
     case "delete_ticket": {
       if (!canDelete(role)) return err("Only org owners can delete tickets. Moving it to Backburner is an alternative.");
@@ -491,3 +566,24 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
   }
 }
 
+
+/** Optional labels, due date and estimate from create_ticket's arguments, validated. */
+function ticketFields(args: Args): Pick<Ticket, "labels" | "due" | "estimate"> | { error: string } {
+  const out: Pick<Ticket, "labels" | "due" | "estimate"> = {};
+  if (args.labels !== undefined) {
+    const r = cleanLabels(args.labels);
+    if ("error" in r) return { error: `${r.error}.` };
+    out.labels = r.labels;
+  }
+  const due = str(args.due);
+  if (due && due.toLowerCase() !== "none") {
+    if (!isValidDue(due)) return { error: "due must be a real date in YYYY-MM-DD form." };
+    out.due = due;
+  }
+  if (args.estimate !== undefined && args.estimate !== null) {
+    const r = cleanEstimate(args.estimate);
+    if ("error" in r) return { error: `${r.error}.` };
+    out.estimate = r.estimate;
+  }
+  return out;
+}

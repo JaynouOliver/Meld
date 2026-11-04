@@ -74,7 +74,8 @@ function roleRule(dir: Directory, role: Role) {
 export function ticketLine(t: Ticket) {
   const links = t.links.length ? ` | links: ${t.links.map((l) => `${l.kind} #${l.num}`).join(", ")}` : "";
   const blocked = t.blockedBy?.length ? ` | blocked by: ${t.blockedBy.join(", ")}` : "";
-  return `${t.id} | ${t.status} | ${t.priority} | ${teamName(t.team)} | assignee: ${nameOf(t.assignee)} (${t.assignee})${links}${blocked} | "${t.title || "Untitled"}"`;
+  const extra = `${t.labels?.length ? ` | labels: ${t.labels.join(", ")}` : ""}${t.due ? ` | due ${t.due}` : ""}`;
+  return `${t.id} | ${t.status} | ${t.priority} | ${teamName(t.team)} | assignee: ${nameOf(t.assignee)} (${t.assignee})${links}${blocked}${extra} | "${t.title || "Untitled"}"`;
 }
 
 function flatten(nodes: ReplyNode[], depth: number, out: string[]) {
