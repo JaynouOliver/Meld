@@ -256,6 +256,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   // Pinned in #design, as a team would: the "Pinned" list then has something to show.
   await store.updateMessage(posted.d1d.id, { pinnedAt: ago(1455), pinnedBy: maya }).catch(() => {});
   await seedMission(store, { me: me.id, chat: ch.product, ids, people: { maya, jonas, priya, tom } });
+  await seedAgentSkills(store, { me: me.id, ch, ag, people: { jonas } });
   return { workspaceId: wsId, home: ch.engineering, ticketIds: ids };
 }
 
@@ -323,3 +324,47 @@ async function seedMission(
     await store.addMissionEvent({ missionId: id, kind, actor: kind === "launched" ? x.me : ATLAS_ID, text, at: ago(at) });
   }
 }
+
+/**
+ * Agent skills, already in use: a ticket assigned to the Reviewer agent with its finished
+ * review in #engineering (On it → findings → moved to In review), and a few remembered
+ * facts. Agents are looked up by key, so renaming them doesn't break this.
+ */
+async function seedAgentSkills(
+  store: Awaited<ReturnType<typeof storeFor>>,
+  x: { me: string; ch: Record<string, string>; ag: Record<string, string>; people: Record<"jonas", string> },
+) {
+  const reviewer = x.ag.reviewer;
+  const { jonas } = x.people;
+  if (!reviewer || !x.ch.engineering) return;
+  const id = await store.nextTicketId();
+  const ack = `as${uid()}`;
+  await store.insertTicket({
+    id, team: "engineering", title: "Failed-payment alerts: rollout plan", status: "In review", priority: "High", assignee: reviewer, reporter: jonas,
+    description: "Alert #engineering when 3 charges fail within 10 minutes; page on-call if it isn't acknowledged in 30. Ships with the Stripe webhooks (ORB-4).",
+    links: [], images: [], updated: "Today", watch: { chat: x.ch.engineering, thread: null }, blockedBy: [],
+    activity: [
+      { who: "Jonas Weber", text: "created this ticket", time: ago(56) },
+      { who: "Jonas Weber", text: "assigned it to Rex", time: ago(55) },
+      { who: "Rex", text: "moved it to In review after working on it", time: ago(53) },
+    ],
+  });
+  const root = await store.appendMessage(x.ch.engineering, {
+    id: ack, who: reviewer, time: ago(55), ticket: id,
+    text: `On it: ${id}, assigned by Jonas Weber. I'll post what I find here and move it to In review when I'm done.`,
+  });
+  await store.appendMessage(x.ch.engineering, {
+    id: `${ack}r`, who: reviewer, time: ago(53),
+    text: `Review of ${id}, from the plan and the webhook thread:
+• Retries can count one card three times: count distinct charge ids, or a single customer pages on-call. Fix: dedupe on charge id.
+• No owner for the alert channel: name who acknowledges during the day, and route pages to the on-call rotation, not Jonas.
+• Test mode will fire alerts too: filter on livemode before ORB-4 ships.
+• No way to silence a known Stripe incident: add a 1-hour mute.
+Moving ${id} to In review.`,
+  }, root.id);
+  await store.appendMessage(x.ch.engineering, { id: uid(), who: jonas, time: ago(40), text: "Good catches. Adding the charge-id dedupe and the livemode filter today." }, root.id);
+  // Remembered facts: one for the whole team, one only the Reviewer uses.
+  await store.addAgentMemory({ id: `mem${uid()}`, agentId: "team", text: "Maya Chen is out on Fridays.", createdBy: x.me, createdAt: ago(1300) });
+  await store.addAgentMemory({ id: `mem${uid()}`, agentId: reviewer, text: "Jonas wants risks ranked by customer impact, worst first.", createdBy: jonas, createdAt: ago(900) });
+}
+

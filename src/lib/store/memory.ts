@@ -144,6 +144,17 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
   async saveTeamDecision(x) {
     (d().teamDecisions ??= new Map()).set(x.id, clone(x));
   },
+  async listAgentMemories() {
+    return clone(d().memories ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 500);
+  },
+  async addAgentMemory(m) {
+    (d().memories ??= []).push(clone(m));
+  },
+  async deleteAgentMemory(id) {
+    const before = d().memories?.length ?? 0;
+    d().memories = (d().memories ?? []).filter((m) => m.id !== id);
+    return d().memories!.length < before;
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },

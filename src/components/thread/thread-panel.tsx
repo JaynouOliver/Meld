@@ -16,6 +16,7 @@ import type { ChatId, Message } from "@/lib/types";
 import { useUiStore } from "@/stores/ui-store";
 import { AtlasLive } from "@/components/chat/atlas-live";
 import { ThreadNodes } from "./thread-nodes";
+import { SummarizeButton } from "./summarize-button";
 
 export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message }) {
   const closeThread = useUiStore((s) => s.closeThread);
@@ -42,7 +43,7 @@ export function ThreadPanel({ chatId, root }: { chatId: ChatId; root: Message })
 
   return (
     <SidePanel label="Thread" width="thread" onClose={closeThread}>
-      <PanelHeader onClose={closeThread} closeLabel="Close thread">
+      <PanelHeader onClose={closeThread} closeLabel="Close thread" actions={<SummarizeButton chatId={chatId} threadId={root.id} disabled={n === 0} />}>
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="text-[15px] font-semibold">Thread</h2>
           <span className="truncate text-meta text-muted-foreground">{!meta ? "" : meta.kind === "channel" ? `# ${meta.label}` : personOf(dir, meta.who).name}</span>

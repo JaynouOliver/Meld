@@ -14,6 +14,7 @@ import { agentById, agentDmOf, agentModeIn, personOf, type AgentInfo, type Agent
 import { canManage } from "@/lib/rbac";
 import type { AgentMode } from "@/lib/types";
 import { MODE_OPTIONS } from "./agent-modes";
+import { AgentMemorySection } from "./agent-memory";
 
 type Open = { open: boolean; onOpenChange: (o: boolean) => void };
 
@@ -232,6 +233,8 @@ function AgentForm({ existing, onDone }: { existing: AgentInfo | null; onDone: (
           </fieldset>
         </>
       )}
+
+      {existing && existing.kind !== "external" && <AgentMemorySection agent={existing} />}
 
       {canJoin && dir.channels.length > 0 && (
         <fieldset className="mt-5">
