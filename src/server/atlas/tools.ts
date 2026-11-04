@@ -154,6 +154,36 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "remember",
+      description:
+        'Keep a fact for later conversations, when someone asks you to remember something ("remember that Maya is out on Fridays") or to keep a lasting preference. One short sentence in the third person, names and days spelled out. Everyone in the workspace can see it. Not for tasks (that\'s a ticket).',
+      parameters: {
+        type: "object",
+        properties: {
+          fact: { type: "string", description: "The fact, e.g. 'Maya Chen is out on Fridays.'" },
+          for_team: { type: "boolean", description: "true when every agent should know it (people's availability, team conventions); false when it's only about how you work" },
+        },
+        required: ["fact"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "forget",
+      description: "Forget a remembered fact by its id (shown as [id] in what you remember), when someone says it's no longer true or asks you to forget it.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "catch_up",
       description:
         'What the requester missed: new messages in chats they can see since they last opened each one (busy chats come summarized), things addressed to them, and changes others made to their tickets. Use for "what did I miss?", "catch me up", "what happened in #x today?".',
@@ -208,6 +238,9 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     },
   },
 ];
+
+// Agent memory changes what every later conversation sees, so it needs write.
+TOOL_GROUP.remember = TOOL_GROUP.forget = "write";
 
 /**
  * Changes staged during one Atlas run, keyed by ticket. Nothing is written until the
@@ -466,6 +499,24 @@ export async function runTool(name: string, args: Args, ctx: ToolCtx): Promise<u
       const { searchTeamDecisions } = await import("../listener/decisions");
       const found = await searchTeamDecisions(str(args.query) ?? "");
       return { decisions: found, note: found.length ? "Answer from these; say if one was reopened or replaced." : "Nothing logged for this yet. It may only have been discussed: call search_messages next and answer from those messages, citing them." };
+    }
+    case "remember": {
+      const { rememberFact } = await import("../agents/memory");
+      try {
+        const m = await rememberFact({ text: args.fact, forTeam: args.for_team === true, role });
+        return { ok: true, remembered: m.text, id: m.id, for: m.agentId === "team" ? "the whole team" : "you", note: "Confirm in one short sentence." };
+      } catch (e) {
+        return err((e as Error).message);
+      }
+    }
+    case "forget": {
+      const { forgetMemory } = await import("../agents/memory");
+      try {
+        await forgetMemory(String(args.id ?? ""), role);
+        return { ok: true, forgot: args.id };
+      } catch (e) {
+        return err((e as Error).message);
+      }
     }
     case "catch_up":
       return catchUp({ role, sinceHours: typeof args.since_hours === "number" ? args.since_hours : undefined, chat: str(args.chat) });

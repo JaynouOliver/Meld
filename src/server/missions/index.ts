@@ -187,17 +187,11 @@ export async function launchMission(id: string, requestedRole?: string) {
   const handoff = agentTasks.length
     ? `\n${agentTasks.map((t) => `@${agentById(dir, t.owner)!.handle}, please take ${t.ticketId} now: ${t.description || t.title}`).join("\n")}`
     : "";
-  const msg = await say(m, `Mission launched: "${m.title}", due ${fmtDay(m.deadline)}.\n${lines.join("\n")}${handoff}\nI'll check in on progress and flag anything that puts the date at risk.`);
+  await say(m, `Mission launched: "${m.title}", due ${fmtDay(m.deadline)}.\n${lines.join("\n")}${handoff}\nI'll check in on progress and flag anything that puts the date at risk.`);
   await ping(m, true);
 
-  if (agentTasks.length) {
-    const runs = await dispatch({
-      chatId: m.chatId, threadId: m.threadId, messageId: msg.id, authorId: ATLAS_ID, text: msg.text,
-      parent: { id: `mission-${m.id}`, depth: 0, requester: dir.me, role, triggerMessageId: msg.id },
-    });
-    const ours = runsWeExecute(runs);
-    if (ours.length) after_(() => Promise.all(ours.map((r) => processRun(r.id))));
-  }
+  // Agent owners already started on their tickets when those were filed above (assigned to
+  // an agent: src/server/agents/assignment.ts), so the hand-off line needs no extra run.
   return m;
 }
 

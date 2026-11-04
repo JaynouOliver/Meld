@@ -1,6 +1,7 @@
 import type { ActionRecord } from "../agent/actions";
 import type { TeamDecision } from "../team-decisions";
 import type { AgentRun } from "../agent/runs";
+import type { AgentMemory } from "../agent/memory";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
 
@@ -78,6 +79,11 @@ export interface Store {
   listTeamDecisions(): Promise<TeamDecision[]>;
   saveTeamDecision(d: TeamDecision): Promise<void>;
   listMissionEvents(missionId: string): Promise<MissionEvent[]>;
+  /** Agent memory (src/lib/agent/memory.ts): every agent's and the team's, newest first (at most 500). */
+  listAgentMemories(): Promise<AgentMemory[]>;
+  addAgentMemory(m: AgentMemory): Promise<void>;
+  /** False if there was no such memory. */
+  deleteAgentMemory(id: string): Promise<boolean>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */

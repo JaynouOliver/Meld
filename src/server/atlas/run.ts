@@ -12,6 +12,7 @@ import type { AskAtlasInput, AskAtlasResult } from "@/lib/api/service";
 import type { ChatId, Message, ReplyNode } from "@/lib/types";
 import { ATLAS_EFFORT, ATLAS_MODEL, llm } from "../llm";
 import { buildContext, systemPromptFor, workspaceBlock } from "./prompt";
+import { memoryBlock } from "../agents/memory";
 import { stepLabel, type Progress } from "./progress";
 import { planToOps, runTool, toolsFor, type Effects } from "./tools";
 
@@ -75,11 +76,13 @@ export async function runAtlasAgent(
   const lastHop = (input.depth ?? 0) >= MAX_AGENT_DEPTH
     ? "\nThis is the last hand-off allowed in this chain: finish it yourself or hand back to a person; don't @mention other agents."
     : "";
+  // What this agent was asked to remember in earlier conversations (src/server/agents/memory.ts).
+  const memory = await memoryBlock(agent.id);
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: `${systemPromptFor(agent, currentDir())}\n\n${workspaceBlock(currentDir())}` },
     {
       role: "user",
-      content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}
+      content: `${buildContext({ where, role: input.role, tickets, chat, threadId: input.threadId })}${memory ? `\n${memory}` : ""}
 
 Request (on behalf of ${personOf(currentDir(), currentDir().me).name}): ${input.text}${lastHop}`,
     },

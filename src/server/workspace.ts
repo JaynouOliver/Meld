@@ -13,6 +13,7 @@ import { canManage } from "@/lib/rbac";
 import { storeFor, usingSupabase } from "@/lib/store";
 import type { AgentMode, ChatId, ChatMeta, Role } from "@/lib/types";
 import { memoryRegistry } from "./registry/memory";
+import { withAssignmentPickup } from "./agents/assignment";
 import type { ChannelRow, Registry, WorkspaceRow } from "./registry/types";
 
 export const ACTIVE_WS_COOKIE = "meld_ws";
@@ -58,7 +59,7 @@ export async function contextFor(user: SessionUser, opts: { fresh?: boolean } = 
   const hit = dirCache.get(key);
   if (!opts.fresh && hit && Date.now() - hit.at < DIR_TTL_MS) return hit.ctx;
   const m = await activeMembership(user);
-  const ctx = m ? { dir: await buildDirectory(user.id, m.workspace, m.role, m.all), store: await storeFor(m.workspace) } : null;
+  const ctx = m ? { dir: await buildDirectory(user.id, m.workspace, m.role, m.all), store: withAssignmentPickup(await storeFor(m.workspace)) } : null;
   dirCache.set(key, { at: Date.now(), ctx });
   if (dirCache.size > 500) dirCache.delete(dirCache.keys().next().value!);
   return ctx;
@@ -70,7 +71,7 @@ export async function contextAs(workspaceId: string, userId: string): Promise<Re
   const ms = await reg.memberships(userId);
   const m = ms.find((x) => x.workspace.id === workspaceId);
   if (!m) throw new WorkspaceError("Not a member of this workspace", 403);
-  return { dir: await buildDirectory(userId, m.workspace, m.role, ms), store: await storeFor(m.workspace) };
+  return { dir: await buildDirectory(userId, m.workspace, m.role, ms), store: withAssignmentPickup(await storeFor(m.workspace)) };
 }
 
 export async function buildDirectory(

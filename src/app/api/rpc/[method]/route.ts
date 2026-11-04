@@ -17,6 +17,8 @@ import * as missions from "@/server/missions";
 import { listen, shouldListen } from "@/server/listener";
 import * as teamDecisions from "@/server/listener/decisions";
 import * as ws from "@/server/workspace";
+import * as agentMemory from "@/server/agents/memory";
+import * as summary from "@/server/atlas/summary";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -102,6 +104,10 @@ const methods: Record<string, Method> = {
   deleteAgent: async (id: string) => ws.deleteAgent(currentCtx(), id),
   rotateAgentToken: async (id: string) => ws.rotateAgentToken(currentCtx(), id),
   setChannelAgent: async (input: Parameters<typeof ws.setChannelAgent>[1]) => ws.setChannelAgent(currentCtx(), input),
+  // Agent skills: memory (agent dialog) and thread summaries.
+  listAgentMemories: async (agentId: string) => agentMemory.listAgentMemories(agentId),
+  forgetAgentMemory: async (id: string, role?: Role) => agentMemory.forgetMemory(id, role),
+  summarizeThread: async (chatId: ChatId, threadId: string, role?: Role) => summary.summarizeThread(chatId, threadId, role),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */
@@ -144,6 +150,8 @@ const accountMethods: Record<string, (user: SessionUser, ...args: never[]) => Pr
 function changes(method: string, args: unknown[], result: unknown): { chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean } {
   const a0 = args[0] as Record<string, unknown> | string | undefined;
   switch (method) {
+    case "summarizeThread":
+      return { chats: [], tickets: false, runs: true };
     case "postMessage":
       return { chats: [(a0 as { chatId: ChatId }).chatId], tickets: false, runs: !!(result as api.PostedMessage).runs?.length };
     case "teammateReply":

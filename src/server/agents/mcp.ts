@@ -202,7 +202,7 @@ export async function callTool(agent: AgentInfo, name: string, args: Args): Prom
         const context = root ? [root, ...root.replies] : list.slice(-12);
         items.push({
           item_id: r.id,
-          why: { mention: "you were @mentioned", dm: "a direct message to you", delegation: "another agent handed this to you", proactive: "posted in a channel you watch" }[r.trigger],
+          why: { mention: "you were @mentioned", dm: "a direct message to you", delegation: "another agent handed this to you", proactive: "posted in a channel you watch", assignment: "a ticket was assigned to you", summary: "a thread summary was asked for" }[r.trigger],
           where: dir.chats[r.chatId] ? chatTitle(dir, r.chatId) : r.chatId,
           from: name_(r.requester),
           message: r.text,
