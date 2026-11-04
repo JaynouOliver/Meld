@@ -5,6 +5,7 @@ import { uid } from "@/lib/format";
 import { storeFor } from "@/lib/store";
 import type { Mission, PlanTask } from "@/lib/missions";
 import type { Priority, Ticket, TicketStatus } from "@/lib/types";
+import { seedingStore } from "./seeding-store";
 import { registry } from "./workspace";
 import { seedScheduled } from "./seeds/scheduled";
 
@@ -56,6 +57,24 @@ const AGENTS = [
 type Msg = { k: string; who: string; min: number; text: string; ticket?: string; replies?: Msg[] };
 
 /** Build a sandbox for `me` (already a profile). Returns the workspace and where to land. */
+/** SANDBOX_PROFILE=1: count store calls per method and log them (to see where setup time goes). */
+function profiled<T extends object>(s: T): T {
+  if (!process.env.SANDBOX_PROFILE) return s;
+  const counts = new Map<string, number>();
+  const started = Date.now();
+  setTimeout(() => console.log(`[sandbox] ${Date.now() - started}ms`, Object.fromEntries([...counts].sort((a, b) => b[1] - a[1]))), 20_000);
+  return new Proxy(s, {
+    get(t, k) {
+      const v = (t as Record<string | symbol, unknown>)[k];
+      if (typeof v !== "function") return v;
+      return (...a: unknown[]) => {
+        counts.set(String(k), (counts.get(String(k)) ?? 0) + 1);
+        return (v as (...x: unknown[]) => unknown).apply(t, a);
+      };
+    },
+  });
+}
+
 export async function createSandbox(me: { id: string; first: string }) {
   const reg = await registry();
   const wsId = `ws${uid()}`;
@@ -117,7 +136,8 @@ export async function createSandbox(me: { id: string; first: string }) {
   ]);
 
   // Tickets ORB-1..12, some blocking others.
-  const store = await storeFor(ws);
+  // Write-behind while seeding (see seeding-store.ts); flushed before returning.
+  const store = seedingStore(profiled(await storeFor(ws)), ws);
   type Extra = {
     pr?: string; issue?: string; blocked?: number[]; watch?: string; desc?: string;
     /** Labels, due in days from today, story points, checklist ([text, done]), comments ([who, minutes ago, text]). */
@@ -270,6 +290,7 @@ export async function createSandbox(me: { id: string; first: string }) {
   await (await import("./seeds/automation")).seedAutomation(store, { me: me.id, ch, ag, ids, people: { jonas, priya, sofia } });
   // Last: it points at what every seed above posted.
   await (await import("./seeds/showcase")).seedShowcase(store, { me: me.id, ch, ag, ids, posted, people: { maya, jonas, priya, tom, sofia }, tour: ch.tour, atlasDm });
+  await store.flush();
   return { workspaceId: wsId, home: ch.tour, ticketIds: ids };
 }
 

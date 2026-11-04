@@ -43,7 +43,7 @@ interface TicketRow {
   checklist: NonNullable<Ticket["checklist"]>;
   comments: NonNullable<Ticket["comments"]>;
 }
-const toRow = (t: Ticket): TicketRow => ({
+export const toRow = (t: Ticket): TicketRow => ({
   id: t.id, team: t.team, title: t.title, description: t.description, status: t.status, priority: t.priority,
   assignee: t.assignee, reporter: t.reporter, links: t.links, images: t.images, watch: t.watch,
   activity: t.activity, updated: t.updated, blocked_by: t.blockedBy ?? [], mission_id: t.missionId ?? null, due: t.due ?? null,
