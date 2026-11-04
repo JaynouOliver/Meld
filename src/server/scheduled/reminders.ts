@@ -15,6 +15,8 @@ import { pingChanges } from "../realtime";
  */
 export class ReminderError extends ApiError {}
 
+const MAX_PENDING_PER_PERSON = 50;
+
 // ---------------------------------------------------------------- time zones
 
 /** The requester's zone: theirs if their browser reported it, else the workspace's, else UTC. */
@@ -133,6 +135,10 @@ export async function createReminder(input: CreateReminderInput, now = new Date(
   // A minute of grace: "in 1 minute" that took the model a while still counts.
   if (due.getTime() < now.getTime() - 60_000) throw new ReminderError(`That time (${formatWhen(due.toISOString(), zone.tz)}) has already passed.`);
   if (due.getTime() > now.getTime() + REMINDER_MAX_DAYS * 86400_000) throw new ReminderError("Reminders can be set up to a year ahead.");
+
+  // A ceiling per person, so a runaway loop can't queue thousands of posts.
+  const open = (await store.listReminders({ status: "pending" })).filter((r) => r.createdBy === dir.me).length;
+  if (open >= MAX_PENDING_PER_PERSON) throw new ReminderError(`You have ${open} upcoming reminders. Cancel some on the You screen first.`, 429);
 
   const reminder: Reminder = {
     id: `rm${uid()}`, createdBy: dir.me, target, text, dueAt: due.toISOString(), timeZone: zone.tz, status: "pending", attempts: 0,
