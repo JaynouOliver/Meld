@@ -15,9 +15,9 @@ import { ACTIVE_WS_COOKIE, registry } from "@/server/workspace";
  */
 export const maxDuration = 60;
 
-// Each demo can spend model credits: a few per visitor per hour.
+// Each demo can spend model credits. Generous, since judges may share one venue network.
 const recent = new Map<string, number[]>();
-const LIMIT = 5;
+const LIMIT = 50;
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
