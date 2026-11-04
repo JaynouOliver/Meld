@@ -45,7 +45,7 @@ export function StatusPill({ status }: { status: "To do" | "In progress" | "In r
   const key = { "To do": "todo", "In progress": "progress", "In review": "review", Done: "done" }[status];
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-sm px-1.5 text-[11px] leading-[18px] font-medium"
+      className="inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 text-[11px] leading-[18px] font-medium whitespace-nowrap"
       style={{ background: `var(--status-${key}-bg)`, color: `var(--status-${key}-fg)` }}
     >
       <span className="size-1.5 rounded-full" style={{ background: `var(--status-${key}-dot)` }} />

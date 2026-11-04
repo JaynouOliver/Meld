@@ -158,7 +158,7 @@ export function Features() {
         />
 
         {/* Spotlight: agents */}
-        <div className="mt-12 grid items-center gap-8 rounded-lg border p-6 sm:p-8 lg:grid-cols-2 lg:gap-12">
+        <div className="mt-12 grid items-center gap-8 rounded-lg border p-5 sm:p-8 lg:grid-cols-2 lg:gap-12">
           <div>
             <h3 className="text-[20px] font-semibold tracking-[-0.01em] text-foreground">Agents are teammates, not a sidebar</h3>
             <p className="mt-2.5 text-[15px] leading-relaxed text-muted-foreground">
@@ -187,7 +187,7 @@ export function Features() {
         </div>
 
         {/* Spotlight: missions */}
-        <div className="mt-4 grid items-center gap-8 rounded-lg border p-6 sm:p-8 lg:grid-cols-2 lg:gap-12">
+        <div className="mt-4 grid items-center gap-8 rounded-lg border p-5 sm:p-8 lg:grid-cols-2 lg:gap-12">
           <div className="lg:order-2">
             <h3 className="text-[20px] font-semibold tracking-[-0.01em] text-foreground">Missions: a goal, a date, and an agent to drive it</h3>
             <p className="mt-2.5 text-[15px] leading-relaxed text-muted-foreground">
@@ -296,8 +296,8 @@ function MissionVisual() {
       <div className="space-y-2">
         {cards.map((c) => (
           <div key={c.id} className={c.crit ? "rounded-md border border-l-2 border-l-brand bg-card p-2.5" : "rounded-md border bg-card p-2.5"}>
-            <div className="flex items-center justify-between gap-1">
-              <span className="font-mono text-[10px] text-muted-foreground">{c.id}</span>
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <span className="font-mono text-[10px] whitespace-nowrap text-muted-foreground">{c.id}</span>
               <StatusPill status={c.status} />
             </div>
             <div className="mt-1 text-[12px] leading-snug font-medium text-foreground">{c.title}</div>
@@ -311,12 +311,12 @@ function MissionVisual() {
     </div>
   );
   return (
-    <div aria-hidden className="rounded-md border bg-canvas p-4 lg:order-1">
-      <div className="flex items-center gap-2">
+    <div aria-hidden className="rounded-md border bg-canvas p-3 sm:p-4 lg:order-1">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <FlagIcon className="size-3.5 text-muted-foreground" />
         <span className="text-[13px] font-semibold text-foreground">Launch paid plans</span>
-        <span className="rounded-sm border border-[var(--status-done-line)] px-1 text-[10px] leading-[14px] text-success">On track</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">Due Fri, Nov 6</span>
+        <span className="rounded-sm border border-[var(--status-done-line)] px-1 text-[10px] leading-[14px] whitespace-nowrap text-success">On track</span>
+        <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">Due Fri, Nov 6</span>
       </div>
       <div className="mt-2 mb-4 h-1 overflow-hidden rounded-full bg-line-soft">
         <div className="h-full w-1/3 rounded-full bg-brand" />
