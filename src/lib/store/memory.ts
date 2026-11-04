@@ -4,7 +4,7 @@ import { setDemoStoreFactory } from "../context";
 import { appendMessage, bumpWeek, dbFor, resetDb, type Db } from "../mock/db";
 import { DEMO_WORKSPACE_ID } from "../mock/demo";
 import type { ChatId, Message, ReplyNode } from "../types";
-import type { MessageHit, Store } from "./types";
+import type { MessageHit, PinnedHit, Store } from "./types";
 
 const clone = <T,>(x: T): T => structuredClone(x);
 
@@ -29,6 +29,18 @@ function allMessages(db: Db): MessageHit[] {
     }
   }
   return out;
+}
+
+/** A message or reply by id: its chat, thread root, and the node itself (root for top-level). */
+function locate(db: Db, id: string): { chatId: ChatId; root: Message; node: Message | ReplyNode } | null {
+  for (const [chatId, msgs] of Object.entries(db.chats) as [ChatId, Message[]][]) {
+    for (const m of msgs) {
+      if (m.id === id) return { chatId, root: m, node: m };
+      const r = m.replies.find((x) => x.id === id);
+      if (r) return { chatId, root: m, node: r };
+    }
+  }
+  return null;
 }
 
 /**
@@ -195,6 +207,39 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
         }
       }
     }
+  },
+  async getMessage(id) {
+    const f = locate(d(), id);
+    if (!f) return null;
+    const { chatId, root, node } = f;
+    return {
+      chatId, id, threadId: node === root ? null : root.id, who: node.who, time: node.time, text: node.text,
+      replyCount: node === root ? root.replies.length : 0,
+      editedAt: node.editedAt ?? null, deletedAt: node.deletedAt ?? null, pinnedAt: node.pinnedAt ?? null,
+    };
+  },
+  async updateMessage(id, patch) {
+    const f = locate(d(), id);
+    if (!f) return;
+    const { clearReactions, ...fields } = patch;
+    for (const [k, v] of Object.entries(fields)) if (v !== undefined) (f.node as unknown as Record<string, unknown>)[k] = v;
+    if (clearReactions) f.node.reactions = {};
+  },
+  async removeMessage(id) {
+    const f = locate(d(), id);
+    if (!f) return;
+    const chat = d().chats[f.chatId];
+    if (f.node === f.root) chat.splice(chat.indexOf(f.root), 1);
+    else f.root.replies = f.root.replies.filter((r) => r.id !== id);
+  },
+  async listPinned(chatId, limit) {
+    const out: PinnedHit[] = [];
+    for (const m of d().chats[chatId] ?? []) {
+      for (const n of [m, ...m.replies]) {
+        if (n.pinnedAt) out.push({ chatId, id: n.id, threadId: n === m ? null : m.id, who: n.who, time: n.time, text: n.text, pinnedAt: n.pinnedAt, pinnedBy: n.pinnedBy ?? null });
+      }
+    }
+    return out.sort((a, b) => b.pinnedAt.localeCompare(a.pinnedAt)).slice(0, limit);
   },
   async listRecentRuns() {
     const since = Date.now() - RUN_RECENT_MS;

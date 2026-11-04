@@ -12,7 +12,9 @@ import { currentDir, deliverNotices } from "../context";
 import { ATLAS_ID, personOf, type Directory } from "../directory";
 import { stamp, uid } from "../format";
 import { canCreateIn, canDelete, canSee, clampRole, viewerOf } from "../rbac";
+import { canDeleteMessage, canEditMessage, canPinMessage, deleteKeepsPlaceholder, searchTerms, validReaction, visibleHits } from "../message-ops";
 import { getStore } from "../store";
+import type { MessageHit, PinnedHit } from "../store/types";
 import type { ChatId, GitHubLink, Message, PersonId, ReplyNode, Role, Ticket, TicketImage, WeekDay } from "../types";
 
 // Simulated network latency only when running in the browser (preview mode).
@@ -113,6 +115,116 @@ export async function postMessage(input: PostMessageInput): Promise<PostedMessag
     store.logEvent({ kind: "message.posted", actor: me, chatId: input.chatId, payload: { id: msg.id, threadId: input.threadId } }),
   ]);
   return saved;
+}
+
+// ---------------------------------------------------------------- message edits, pins, reactions
+
+/** Where a message change happened (drives the realtime ping) and what it now holds. */
+export interface MessageChange {
+  chatId: ChatId;
+  threadId: string | null;
+  at: string;
+}
+
+/** A message in a chat this person can see. Unknown and hidden ids get the same answer. */
+async function requireMessage(id: string) {
+  const m = await (await getStore()).getMessage(String(id));
+  if (!m || !currentDir().chats[m.chatId]) throw new ApiError("That message no longer exists", 404);
+  return m;
+}
+
+const isAgentAuthor = (who: PersonId) => {
+  const dir = currentDir();
+  return who === ATLAS_ID || !!dir.people[who]?.isAgent || !!dir.agents?.some((a) => a.id === who);
+};
+const factsOf = (m: { who: PersonId; deletedAt: string | null }) => ({ who: m.who, byAgent: isAgentAuthor(m.who), deletedAt: m.deletedAt });
+const actor = (role?: Role) => ({ me: currentDir().me, role: effectiveRole(role) });
+
+export interface EditMessageInput {
+  id: string;
+  text: string;
+  role?: Role;
+}
+
+/** Change the text of your own message. Agents' messages can't be edited by people. */
+export async function editMessage(input: EditMessageInput): Promise<MessageChange & { text: string }> {
+  await wait(60);
+  const m = await requireMessage(input.id);
+  if (!canEditMessage(actor(input.role), factsOf(m))) throw new ApiError("You can only edit your own messages", 403);
+  const text = String(input.text ?? "").trim().slice(0, 8000);
+  if (!text) throw new ApiError("Message is empty");
+  const at = new Date().toISOString();
+  if (text === m.text) return { chatId: m.chatId, threadId: m.threadId, at: m.editedAt ?? at, text };
+  const store = await getStore();
+  await Promise.all([
+    store.updateMessage(m.id, { text, editedAt: at }),
+    store.logEvent({ kind: "message.edited", actor: currentDir().me, chatId: m.chatId, payload: { id: m.id } }),
+  ]);
+  return { chatId: m.chatId, threadId: m.threadId, at, text };
+}
+
+/**
+ * Delete your own message (org owners: anyone's, including agents'). A thread root with
+ * replies becomes a "This message was deleted" placeholder so the thread survives; the
+ * placeholder goes away with its last reply.
+ */
+export async function deleteMessage(input: { id: string; role?: Role }): Promise<MessageChange> {
+  await wait(60);
+  const m = await requireMessage(input.id);
+  if (!canDeleteMessage(actor(input.role), factsOf(m))) {
+    throw new ApiError(isAgentAuthor(m.who) ? "Only org owners can delete agent messages" : "You can only delete your own messages", 403);
+  }
+  const store = await getStore();
+  const at = new Date().toISOString();
+  if (deleteKeepsPlaceholder(!m.threadId, m.replyCount)) {
+    await store.updateMessage(m.id, { text: "", deletedAt: at, pinnedAt: null, pinnedBy: null, clearReactions: true });
+  } else {
+    await store.removeMessage(m.id);
+    if (m.threadId) {
+      const root = await store.getMessage(m.threadId);
+      if (root?.deletedAt && root.replyCount === 0) await store.removeMessage(root.id);
+    }
+  }
+  await store.logEvent({ kind: "message.deleted", actor: currentDir().me, chatId: m.chatId, payload: { id: m.id, by: m.who } });
+  return { chatId: m.chatId, threadId: m.threadId, at };
+}
+
+/** Pin or unpin a message in its chat (any member; guests can't). */
+export async function pinMessage(input: { id: string; on: boolean; role?: Role }): Promise<MessageChange & { pinnedBy: PersonId | null }> {
+  await wait(60);
+  if (!canPinMessage(effectiveRole(input.role))) throw new ApiError("Guests can't pin messages", 403);
+  const m = await requireMessage(input.id);
+  if (m.deletedAt) throw new ApiError("That message was deleted", 410);
+  const at = new Date().toISOString();
+  const by = input.on ? currentDir().me : null;
+  await (await getStore()).updateMessage(m.id, { pinnedAt: input.on ? at : null, pinnedBy: by });
+  return { chatId: m.chatId, threadId: m.threadId, at, pinnedBy: by };
+}
+
+/** A chat's pinned messages, newest pin first. */
+export async function getPinned(chatId: ChatId): Promise<PinnedHit[]> {
+  await wait();
+  requireChat(chatId);
+  return (await getStore()).listPinned(chatId, 50);
+}
+
+/** Add or remove your reaction on a message. */
+export async function toggleReaction(input: { id: string; emoji: string; on: boolean }): Promise<MessageChange> {
+  await wait(40);
+  if (!validReaction(input.emoji)) throw new ApiError("That isn't a reaction");
+  const m = await requireMessage(input.id);
+  if (m.deletedAt) throw new ApiError("That message was deleted", 410);
+  await (await getStore()).react(m.id, input.emoji, currentDir().me, !!input.on);
+  return { chatId: m.chatId, threadId: m.threadId, at: new Date().toISOString() };
+}
+
+/** Full-text search over the messages this person can see (the Cmd+K palette). */
+export async function searchMessages(query: string): Promise<MessageHit[]> {
+  await wait();
+  const terms = searchTerms(query);
+  if (!terms.length) return [];
+  const hits = await (await getStore()).searchMessages(terms, 20);
+  return visibleHits(hits, currentDir().chats, terms).slice(0, 20);
 }
 
 export interface AskAtlasInput extends PostMessageInput {

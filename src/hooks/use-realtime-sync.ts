@@ -41,7 +41,7 @@ export function useRealtimeSync() {
       })
       .on("broadcast", { event: "changed" }, ({ payload }) => {
         const ping = payload as {
-          chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; missions?: boolean; decisions?: boolean; origin: string | null;
+          chats: ChatId[]; tickets: boolean; runs?: boolean; directory?: boolean; missions?: boolean; decisions?: boolean; origin: string | null; quiet?: boolean;
           message?: { chatId: ChatId; threadId: string | null; message: Message | ReplyNode };
         };
         // Someone's Atlas run was queued, started or finished.
@@ -67,7 +67,7 @@ export function useRealtimeSync() {
         }
         for (const chat of ping.chats) {
           if (!live || live.chatId !== chat) qc.invalidateQueries({ queryKey: queryKeys.messages(chat) });
-          if (chat !== useUiStore.getState().activeChatForUnread) useUiStore.getState().bumpUnread(chat);
+          if (!ping.quiet && chat !== useUiStore.getState().activeChatForUnread) useUiStore.getState().bumpUnread(chat);
         }
         if (ping.tickets) {
           qc.invalidateQueries({ queryKey: queryKeys.tickets });

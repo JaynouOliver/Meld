@@ -47,6 +47,7 @@ interface MessageRow {
   id: string; chat_id: ChatId; thread_id: string | null; parent_id: string | null;
   who: PersonId; text: string; ticket_id: string | null; time_label: string; action_id?: string | null;
   reactions?: Record<string, string[]> | null;
+  edited_at?: string | null; deleted_at?: string | null; pinned_at?: string | null; pinned_by?: string | null;
 }
 
 interface ActionRow {
@@ -106,7 +107,10 @@ function toTree(rows: MessageRow[], actions: Map<string, ActionRecord> = new Map
   const byId = new Map<string, Message>();
   for (const r of rows) {
     const a = r.action_id ? actions.get(r.action_id) : undefined;
-    const base = { id: r.id, who: r.who, time: r.time_label, text: r.text, ticket: r.ticket_id, action: a ? toView(a) : null, reactions: r.reactions ?? undefined };
+    const base = {
+      id: r.id, who: r.who, time: r.time_label, text: r.text, ticket: r.ticket_id, action: a ? toView(a) : null, reactions: r.reactions ?? undefined,
+      editedAt: r.edited_at ?? null, deletedAt: r.deleted_at ?? null, pinnedAt: r.pinned_at ?? null, pinnedBy: r.pinned_by ?? null,
+    };
     if (!r.thread_id) {
       const m: Message = { ...base, replies: [] };
       roots.push(m);
@@ -374,6 +378,49 @@ export function supabaseStore(ws: string): Store {
   },
   async react(messageId, emoji, who, on) {
     check(await sb().rpc("toggle_reaction", { p_ws: ws, p_id: messageId, p_emoji: emoji, p_who: who, p_on: on }), "react");
+  },
+  async getMessage(id) {
+    const r = check(
+      await sb().from("messages").select("id,chat_id,thread_id,who,text,time_label,edited_at,deleted_at,pinned_at").eq("workspace_id", ws).eq("id", id).maybeSingle(),
+      "get message",
+    ) as (HitRow & { edited_at: string | null; deleted_at: string | null; pinned_at: string | null }) | null;
+    if (!r) return null;
+    let replyCount = 0;
+    if (!r.thread_id) {
+      const c = await sb().from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("thread_id", id);
+      if (c.error) throw new Error(`count replies: ${c.error.message}`);
+      replyCount = c.count ?? 0;
+    }
+    return { ...toHit(r), replyCount, editedAt: r.edited_at, deletedAt: r.deleted_at, pinnedAt: r.pinned_at };
+  },
+  async updateMessage(id, patch) {
+    const cols: Record<string, unknown> = {};
+    if (patch.text !== undefined) cols.text = patch.text;
+    if (patch.editedAt !== undefined) cols.edited_at = patch.editedAt;
+    if (patch.deletedAt !== undefined) cols.deleted_at = patch.deletedAt;
+    if (patch.pinnedAt !== undefined) cols.pinned_at = patch.pinnedAt;
+    if (patch.pinnedBy !== undefined) cols.pinned_by = patch.pinnedBy;
+    if (patch.clearReactions) cols.reactions = {};
+    if (!Object.keys(cols).length) return;
+    check(await sb().from("messages").update(cols).eq("workspace_id", ws).eq("id", id), "update message");
+  },
+  async removeMessage(id) {
+    // Replies go with their root (thread_id cascades).
+    check(await sb().from("messages").delete().eq("workspace_id", ws).eq("id", id), "remove message");
+  },
+  async listPinned(chatId, limit) {
+    const rows = check(
+      await sb()
+        .from("messages")
+        .select("id,chat_id,thread_id,who,text,time_label,pinned_at,pinned_by")
+        .eq("workspace_id", ws)
+        .eq("chat_id", chatId)
+        .not("pinned_at", "is", null)
+        .order("pinned_at", { ascending: false })
+        .limit(limit),
+      "list pinned",
+    ) as (HitRow & { pinned_at: string; pinned_by: string | null })[];
+    return rows.map((r) => ({ ...toHit(r), pinnedAt: r.pinned_at, pinnedBy: r.pinned_by }));
   },
   async listRecentRuns() {
     const since = new Date(Date.now() - RUN_RECENT_MS).toISOString();
