@@ -26,7 +26,7 @@ Other good titles: `Pricing page copy has a typo in the annual plan` (→ design
 
 ## 2. Agent playbooks
 
-**Status:** built ("ticket labeled X" and "ticket moved to status Y" triggers; the optional "message in #channel matching a keyword" trigger is not built).
+**Status:** built ("ticket labeled X" and "ticket moved to status Y" triggers, and "a message in #channel says a keyword", see docs/demo/agent-gaps.md).
 
 **What it does:** a playbook is a trigger plus ordered steps, each an agent with an instruction. When it fires, each step runs as a normal agent run in the ticket's thread (or a new thread in the playbook's channel), under a header like "Playbook: Bug intake · step 2 of 3"; the next step starts when the previous agent has posted. Governed like all agent work: depth and per-channel rate limits, once per event, and a playbook's own changes never start a playbook (no loops).
 

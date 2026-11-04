@@ -34,6 +34,7 @@ Agent replies take about 1–10 seconds. A live "working" bubble shows while an 
 | Kanban board, drag and drop | ✅ | **All tickets**, then **Board**. Drag ORB-3 from To do to In progress. |
 | Ticket panel: labels, due date, points, checklist, comments | ✅ | Open ORB-4: labels, due date, 5 points, and comments from Jonas and Priya. ORB-1 has a 2/5 checklist. |
 | Blockers and "you're unblocked" | ✅ | ORB-7 is blocked by ORB-4. Set ORB-4 to Done and Priya gets "You're unblocked". |
+| @mentions in comments | ✅ | Open ORB-4: Jonas's comment mentions @Alex (the notice is in your Atlas DM), and Rex answered your "@rex" question as a comment. Live: comment `@rex what is the riskiest part of this change?` on ORB-4. Rex replies as a comment in about 25 s, no refresh needed. `@Priya` sends Priya an Atlas DM. |
 | Insights (real numbers) | ✅ | **All tickets**, then **Insights**. |
 
 ## 3. People
@@ -106,6 +107,7 @@ All of these are seeded in every fresh demo. Ticket numbers below are what a fre
 |---|---|---|---|---|
 | 3 | **Auto-triage of new tickets** | ✅ | ORB-24 "Booking page shows wrong time for invitees after DST" shows "Triaged by Tess" in its panel and thread. | **All tickets**, **New ticket**, type `Checkout fails for EU cards with 3DS`, press Enter. In about 3–5 s: "Triaged by Tess · labels bug, billing · priority High · owner Jonas (owns Stripe billing)", with Undo. Other titles: `Pricing page copy has a typo in the annual plan` (design, Low, Maya), `Google sync drops recurring event exceptions by Friday` (bug and integrations, High, Jonas, due Friday). |
 | 8 | **Agent playbooks** | ✅ | Sidebar **Playbooks**: "Bug intake" (ticket labeled bug: Tess confirms repro and severity, then Rex assesses rollout risk, then Atlas assigns and summarizes), with a completed run on ORB-24 in #engineering. | The auto-triage demo above labels the ticket "bug", which starts Bug intake by itself. The ticket panel shows "Bug intake playbook · step 1 of 3 · Running", and **View thread** shows each agent's step (about 50 s for all 3). Owners can create and edit playbooks on the Playbooks page. |
+| 8b | **Keyword playbooks** | ✅ | Sidebar **Playbooks**: "Incident" (when someone writes "outage" in #engineering: Tess opens an incident ticket, Rex lists checks and the rollback plan, Atlas posts a status update). Its completed run is the calendar-sync outage thread in #engineering (ORB-25). | In #engineering type `We have an outage: login is failing for some users`. In about 30–35 s the thread fills: Tess opens an incident ticket with severity and owner, Rex posts checks and a rollback plan, Atlas posts the status update. The run shows on the Playbooks page; click it to open the thread. |
 
 ## 10. Meeting notes to actions
 
@@ -145,9 +147,9 @@ Tom: I'll come back on that.
 
 ## Not built (honest list)
 
-- Playbook trigger "message in #channel matching a keyword" (label and status triggers work).
-- @mentions inside ticket comments don't notify anyone.
 - Editing a message doesn't re-run the agents on the new text.
+- Keyword playbooks match whole words: "outage" doesn't match "outages".
+- When Rex or Sunny (read-only agents) answer a comment @mention, the answer also appears in your DM with them.
 
 ## Recording tips
 
