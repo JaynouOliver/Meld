@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { Avatar } from "@/components/common/avatar";
 import { StatusPill } from "@/components/common/status-pill";
+import { DigestNow } from "@/components/scheduled/digest-now";
 import { useDirectory } from "@/hooks/use-directory";
 import { useVisibleTickets } from "@/hooks/use-tickets";
 import * as remote from "@/lib/api/remote";
@@ -104,6 +105,8 @@ function Profile({ id, onClose }: { id: string; onClose: () => void }) {
             Message {p.first}
           </button>
         )}
+
+        <DigestNow agentId={id} onPosted={(chat) => { onClose(); router.push(`/chat/${chat}`); }} />
 
         {isAgent && (
           <Section title="What it can do">

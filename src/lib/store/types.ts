@@ -4,6 +4,7 @@ import type { AgentRun } from "../agent/runs";
 import type { AgentMemory } from "../agent/memory";
 import type { Decision, Mission, MissionEvent } from "../missions";
 import type { ChatId, Message, PersonId, ReplyNode, Ticket, WeekDay } from "../types";
+import type { Reminder, ReminderStatus } from "../scheduled";
 
 /** A message found by search, with the thread it belongs to (null when top-level). */
 export interface MessageHit {
@@ -116,6 +117,21 @@ export interface Store {
   addAgentMemory(m: AgentMemory): Promise<void>;
   /** False if there was no such memory. */
   deleteAgentMemory(id: string): Promise<boolean>;
+  /** Reminders (src/lib/scheduled.ts), at most 500: pending soonest first, any other status latest first. */
+  addReminder(r: Reminder): Promise<void>;
+  listReminders(filter?: { status?: ReminderStatus }): Promise<Reminder[]>;
+  getReminder(id: string): Promise<Reminder | null>;
+  /** Atomically take due pending reminders (marked sent, attempts + 1): concurrent sweeps never get the same one. */
+  claimDueReminders(now: string, limit: number): Promise<Reminder[]>;
+  /** Move a reminder from one of `from` to `to` (cancel, retry, give up). False if it wasn't in `from`. */
+  transitionReminder(id: string, from: ReminderStatus[], to: ReminderStatus): Promise<boolean>;
+  /** Claim a channel's daily digest for `day` (YYYY-MM-DD): true once per channel per day. `force` always claims (and records it). */
+  claimDigest(chatId: ChatId, day: string, force?: boolean): Promise<boolean>;
+  /** The day of each channel's last digest. */
+  lastDigests(): Promise<Record<ChatId, string>>;
+  /** Time zones people's browsers reported (user id → IANA zone; "*" is the workspace default). */
+  timeZones(): Promise<Record<string, string>>;
+  setTimeZone(userId: string, tz: string): Promise<void>;
   /** Remove every message in a chat (its channel was deleted). */
   deleteChatMessages(chatId: ChatId): Promise<void>;
   /** Back to the seed workspace. */

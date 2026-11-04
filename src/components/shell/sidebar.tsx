@@ -352,13 +352,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex flex-col gap-2 border-t border-sidebar-border px-3 pt-3 pb-3">
-        <div className="flex items-center gap-2.5">
+        {/* Your page: profile, reminders, preferences. */}
+        <Link href="/me" onClick={onNavigate} data-press title="Your profile, reminders and preferences" className="-m-1 flex items-center gap-2.5 rounded-md p-1 hover:bg-sidebar-hover">
           <Avatar person={me} size="lg" presence className="rounded-md text-xs" ringClassName="border-sidebar size-2.5" />
           <div className="flex flex-col leading-tight">
             <span className="text-sm font-semibold text-sidebar-strong">{me.name}</span>
             <span className="text-xs text-sidebar-muted">{roleLabel(dir, role)}</span>
           </div>
-        </div>
+        </Link>
         {viewAs.length > 1 && (
           <>
             <label htmlFor="role-select" className="text-xs font-medium text-sidebar-muted">

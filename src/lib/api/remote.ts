@@ -135,3 +135,19 @@ export const summarizeThread = (chatId: string, threadId: string, role?: string)
 // Meeting notes to actions.
 export const queueMeetingNotes = (input: { chatId: string; text: string; title?: string; role?: string }) =>
   rpc<import("../agent/runs").RunView>("queueMeetingNotes", [input]);
+// Scheduled work: reminders and the daily digest (server only; see src/server/scheduled).
+export type ReminderView = import("../scheduled").Reminder & { canCancel: boolean };
+export interface NewReminder {
+  when?: string | null;
+  inMinutes?: number | null;
+  text: string;
+  target?: string | null;
+  role?: import("../types").Role;
+  source?: { chatId: string; threadId: string | null; messageId: string } | null;
+  timeZone?: string | null;
+}
+export const deliverDue = (timeZone?: string) => rpc<{ chats: string[] }>("deliverDue", [timeZone]);
+export const listReminders = () => rpc<ReminderView[]>("listReminders", []);
+export const createReminder = (input: NewReminder) => rpc<{ when: string; to: string; zoneNote: string | null }>("createReminder", [input]);
+export const cancelReminder = (id: string, role?: string) => rpc<{ ok: true }>("cancelReminder", [id, role]);
+export const postDigestNow = (chatId: string) => rpc<{ messageId: string; text: string } | null>("postDigestNow", [chatId]);

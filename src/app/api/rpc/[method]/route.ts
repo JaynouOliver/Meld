@@ -20,6 +20,7 @@ import * as ws from "@/server/workspace";
 import * as agentMemory from "@/server/agents/memory";
 import * as summary from "@/server/atlas/summary";
 import * as meetingNotes from "@/server/notes";
+import * as scheduled from "@/server/scheduled";
 
 // Atlas runs after the response (after()), within this function's time limit. Long
 // runs (e.g. turning a thread into tickets) can take a minute or more.
@@ -54,6 +55,8 @@ const methods: Record<string, Method> = {
   // browser calls the rule-based askAtlas instead (no runs).
   postMessage: async (input: api.PostMessageInput) => {
     const saved = await api.postMessage(input);
+    // Activity is when due reminders and the morning digest go out (src/server/scheduled).
+    after(() => scheduled.sweepQuietly());
     if (!llm()) return saved;
     const runs = await dispatch({
       chatId: input.chatId, threadId: input.threadId ?? null, messageId: saved.id, authorId: currentCtx().dir.me,
@@ -71,6 +74,7 @@ const methods: Record<string, Method> = {
     const runs = (await api.getAgentRuns()).map((r) => ({ ...r, ...(progressOf(r.id) ?? {}) }));
     // Self-healing: if a run was missed or its worker died, polling browsers restart it.
     if (runs.some((r) => r.status === "queued" || r.status === "running")) after(() => sweepRuns());
+    after(() => scheduled.sweepQuietly());
     return runs;
   },
   teammateReply: api.teammateReply,
@@ -117,6 +121,12 @@ const methods: Record<string, Method> = {
   summarizeThread: async (chatId: ChatId, threadId: string, role?: Role) => summary.summarizeThread(chatId, threadId, role),
   // Meeting notes to actions: queued as an Atlas run in the channel.
   queueMeetingNotes: async (input: Parameters<typeof meetingNotes.queueMeetingNotes>[0]) => meetingNotes.queueMeetingNotes(input),
+  // Scheduled work: reminders (You screen, "Remind me about this") and Sunny's digest.
+  deliverDue: async (timeZone?: string) => scheduled.deliverDue(timeZone),
+  listReminders: async () => scheduled.listMyReminders(),
+  createReminder: async (input: scheduled.CreateReminderInput) => scheduled.createReminder({ ...input, role: api.effectiveRole(input.role) }),
+  cancelReminder: async (id: string, role?: Role) => scheduled.cancelReminder(id, api.effectiveRole(role)),
+  postDigestNow: async (chatId: ChatId) => scheduled.postDigest(chatId, { force: true }),
 };
 
 /** Calls that don't need a workspace (loading the directory, onboarding, joining). */

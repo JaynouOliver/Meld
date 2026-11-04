@@ -155,6 +155,51 @@ export function memoryStore(workspaceId: string, ticketPrefix = "NW"): Store {
     d().memories = (d().memories ?? []).filter((m) => m.id !== id);
     return d().memories!.length < before;
   },
+  async addReminder(r) {
+    (d().reminders ??= new Map()).set(r.id, clone(r));
+  },
+  async listReminders(filter = {}) {
+    return clone([...(d().reminders ?? new Map()).values()])
+      .filter((r) => !filter.status || r.status === filter.status)
+      .sort((a, b) => (filter.status === "pending" ? 1 : -1) * a.dueAt.localeCompare(b.dueAt))
+      .slice(0, 500);
+  },
+  async getReminder(id) {
+    const r = d().reminders?.get(id);
+    return r ? clone(r) : null;
+  },
+  async claimDueReminders(now, limit) {
+    // Synchronous between the read and the write, so concurrent sweeps can't share one.
+    const t = Date.parse(now);
+    const due = [...(d().reminders ?? new Map()).values()]
+      .filter((r) => r.status === "pending" && Date.parse(r.dueAt) <= t)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
+      .slice(0, limit);
+    for (const r of due) Object.assign(r, { status: "sent", sentAt: now, attempts: r.attempts + 1 });
+    return clone(due);
+  },
+  async transitionReminder(id, from, to) {
+    const r = d().reminders?.get(id);
+    if (!r || !from.includes(r.status)) return false;
+    r.status = to;
+    return true;
+  },
+  async claimDigest(chatId, day, force) {
+    const m = (d().digests ??= new Map());
+    const last = m.get(chatId);
+    if (!force && last && last.day >= day) return false;
+    m.set(chatId, { at: new Date().toISOString(), day });
+    return true;
+  },
+  async lastDigests() {
+    return Object.fromEntries([...(d().digests ?? new Map()).entries()].map(([k, v]) => [k, v.day]));
+  },
+  async timeZones() {
+    return Object.fromEntries(d().timeZones ?? new Map());
+  },
+  async setTimeZone(userId, tz) {
+    (d().timeZones ??= new Map()).set(userId, tz);
+  },
   async deleteChatMessages(chatId) {
     delete d().chats[chatId];
   },
