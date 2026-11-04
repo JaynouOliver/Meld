@@ -345,8 +345,8 @@ async function seedAgentSkills(
     links: [], images: [], updated: "Today", watch: { chat: x.ch.engineering, thread: null }, blockedBy: [],
     activity: [
       { who: "Jonas Weber", text: "created this ticket", time: ago(56) },
-      { who: "Jonas Weber", text: "assigned it to Reviewer", time: ago(55) },
-      { who: "Reviewer", text: "moved it to In review after working on it", time: ago(53) },
+      { who: "Jonas Weber", text: "assigned it to Rex", time: ago(55) },
+      { who: "Rex", text: "moved it to In review after working on it", time: ago(53) },
     ],
   });
   const root = await store.appendMessage(x.ch.engineering, {
