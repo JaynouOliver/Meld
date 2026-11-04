@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/common/status-pill";
 import { Checklist } from "./checklist";
 import { Comments } from "./comments";
 import { Dependencies } from "./dependencies";
+import { TicketAutomation } from "./ticket-automation";
 import { DueField, EstimateField, LabelsField } from "./planning-fields";
 import { PanelHeader, SidePanel } from "@/components/shell/side-panel";
 import { Button } from "@/components/ui/button";
@@ -142,6 +143,8 @@ function TicketDetail({ ticket: t, onClose }: { ticket: Ticket; onClose: () => v
             className="-mx-2 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-2 py-1 text-lg leading-snug font-semibold text-foreground outline-none hover:border-border focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-ring"
           />
         </div>
+
+        <TicketAutomation ticket={t} />
 
         <div className="grid grid-cols-2 gap-3">
           <Field id="tk-status" label="Status">

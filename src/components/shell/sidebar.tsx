@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkIcon, ChevronDownIcon, FlagIcon, HashIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
+import { BookmarkIcon, ChevronDownIcon, FlagIcon, HashIcon, ListChecksIcon, LogOutIcon, MonitorIcon, MoonIcon, PlusIcon, SearchIcon, SettingsIcon, SquarePenIcon, SunIcon, TicketIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -250,6 +250,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <NavLink href="/decisions" active={pathname.startsWith("/decisions")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
             <BookmarkIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
             <span className="flex-1">Decisions</span>
+          </NavLink>
+          <NavLink href="/playbooks" active={pathname.startsWith("/playbooks")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
+            <ListChecksIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
+            <span className="flex-1">Playbooks</span>
           </NavLink>
           <NavLink href="/people" active={pathname.startsWith("/people")} onNavigate={onNavigate} onClick={() => useUiStore.setState({ threadId: null })}>
             <UsersIcon aria-hidden className="size-4 w-5 text-sidebar-muted" />
