@@ -458,29 +458,40 @@ private struct AgentCard: View {
 
 struct NotificationsStep: View {
     @Environment(AppModel.self) private var model
-    @State private var asked = false
+    @State private var status: Notifications.Status?
+    @State private var asking = false
 
     var body: some View {
         VStack(spacing: 24) {
             Spacer(minLength: 0)
             ZStack {
                 Circle().fill(.tint.opacity(0.12)).frame(width: 88, height: 88)
-                Image(systemName: "bell.badge")
+                Image(systemName: status == .on ? "bell.badge.fill" : status == .off ? "bell.slash" : "bell.badge")
                     .font(.system(size: 34, weight: .regular))
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.tint)
+                    .contentTransition(.symbolEffect(.replace))
             }
-            StepHeader(title: "Know when something needs you",
-                       subtitle: "Agents tell you when something needs you: a DM, an @mention, or a change waiting for your Confirm. Nothing else.")
+            StepHeader(title: title, subtitle: subtitle)
             VStack(spacing: 10) {
-                if asked {
+                switch status {
+                case .on:
+                    Label("Notifications are on", systemImage: "checkmark.circle.fill")
+                        .font(.meldMeta).foregroundStyle(Palette.success)
                     Button("Open Meld") { model.finishOnboarding() }
                         .buttonStyle(MeldPrimaryButtonStyle(height: 40))
                         .keyboardShortcut(.defaultAction)
-                } else {
-                    Button("Turn on notifications") { ask() }
+                case .off:
+                    Button("Open System Settings") { Notifications.openSettings() }
                         .buttonStyle(MeldPrimaryButtonStyle(height: 40))
                         .keyboardShortcut(.defaultAction)
+                    Button("Not now") { model.finishOnboarding() }
+                        .buttonStyle(MeldSecondaryButtonStyle(height: 40))
+                default:
+                    Button(asking ? "Waiting for your answer…" : "Turn on notifications") { ask() }
+                        .buttonStyle(MeldPrimaryButtonStyle(height: 40))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(asking || status == nil)
                     Button("Not now") { model.finishOnboarding() }
                         .buttonStyle(MeldSecondaryButtonStyle(height: 40))
                 }
@@ -488,12 +499,34 @@ struct NotificationsStep: View {
             .frame(width: 260)
             Spacer(minLength: 0)
         }
+        .animation(.spring(duration: 0.3), value: status)
+        .task { status = await Notifications.status() }
+        // Back from System Settings: pick up the change.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { status = await Notifications.status() }
+        }
+    }
+
+    private var title: String {
+        switch status {
+        case .on: "You're all set"
+        case .off: "Notifications are off for Meld"
+        default: "Know when something needs you"
+        }
+    }
+
+    private var subtitle: String {
+        switch status {
+        case .off: "macOS only asks once. Turn on Allow notifications for Meld in System Settings, then come back here."
+        default: "Agents tell you when something needs you: a DM, an @mention, or a change waiting for your Confirm. Nothing else."
+        }
     }
 
     private func ask() {
+        asking = true
         Task {
-            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-            asked = true
+            status = await Notifications.request()
+            asking = false
         }
     }
 }

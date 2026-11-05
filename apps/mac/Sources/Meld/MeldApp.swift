@@ -35,6 +35,9 @@ struct MeldApp: App {
                     .keyboardShortcut("]")
                     .disabled(web == nil)
             }
+            CommandGroup(after: .appSettings) {
+                Button("Notification Settings…") { Notifications.openSettings() }
+            }
             CommandMenu("Account") {
                 Button("Sign Out") { model.signOut() }
                     .disabled(model.session == nil)

@@ -61,8 +61,18 @@ final class AppModel {
     private static let seenWelcomeKey = "meld.hasSeenWelcome"
     private static let verifierKey = "meld.pkceVerifier"
 
+    /// MELD_PREVIEW_STEP=welcome|signin|notifications opens that onboarding screen without
+    /// reading the saved login (for screenshots; avoids the dev-build Keychain prompt).
+    private let previewing = ProcessInfo.processInfo.environment["MELD_PREVIEW_STEP"]
+
     init() {
         accent = Accent(rawValue: UserDefaults.standard.string(forKey: "meld.accent") ?? "") ?? .cobalt
+        switch previewing {
+        case "welcome": phase = .welcome; return
+        case "signin": phase = .signIn; return
+        case "notifications": phase = .setup(.notifications); return
+        default: break
+        }
         if let data = Keychain.load(), let s = try? AuthSession(json: data) {
             session = s
             Task { await afterSignIn(firstTime: false) }
@@ -238,6 +248,10 @@ final class AppModel {
     }
 
     func finishOnboarding() {
+        if previewing != nil {
+            phase = .welcome
+            return
+        }
         if let id = user?.id { UserDefaults.standard.set(true, forKey: "meld.onboarded.\(id)") }
         phase = .main
         workspace?.start()
