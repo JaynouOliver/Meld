@@ -19,7 +19,7 @@ Open `Package.swift` in Xcode to edit with previews. Launch options (`open --env
 | Variable | Use |
 |---|---|
 | `MELD_WEB_URL` | API and web pages, default `https://meld-fawn.vercel.app` |
-| `MELD_AUTH_BRIDGE_URL` | Sign-in landing page, default `<web>/auth/desktop`. Use `http://localhost:3000/auth/desktop` with `npm run dev` until the page is deployed. |
+| `MELD_AUTH_BRIDGE_URL` | Return sign-in through a web page instead of straight to `meld://`, e.g. `http://localhost:3000/auth/desktop` with `npm run dev` |
 | `MELD_APPEARANCE` | `light` or `dark`, overriding the system look (for screenshots) |
 | `MELD_WINDOW_SIZE` | e.g. `900x600` (the minimum), for a fresh window without a saved frame |
 
@@ -35,8 +35,9 @@ with Developer ID don't have this.
   Get started / Try the demo) → Sign in → Workspace (create, with accent and live preview,
   or join with an invite link) → Meet your team → Notifications. Full window, warm tints,
   springs that respect Reduce Motion.
-- **Sign-in** (`Auth/`): PKCE in the default browser, back through the site's `/auth/desktop`
-  page and `meld://auth/callback`; the session lives in the Keychain and refreshes itself.
+- **Sign-in** (`Auth/`): PKCE in the default browser, straight back to `meld://auth/callback`;
+  the session lives in the Keychain and refreshes itself. **Setup:** Supabase → Authentication →
+  URL Configuration → Redirect URLs must include `meld://**` (once per project).
   "Try the demo" signs in to a throwaway account from `POST /api/demo`.
 - **Main window** (`Main/`): `NavigationSplitView` with the system sidebar in the brief's
   order. Chats are native: messages, threads (inspector), @mention picker, mention, ticket

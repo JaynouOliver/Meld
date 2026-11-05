@@ -248,15 +248,15 @@ The motion is spring-based and short (200–350ms) and respects Reduce Motion. E
 - Meld's auth is Supabase (GitHub and Google OAuth). The web app uses the PKCE flow and swaps the code in `src/app/auth/callback/route.ts`.
 - For the Mac app (as built, in `apps/mac/Sources/Meld/Auth`):
   1. Generate a PKCE pair.
-  2. Open `<SUPABASE_URL>/auth/v1/authorize?provider=github|google&redirect_to=<site>/auth/desktop&code_challenge=…` in the default browser.
-  3. Supabase sends the browser to the site's `/auth/desktop` page (`src/app/auth/desktop`). It says "You're signed in" and opens `meld://auth/callback?code=…`. The page never uses the code: only the app holds the PKCE verifier.
-  4. Catch the `meld://` callback and exchange the code at `/auth/v1/token?grant_type=pkce`.
+  2. Open `<SUPABASE_URL>/auth/v1/authorize?provider=github|google&redirect_to=meld://auth/callback&code_challenge=…` in the default browser.
+  3. Catch the `meld://` callback (the browser asks once to open Meld).
+  4. Exchange the code at `/auth/v1/token?grant_type=pkce`.
   5. Store the session in the Keychain and refresh it before it expires.
 
-  *Added:* the `/auth/desktop` bridge page, instead of `redirect_to=meld://…` directly. The site's URLs are already allowed redirects, so Supabase needs no new setting, and the browser gets a clear "You're signed in" page instead of a bare app prompt. The app talks to Supabase over plain HTTP (a few calls), so it doesn't need the supabase-swift SDK.
-- **Server changes this needs:**
-  1. Done on `feature/mac-app`: `getSessionUser()` in `src/server/auth.ts` also accepts `Authorization: Bearer <access token>`, verified with the same `getClaims` check (malformed or forged tokens get 401). Until that is deployed, the app also sends the session as the web's `sb-…-auth-token` cookie, which the current server accepts.
-  2. Deploy `src/app/auth/desktop` with it. No Supabase dashboard change is needed.
+  The app talks to Supabase over plain HTTP (a few calls), so it doesn't need the supabase-swift SDK. *Added:* `src/app/auth/desktop`, a "You're signed in" page that opens `meld://auth/callback`, as an optional route back (launch option `MELD_AUTH_BRIDGE_URL`) for setups where the redirect URL below can't be added.
+- **Server and project changes this needs:**
+  1. Supabase dashboard → Authentication → URL Configuration → Redirect URLs: add `meld://**`. Without it Supabase sends the browser to the Site URL instead of the app.
+  2. Done on `feature/mac-app`: `getSessionUser()` in `src/server/auth.ts` also accepts `Authorization: Bearer <access token>`, verified with the same `getClaims` check (malformed or forged tokens get 401). Until that is deployed, the app also sends the session as the web's `sb-…-auth-token` cookie, which the current server accepts.
 - **The demo:** `POST /api/demo` returns throwaway `credentials` (email and password) plus `next`. The app can sign in with those to offer "Try the demo".
 
 ### Data API

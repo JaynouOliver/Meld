@@ -42,5 +42,5 @@ Supabase → **Authentication → URL Configuration**:
 No new environment variables are needed: the app already has `NEXT_PUBLIC_SUPABASE_URL` and
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-The Mac app needs nothing extra: it signs in through `/auth/desktop` on the site, which is
-already covered by the first redirect URL (see `apps/mac/README.md`).
+**Mac app:** also add `meld://**` to the Redirect URLs, so sign-in returns straight to the app
+(see `apps/mac/README.md`).
