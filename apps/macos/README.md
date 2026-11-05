@@ -17,22 +17,24 @@ open build/Meld.app
 `swift build` alone compiles the code; the script also makes the `.app` bundle, the icon,
 and registers the `meld://` URL scheme.
 
-Point the workspace at a local web server with `MELD_WEB_URL=http://localhost:3000 open build/Meld.app`.
+Point the workspace at a local web server with `open --env MELD_WEB_URL=http://localhost:3000 build/Meld.app`.
 
 ## How sign-in works
 
 1. The app makes a PKCE verifier and opens Supabase's `/auth/v1/authorize` in the
    default browser for the chosen provider.
-2. After Google or GitHub, Supabase redirects to `meld://auth/callback?code=…`. macOS
-   hands that URL back to the app and brings it to the front.
+2. After Google or GitHub, Supabase redirects to the website's `/auth/desktop` page, which
+   says "You're signed in" and opens `meld://auth/callback?code=…`. macOS hands that URL
+   to the app and brings it to the front. The page never uses the code itself: only the
+   app has the PKCE verifier.
 3. The app exchanges the code plus verifier for a session at `/auth/v1/token`, stores it
    in the Keychain, and shows the "You're in" screen.
 4. The workspace hosts the web app in a `WKWebView`, signed in by writing the session as
    the same `sb-…-auth-token` cookie that `@supabase/ssr` uses in a browser.
 
-**One-time setup:** in Supabase → Authentication → URL Configuration, add
-`meld://auth/callback` to the Redirect URLs. Without it, Supabase sends people to the website
-instead of back to the app.
+No extra Supabase setup: the site's URLs are already allowed redirects. To test a local
+copy of the bridge page, run `npm run dev` and launch with
+`open --env MELD_AUTH_BRIDGE_URL=http://localhost:3000/auth/desktop build/Meld.app`.
 
 ## Layout
 

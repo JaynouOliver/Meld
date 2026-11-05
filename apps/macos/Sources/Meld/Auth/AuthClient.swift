@@ -14,7 +14,8 @@ struct AuthError: LocalizedError {
 
 /// Supabase Auth over plain HTTP, using the PKCE flow:
 /// 1. `authorizeURL` opens in the user's browser with a code challenge.
-/// 2. After Google/GitHub, Supabase redirects to meld://auth/callback?code=…
+/// 2. After Google/GitHub, Supabase redirects to the site's /auth/desktop page, which
+///    opens meld://auth/callback?code=…
 /// 3. `exchange` swaps that code (plus the verifier only this app knows) for a session.
 enum AuthClient {
     static func makeVerifier() -> String {
@@ -31,7 +32,7 @@ enum AuthClient {
         var c = URLComponents(url: Config.supabaseURL.appending(path: "auth/v1/authorize"), resolvingAgainstBaseURL: false)!
         c.queryItems = [
             .init(name: "provider", value: provider.rawValue),
-            .init(name: "redirect_to", value: Config.callbackURL),
+            .init(name: "redirect_to", value: Config.authBridgeURL.absoluteString),
             .init(name: "code_challenge", value: challenge(for: verifier)),
             .init(name: "code_challenge_method", value: "s256"),
         ]

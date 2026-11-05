@@ -15,7 +15,15 @@ enum Config {
         return URL(string: "https://meld-fawn.vercel.app")!
     }()
 
-    /// The browser sends people back here after sign-in (registered in Info.plist).
+    /// Supabase sends the browser here after Google/GitHub. The page (src/app/auth/desktop)
+    /// says "You're signed in" and hands the code to the app via meld://auth/callback.
+    /// It's a web URL because Supabase already allows the site's URLs as redirects.
+    /// Override with MELD_AUTH_BRIDGE_URL to test a local or preview build of that page.
+    static let authBridgeURL: URL = {
+        if let s = ProcessInfo.processInfo.environment["MELD_AUTH_BRIDGE_URL"], let u = URL(string: s) { return u }
+        return webURL.appending(path: "auth/desktop")
+    }()
+
+    /// The bridge page opens this to bring the app back (registered in Info.plist).
     static let callbackScheme = "meld"
-    static let callbackURL = "meld://auth/callback"
 }

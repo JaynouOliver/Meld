@@ -34,11 +34,13 @@ https://twukmsemlxvnchjzaoqf.supabase.co/auth/v1/callback
 Supabase → **Authentication → URL Configuration**:
 
 - Site URL: `https://meld-fawn.vercel.app`
-- Redirect URLs (add all four):
+- Redirect URLs (add all three):
   - `https://meld-fawn.vercel.app/**`
   - `https://*-jaynouolivers-projects.vercel.app/**` (branch previews)
   - `http://localhost:3000/**`
-  - `meld://auth/callback` (the Mac app, see `apps/macos/README.md`)
 
 No new environment variables are needed: the app already has `NEXT_PUBLIC_SUPABASE_URL` and
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+
+The Mac app needs nothing extra: it signs in through `/auth/desktop` on the site, which is
+already covered by the first redirect URL (see `apps/macos/README.md`).
