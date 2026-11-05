@@ -3,8 +3,8 @@ import SwiftUI
 /// First-run welcome: three colorful pages that say what Meld is, then "Get started".
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
-    @Local private var page = 0
-    @Local private var appeared = false
+    @State private var page = 0
+    @State private var appeared = false
 
     private struct Page {
         let symbol: String

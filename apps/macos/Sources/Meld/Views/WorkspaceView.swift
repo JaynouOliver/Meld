@@ -7,8 +7,8 @@ import WebKit
 struct WorkspaceView: View {
     @Environment(AppModel.self) private var model
     let user: MeldUser
-    @Local private var web = WebController()
-    @Local private var ready = false
+    @State private var web = WebController()
+    @State private var ready = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -68,7 +68,7 @@ private struct AccountMenu: View {
     @Environment(AppModel.self) private var model
     let user: MeldUser
     let currentURL: URL?
-    @Local private var avatar: NSImage?
+    @State private var avatar: NSImage?
 
     var body: some View {
         Menu {
@@ -108,7 +108,7 @@ private struct AccountMenu: View {
 }
 
 private struct LoadingSplash: View {
-    @Local private var spin = false
+    @State private var spin = false
 
     var body: some View {
         VStack(spacing: 18) {

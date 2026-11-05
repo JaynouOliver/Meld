@@ -84,7 +84,7 @@ private struct ChooseProviderCard: View {
 private struct ProviderButton: View {
     @Environment(AppModel.self) private var model
     let provider: OAuthProvider
-    @Local private var hovering = false
+    @State private var hovering = false
 
     var body: some View {
         Button {
@@ -118,7 +118,7 @@ private struct ProviderButton: View {
 private struct WaitingCard: View {
     @Environment(AppModel.self) private var model
     let provider: OAuthProvider
-    @Local private var pulse = false
+    @State private var pulse = false
 
     var body: some View {
         VStack(spacing: 22) {
@@ -180,7 +180,7 @@ private struct FinishingCard: View {
 /// The short "you're in" moment between sign-in and the workspace.
 struct SignedInView: View {
     let user: MeldUser
-    @Local private var shown = false
+    @State private var shown = false
 
     var body: some View {
         ZStack {

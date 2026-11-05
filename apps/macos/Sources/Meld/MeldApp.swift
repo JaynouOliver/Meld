@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct MeldApp: App {
-    @Local private var model = AppModel()
+    @State private var model = AppModel()
 
     var body: some Scene {
         // A single window (not WindowGroup) so the meld:// callback lands in the

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Meld.app into apps/macos/build/. Works with Xcode or just the Command Line Tools.
+# Builds Meld.app into apps/macos/build/. Needs Xcode 26+.
 #   scripts/build-app.sh            release build
 #   scripts/build-app.sh debug      debug build
 # Signing: ad-hoc by default. Set SIGN_IDENTITY="Developer ID Application: …" to sign for

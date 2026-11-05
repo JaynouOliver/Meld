@@ -5,7 +5,8 @@ sign-in through Google or GitHub, and the Meld workspace.
 
 ## Build
 
-Needs only the Xcode Command Line Tools (`xcode-select --install`); full Xcode also works.
+Needs Xcode 26 or later (the SwiftUI macros, such as `@State`, ship with Xcode, not the
+Command Line Tools). Open `Package.swift` in Xcode to edit and preview, or use the scripts.
 
 ```bash
 cd apps/macos
@@ -45,13 +46,10 @@ Sources/Meld/
   Config.swift           Supabase project, web URL
   Auth/                  PKCE client, session model, Keychain
   Views/                 Welcome, SignIn (+ waiting, "You're in"), Workspace (+ web view)
-  Design/                brand colors and mark, animated mesh background, Local (see below)
+  Design/                brand colors and mark, animated mesh background
 Resources/Info.plist     bundle id app.meld.mac, URL scheme
 scripts/                 build-app.sh, make-dmg.sh, make-icon.swift
 ```
-
-`Design/Local.swift` stands in for `@State`: in the macOS 27 SDK `@State` is a macro whose
-plugin ships only with Xcode, so the Command Line Tools can't build it.
 
 ## Shipping the DMG on the website
 
