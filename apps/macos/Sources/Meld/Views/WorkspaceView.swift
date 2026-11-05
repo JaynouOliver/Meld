@@ -68,6 +68,7 @@ private struct AccountMenu: View {
     @Environment(AppModel.self) private var model
     let user: MeldUser
     let currentURL: URL?
+    @Local private var avatar: NSImage?
 
     var body: some View {
         Menu {
@@ -83,10 +84,26 @@ private struct AccountMenu: View {
                 model.signOut()
             }
         } label: {
-            Avatar(user: user, size: 24)
+            // Toolbar menus need a fixed-size image; AsyncImage stretches to fill.
+            if let avatar {
+                Image(nsImage: avatar)
+            } else {
+                Image(systemName: "person.crop.circle")
+            }
         }
         .menuIndicator(.hidden)
         .help(user.name)
+        .task(id: user.avatarURL) { avatar = await Self.circleImage(from: user.avatarURL, size: 22) }
+    }
+
+    private static func circleImage(from url: URL?, size: CGFloat) async -> NSImage? {
+        guard let url, let (data, _) = try? await URLSession.shared.data(from: url),
+              let source = NSImage(data: data) else { return nil }
+        return NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            NSBezierPath(ovalIn: rect).addClip()
+            source.draw(in: rect)
+            return true
+        }
     }
 }
 

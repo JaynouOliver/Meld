@@ -153,8 +153,11 @@ private struct WaitingCard: View {
             HStack(spacing: 10) {
                 Button("Cancel") { model.cancelSignIn() }
                     .buttonStyle(.glass)
+                    .foregroundStyle(.white)
                 Button("Open browser again") { model.reopenBrowser() }
                     .buttonStyle(.glassProminent)
+                    .tint(.white)
+                    .foregroundStyle(Color.meldBlue)
             }
             .controlSize(.large)
         }
