@@ -67,16 +67,10 @@ struct ChatView: View {
         .frame(height: 56)
     }
 
-    /// Chips use meld:// links: tickets open the ticket, citations jump to the chat.
+    /// Chips link to meld://ticket/ID and meld://chat/ID. Selectable text sends links to the
+    /// system, which hands meld:// back to the app (AppModel.handle); this covers the rest.
     private func route(_ url: URL) -> OpenURLAction.Result {
-        guard url.scheme == "meld-chip" else { return .systemAction }
-        let parts = url.pathComponents.filter { $0 != "/" }
-        switch url.host() {
-        case "ticket": store.openTicket = parts.first
-        case "chat": if let c = parts.first { store.screen = .chat(c) }
-        default: break
-        }
-        return .handled
+        store.route(url) ? .handled : .systemAction
     }
 }
 

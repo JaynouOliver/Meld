@@ -44,7 +44,7 @@ struct RichText: View {
             a.foregroundColor = Palette.link
             a.backgroundColor = Palette.quietFill
             a.font = .system(size: 12, weight: .medium)
-            a.link = URL(string: "meld-chip://chat/\(chat)")
+            a.link = URL(string: "meld://chat/\(chat)")
             return a
         }
         if token.hasPrefix("@") {
@@ -57,7 +57,7 @@ struct RichText: View {
         var a = AttributedString(token.uppercased())
         a.foregroundColor = Palette.link
         a.font = .system(size: 13, weight: .medium).monospacedDigit()
-        a.link = URL(string: "meld-chip://ticket/\(token.uppercased())")
+        a.link = URL(string: "meld://ticket/\(token.uppercased())")
         return a
     }
 

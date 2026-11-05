@@ -21,7 +21,7 @@ struct MeldApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 1280, height: 820)
+        .defaultSize(Self.launchSize)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Message") { actions?.newMessage() }
@@ -45,6 +45,12 @@ struct MeldApp: App {
                     .disabled(model.session == nil)
             }
         }
+    }
+
+    /// MELD_WINDOW_SIZE=900x600 opens at that size (for screenshots); default 1280×820.
+    private static var launchSize: CGSize {
+        let parts = (ProcessInfo.processInfo.environment["MELD_WINDOW_SIZE"] ?? "").split(separator: "x").compactMap { Double($0) }
+        return parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : CGSize(width: 1280, height: 820)
     }
 
     private static func goTitle(_ i: Int) -> String {

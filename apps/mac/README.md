@@ -21,6 +21,7 @@ Open `Package.swift` in Xcode to edit with previews. Launch options (`open --env
 | `MELD_WEB_URL` | API and web pages, default `https://meld-fawn.vercel.app` |
 | `MELD_AUTH_BRIDGE_URL` | Sign-in landing page, default `<web>/auth/desktop`. Use `http://localhost:3000/auth/desktop` with `npm run dev` until the page is deployed. |
 | `MELD_APPEARANCE` | `light` or `dark`, overriding the system look (for screenshots) |
+| `MELD_WINDOW_SIZE` | e.g. `900x600` (the minimum), for a fresh window without a saved frame |
 
 **Keychain prompts while developing.** Each ad-hoc build has a new signature, so macOS asks
 before a new build reads the login an older build saved ("Meld wants to use your confidential

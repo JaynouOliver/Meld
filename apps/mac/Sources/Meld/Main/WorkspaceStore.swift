@@ -42,6 +42,7 @@ final class WorkspaceStore {
     @ObservationIgnored private let realtime = Realtime()
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var runPoll: Task<Void, Never>?
+    @ObservationIgnored private var activeObserver: NSObjectProtocol?
 
     init(api: MeldAPI, directory: Directory) {
         self.api = api
@@ -56,6 +57,13 @@ final class WorkspaceStore {
         realtime.onChange = { [weak self] in self?.apply($0) }
         realtime.onRun = { [weak self] p in self?.runSteps[p.runId] = p.step }
         realtime.connect(workspaceId: directory.workspace.id)
+        // Coming back to the window: the chat on screen is read.
+        activeObserver = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, case .chat(let c) = self.screen, self.unread[c] != nil else { return }
+                Task { await self.open(chat: c) }
+            }
+        }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(45))
@@ -64,8 +72,21 @@ final class WorkspaceStore {
         }
     }
 
+    /// meld://ticket/ORB-12 opens the ticket; meld://chat/<id> opens the chat.
+    @discardableResult
+    func route(_ url: URL) -> Bool {
+        guard url.scheme == Config.callbackScheme, let id = url.pathComponents.filter({ $0 != "/" }).first else { return false }
+        switch url.host() {
+        case "ticket": openTicket = id
+        case "chat": screen = .chat(id)
+        default: return false
+        }
+        return true
+    }
+
     func stop() {
         realtime.disconnect()
+        if let activeObserver { NotificationCenter.default.removeObserver(activeObserver) }
         pollTask?.cancel()
         runPoll?.cancel()
     }

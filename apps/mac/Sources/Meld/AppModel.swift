@@ -109,6 +109,10 @@ final class AppModel {
     func handle(url: URL) {
         guard url.scheme == Config.callbackScheme else { return }
         NSApp.activate()
+        if url.host() != "auth" {
+            workspace?.route(url)
+            return
+        }
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         let value = { (name: String) in items.first { $0.name == name }?.value }
         if let err = value("error_description") ?? value("error") {
