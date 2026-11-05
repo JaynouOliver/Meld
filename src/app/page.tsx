@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ClosingCta, Compare, Features, HowItWorks, SiteFooter, SiteHeader, Trust } from "@/components/marketing/landing-sections";
 import { Face, HeroMock } from "@/components/marketing/product-mock";
+import { DownloadMac } from "@/components/marketing/download-mac";
 import { TryDemo } from "@/components/marketing/try-demo";
 
 /** Public landing page. The hero and "Try the live demo" sit above the fold at every width. */
@@ -52,6 +53,7 @@ function Hero() {
             >
               Create your workspace
             </Link>
+            <DownloadMac />
           </div>
           <p className="mt-3 max-w-[30rem] text-[12px] leading-[1.5] text-pretty text-muted-foreground">
             <span className="font-medium text-brand">(For hackathon judges)</span> No sign-up. Opens a private copy of a team with agents already at work.
