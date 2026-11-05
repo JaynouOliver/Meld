@@ -43,4 +43,4 @@ No new environment variables are needed: the app already has `NEXT_PUBLIC_SUPABA
 `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
 The Mac app needs nothing extra: it signs in through `/auth/desktop` on the site, which is
-already covered by the first redirect URL (see `apps/macos/README.md`).
+already covered by the first redirect URL (see `apps/mac/README.md`).

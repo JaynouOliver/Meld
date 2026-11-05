@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
-/** The Mac app's URL scheme (apps/macos/Resources/Info.plist). Fixed: never taken from the URL. */
+/** The Mac app's URL scheme (apps/mac/Resources/Info.plist). Fixed: never taken from the URL. */
 const APP_CALLBACK = "meld://auth/callback";
 
 /** Only these params go to the app; codes are opaque tokens, so keep them to safe characters. */

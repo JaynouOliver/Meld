@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Meld.app into apps/macos/build/. Needs Xcode 26+.
+# Builds Meld.app into apps/mac/build/. Needs Xcode 26+.
 #   scripts/build-app.sh            release build
 #   scripts/build-app.sh debug      debug build
 # Signing: ad-hoc by default. Set SIGN_IDENTITY="Developer ID Application: …" to sign for
@@ -17,6 +17,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Meld"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp -R Resources/Avatars "$APP/Contents/Resources/Avatars"
 
 # Icon (cached: only re-rendered when the script changes).
 if [[ ! -f build/AppIcon.icns || scripts/make-icon.swift -nt build/AppIcon.icns ]]; then

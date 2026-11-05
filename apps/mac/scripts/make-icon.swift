@@ -27,13 +27,12 @@ func render(_ px: Int) -> Data {
 
     shape.addClip()
     let gradient = NSGradient(colors: [
-        NSColor(red: 0.30, green: 0.50, blue: 1.00, alpha: 1),
+        NSColor(red: 0.23, green: 0.39, blue: 0.93, alpha: 1),
         NSColor(red: 0.16, green: 0.32, blue: 0.89, alpha: 1),
-        NSColor(red: 0.36, green: 0.24, blue: 0.96, alpha: 1),
     ])!
-    gradient.draw(in: body, angle: -60)
+    gradient.draw(in: body, angle: -90)
     // Soft top highlight, like glass.
-    NSGradient(colors: [NSColor.white.withAlphaComponent(0.28), NSColor.white.withAlphaComponent(0)])!
+    NSGradient(colors: [NSColor.white.withAlphaComponent(0.12), NSColor.white.withAlphaComponent(0)])!
         .draw(in: CGRect(x: body.minX, y: body.midY, width: body.width, height: body.height / 2), angle: -90)
 
     // The mark, on the web logo's 32 grid (y flipped for AppKit).

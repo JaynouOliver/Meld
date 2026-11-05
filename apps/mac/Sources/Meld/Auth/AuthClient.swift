@@ -43,6 +43,11 @@ enum AuthClient {
         try await token(grant: "pkce", body: ["auth_code": code, "code_verifier": verifier])
     }
 
+    /// Only for the demo's throwaway account (POST /api/demo returns its credentials).
+    static func password(email: String, password: String) async throws -> AuthSession {
+        try await token(grant: "password", body: ["email": email, "password": password])
+    }
+
     static func refresh(_ refreshToken: String) async throws -> AuthSession {
         try await token(grant: "refresh_token", body: ["refresh_token": refreshToken])
     }

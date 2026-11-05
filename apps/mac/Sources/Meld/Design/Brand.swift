@@ -2,40 +2,43 @@ import AppKit
 import SwiftUI
 
 extension Color {
-    /// Meld blue (#2952E3), the same as MELD_BLUE on the web.
-    static let meldBlue = Color(red: 0x29 / 255, green: 0x52 / 255, blue: 0xE3 / 255)
-    static let meldIndigo = Color(red: 0x5B / 255, green: 0x3D / 255, blue: 0xF5 / 255)
-    static let meldViolet = Color(red: 0x9B / 255, green: 0x4D / 255, blue: 0xF0 / 255)
-    static let meldPink = Color(red: 0xF0 / 255, green: 0x4E / 255, blue: 0x98 / 255)
-    static let meldTeal = Color(red: 0x14 / 255, green: 0xB8 / 255, blue: 0xA6 / 255)
-    static let meldAmber = Color(red: 0xF5 / 255, green: 0x9E / 255, blue: 0x0B / 255)
+    /// Meld blue (#2952E3, "Cobalt"), the same as MELD_BLUE on the web. Fixed, unlike the
+    /// workspace accent, which a workspace can change.
+    static let meldBlue = Color(hex: 0x2952E3)
 }
 
 /// The Meld mark: a speech bubble with a ticket's notched edges. Same geometry as
-/// MARK_PATH in src/components/marketing/logo.tsx, on its 32×32 grid.
+/// MARK_PATH in src/components/marketing/logo.tsx, on its 32×32 grid. `notch` (0…1)
+/// animates a plain chat bubble into the logo (onboarding's welcome).
 struct MeldMark: Shape {
+    var notch: CGFloat = 1
+
+    var animatableData: CGFloat {
+        get { notch }
+        set { notch = newValue }
+    }
+
     func path(in rect: CGRect) -> Path {
         let s = min(rect.width, rect.height) / 32
         let ox = rect.midX - 16 * s, oy = rect.midY - 16 * s
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: ox + x * s, y: oy + y * s) }
         let k: CGFloat = 0.5523 // cubic approximation of a quarter circle
+        let d = 3 * notch       // notch depth
 
         var path = Path()
         path.move(to: p(8, 3))
         path.addLine(to: p(24, 3))
         path.addCurve(to: p(30, 9), control1: p(24 + 6 * k, 3), control2: p(30, 9 - 6 * k))
         path.addLine(to: p(30, 11))
-        // Right notch (bites inward).
-        path.addCurve(to: p(27, 14), control1: p(30 - 3 * k, 11), control2: p(27, 14 - 3 * k))
-        path.addCurve(to: p(30, 17), control1: p(27, 14 + 3 * k), control2: p(30 - 3 * k, 17))
+        path.addCurve(to: p(30 - d, 14), control1: p(30 - d * k, 11), control2: p(30 - d, 14 - 3 * k))
+        path.addCurve(to: p(30, 17), control1: p(30 - d, 14 + 3 * k), control2: p(30 - d * k, 17))
         path.addLine(to: p(30, 19))
         path.addCurve(to: p(24, 25), control1: p(30, 19 + 6 * k), control2: p(24 + 6 * k, 25))
         path.addLine(to: p(10, 25))
         path.addLine(to: p(2, 30))
         path.addLine(to: p(2, 17))
-        // Left notch.
-        path.addCurve(to: p(5, 14), control1: p(2 + 3 * k, 17), control2: p(5, 14 + 3 * k))
-        path.addCurve(to: p(2, 11), control1: p(5, 14 - 3 * k), control2: p(2 + 3 * k, 11))
+        path.addCurve(to: p(2 + d, 14), control1: p(2 + d * k, 17), control2: p(2 + d, 14 + 3 * k))
+        path.addCurve(to: p(2, 11), control1: p(2 + d, 14 - 3 * k), control2: p(2 + d * k, 11))
         path.addLine(to: p(2, 9))
         path.addCurve(to: p(8, 3), control1: p(2, 9 - 6 * k), control2: p(8 - 6 * k, 3))
         path.closeSubpath()
@@ -43,23 +46,31 @@ struct MeldMark: Shape {
     }
 }
 
-/// The app icon look: white mark on a blue squircle with a soft gradient.
+/// Mark plus the "Meld" wordmark (semibold, tight tracking).
+struct MeldLogo: View {
+    var height: CGFloat = 22
+
+    var body: some View {
+        HStack(spacing: height * 0.3) {
+            MeldMark().fill(Color.meldBlue).frame(width: height, height: height)
+            Text("Meld").font(.system(size: height * 0.78, weight: .semibold)).tracking(-0.3).foregroundStyle(Palette.ink)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Meld")
+    }
+}
+
+/// The app icon look: the white mark on a brand-blue rounded square (public/brand/meld-app-icon.svg).
 struct MeldAppIcon: View {
     var size: CGFloat = 64
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-            .fill(LinearGradient(colors: [Color(red: 0.25, green: 0.42, blue: 0.98), .meldBlue, .meldIndigo],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
-            .overlay {
-                MeldMark().fill(.white).padding(size * 0.2)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-                    .strokeBorder(.white.opacity(0.25), lineWidth: max(1, size / 96))
-            }
+            .fill(LinearGradient(colors: [Color(hex: 0x3A63EC), .meldBlue], startPoint: .top, endPoint: .bottom))
+            .overlay { MeldMark().fill(.white).padding(size * 0.2) }
             .frame(width: size, height: size)
-            .shadow(color: .meldBlue.opacity(0.35), radius: size * 0.18, y: size * 0.08)
+            .shadow(color: .black.opacity(0.12), radius: size * 0.08, y: size * 0.04)
+            .accessibilityHidden(true)
     }
 }
 
