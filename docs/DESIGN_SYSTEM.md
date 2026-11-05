@@ -223,8 +223,8 @@ All values from `src/app/globals.css`. Light first, dark second.
 ### Platform and stack
 
 - **Code:** Swift and SwiftUI. Target the newest macOS and use its current system design. As of macOS 26 that's the Liquid Glass material for sidebars, toolbars and floating controls; check Apple's latest Human Interface Guidelines before starting.
-- **Navigation:** `NavigationSplitView` with the system translucent sidebar, a unified toolbar, native menus, keyboard shortcuts (⌘K search, ⌘N new message, ⌘1–9 to switch screens), native notifications and a Dock badge for unread.
-- **Map the design system onto native chrome, don't fight it.** Use the system sidebar material instead of the flat grey rail. Set the accent tint to the workspace accent. Use SF Pro and SF Symbols, and native corner radii for windows and controls. *Inside* the content (messages, ticket rows, pills, chips, avatars, action cards), use the Meld tokens above exactly.
+- **One design language (decided).** After sign-in the window shows the Meld web app itself (`WKWebView`, signed in with the app's session), so the Mac app and the website look and behave the same and every web change ships to both. Two separate UIs drift apart and double the bugs. The window adds only Mac things around it: a compact toolbar (back, forward, reload), native menus (Reload ⌘R, Back ⌘[, Forward ⌘], Account → Sign Out), macOS notifications for DMs and @mentions, and a Dock badge.
+- **Native where there is no web equivalent:** onboarding and sign-in, built with the Meld tokens above (colors, type scale, 6–8px radii, buttons, avatars) so they match the web app they lead into.
 - **Colors:** support light and dark, and follow the system appearance.
 - **Where the code lives:** branch `feature/mac-app`, folder `apps/mac/` (an Xcode project or Swift package). Don't touch the web app except for the small server changes listed below.
 
@@ -246,17 +246,17 @@ The motion is spring-based and short (200–350ms) and respects Reduce Motion. E
 ### Sign-in flow (technical)
 
 - Meld's auth is Supabase (GitHub and Google OAuth). The web app uses the PKCE flow and swaps the code in `src/app/auth/callback/route.ts`.
-- For the Mac app:
+- For the Mac app (as built, in `apps/mac/Sources/Meld/Auth`):
   1. Generate a PKCE pair.
-  2. Open `<SUPABASE_URL>/auth/v1/authorize?provider=github|google&redirect_to=meld://auth/callback&code_challenge=…`.
-  3. Catch the `meld://` callback.
+  2. Open `<SUPABASE_URL>/auth/v1/authorize?provider=github|google&redirect_to=meld://auth/callback&code_challenge=…` in the default browser.
+  3. Catch the `meld://` callback (the browser asks once to open Meld).
   4. Exchange the code at `/auth/v1/token?grant_type=pkce`.
   5. Store the session in the Keychain and refresh it before it expires.
 
-  The supabase-swift SDK handles all of this.
-- **Server changes this needs** (small, on `main`, with review):
-  1. Add `meld://auth/callback` to Supabase Auth's allowed redirect URLs (Supabase dashboard, Authentication, URL Configuration).
-  2. `getSessionUser()` in `src/server/auth.ts` currently reads only the session cookie. Make it also accept `Authorization: Bearer <access token>` and verify it the same way.
+  The app talks to Supabase over plain HTTP (a few calls), so it doesn't need the supabase-swift SDK. *Added:* `src/app/auth/desktop`, a "You're signed in" page that opens `meld://auth/callback`, as an optional route back (launch option `MELD_AUTH_BRIDGE_URL`) for setups where the redirect URL below can't be added.
+- **Server and project changes this needs:**
+  1. Supabase dashboard → Authentication → URL Configuration → Redirect URLs: add `meld://**`. Without it Supabase sends the browser to the Site URL instead of the app.
+  2. Done on `feature/mac-app`: `getSessionUser()` in `src/server/auth.ts` also accepts `Authorization: Bearer <access token>`, verified with the same `getClaims` check (malformed or forged tokens get 401). Until that is deployed, the app also sends the session as the web's `sb-…-auth-token` cookie, which the current server accepts.
 - **The demo:** `POST /api/demo` returns throwaway `credentials` (email and password) plus `next`. The app can sign in with those to offer "Try the demo".
 
 ### Data API
@@ -269,7 +269,7 @@ The motion is spring-based and short (200–350ms) and respects Reduce Motion. E
   - `listMissions`, `getMission`, `answerDecision`
   - `listTeamDecisions`, `getAgentRuns`, `decideAction` (Confirm or Undo)
 - **Realtime:** Supabase Realtime broadcast, one topic per workspace (see `src/hooks/use-realtime-sync.ts` and `src/server/realtime.ts`). When a ping arrives, refetch what it names, or apply the message it carries.
-- **Pragmatic first version:** the native shell (onboarding, sign-in, sidebar, notifications, search) plus native chat. Ticket and mission screens can start as the web pages inside a `WKWebView` sharing the session, then be rebuilt natively one at a time. Never show a web page that looks different from the native parts.
+- **As built:** native onboarding and sign-in, then the whole web app in the window. The app uses the data API only during onboarding (directory, create workspace, accept invite) and for notifications; realtime pings drive the notifications and the Dock badge.
 
 ### Distribution
 
