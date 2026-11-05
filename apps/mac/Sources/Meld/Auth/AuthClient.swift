@@ -43,7 +43,32 @@ enum AuthClient {
         try await token(grant: "pkce", body: ["auth_code": code, "code_verifier": verifier])
     }
 
-    /// Only for the demo's throwaway account (POST /api/demo returns its credentials).
+    enum SignUpResult { case signedIn(AuthSession), confirmEmail }
+
+    /// Create an account with email and password. If the project requires email confirmation,
+    /// the link in that email comes back to meld://auth/callback with a PKCE code (this
+    /// verifier's challenge goes along), exactly like Google/GitHub.
+    static func signUp(email: String, password: String, name: String, verifier: String) async throws -> SignUpResult {
+        var req = request(path: "auth/v1/signup", query: [.init(name: "redirect_to", value: Config.authRedirect)])
+        var body: [String: Any] = [
+            "email": email, "password": password,
+            "code_challenge": challenge(for: verifier), "code_challenge_method": "s256",
+        ]
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty { body["data"] = ["full_name": trimmed] }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw AuthError(message: errorMessage(data) ?? "Couldn't create your account. Please try again.")
+        }
+        // A session comes back only when confirmation is off.
+        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], obj["access_token"] != nil {
+            return .signedIn(try AuthSession(json: data))
+        }
+        return .confirmEmail
+    }
+
+    /// Email and password sign-in (also the demo's throwaway account from POST /api/demo).
     static func password(email: String, password: String) async throws -> AuthSession {
         try await token(grant: "password", body: ["email": email, "password": password])
     }
@@ -63,11 +88,20 @@ enum AuthClient {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            let msg = (obj?["error_description"] ?? obj?["msg"] ?? obj?["message"]) as? String
-            throw AuthError(message: msg ?? "Sign-in didn't complete. Please try again.")
+            throw AuthError(message: errorMessage(data) ?? "Sign-in didn't complete. Please try again.")
         }
         return try AuthSession(json: data)
+    }
+
+    /// Supabase's error text, made plain where it's cryptic.
+    private static func errorMessage(_ data: Data) -> String? {
+        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard let msg = (obj?["error_description"] ?? obj?["msg"] ?? obj?["message"]) as? String else { return nil }
+        switch msg {
+        case "Invalid login credentials": return "That email and password don't match. Check them and try again."
+        case "Email not confirmed": return "Confirm your email first: open the link we sent you."
+        default: return msg
+        }
     }
 
     private static func request(path: String, query: [URLQueryItem] = []) -> URLRequest {

@@ -29,21 +29,119 @@ struct SignInStep: View {
                     Skeleton(height: 12)
                     Skeleton(width: 220, height: 12)
                 }
-            case .idle:
-                StepHeader(title: "Sign in to Meld",
-                           subtitle: "We'll open your browser to sign in securely. Your session is kept in your Mac's Keychain.")
+            case .checkEmail(let address):
+                StepHeader(title: "Check your email",
+                           subtitle: "We sent a link to \(address). Open it on this Mac to confirm your account, and Meld signs you in.")
                 OnboardingCard {
-                    ProviderButton(provider: .google)
-                    ProviderButton(provider: .github)
-                    if let e = model.errorMessage { ErrorNote(message: e) }
+                    Image(systemName: "envelope.badge")
+                        .font(.system(size: 28))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.tint)
+                    Button("Use a different email") { model.signIn = .idle }
+                        .buttonStyle(MeldSecondaryButtonStyle())
                 }
+            case .idle, .emailBusy:
+                SignInForm()
                 Button("Back") { model.backToWelcome() }
                     .buttonStyle(MeldGhostButtonStyle())
                     .foregroundStyle(Palette.muted)
+                    .disabled(model.signIn == .emailBusy)
             }
             Spacer(minLength: 0)
         }
         .animation(.spring(duration: 0.3), value: model.signIn)
+    }
+}
+
+/// Google and GitHub in the browser, or email and password, like the web's login card.
+private struct SignInForm: View {
+    @Environment(AppModel.self) private var model
+    @State private var creating = false
+    @State private var name = ""
+    @State private var email = ""
+    @State private var password = ""
+    @FocusState private var focus: Field?
+
+    private enum Field { case name, email, password }
+
+    private var busy: Bool { model.signIn == .emailBusy }
+    private var canSubmit: Bool {
+        !busy && email.contains("@") && password.count >= (creating ? 6 : 1)
+    }
+
+    var body: some View {
+        VStack(spacing: 24) {
+            StepHeader(title: creating ? "Create your Meld account" : "Sign in to Meld",
+                       subtitle: creating
+                        ? "Then set up your company's workspace and invite your team."
+                        : "Pick how you signed up. Your session is kept in your Mac's Keychain.")
+            OnboardingCard {
+                ProviderButton(provider: .google)
+                ProviderButton(provider: .github)
+                OrDivider()
+                VStack(spacing: 8) {
+                    if creating {
+                        TextField("Your name", text: $name)
+                            .textFieldStyle(MeldFieldStyle())
+                            .textContentType(.name)
+                            .focused($focus, equals: .name)
+                            .onSubmit { focus = .email }
+                    }
+                    TextField("you@company.com", text: $email)
+                        .textFieldStyle(MeldFieldStyle())
+                        .textContentType(.username)
+                        .focused($focus, equals: .email)
+                        .onSubmit { focus = .password }
+                    SecureField(creating ? "Password (6+ characters)" : "Password", text: $password)
+                        .textFieldStyle(MeldFieldStyle())
+                        .textContentType(creating ? .newPassword : .password)
+                        .focused($focus, equals: .password)
+                        .onSubmit(submit)
+                }
+                .disabled(busy)
+                Button(action: submit) {
+                    Text(busy ? (creating ? "Creating your account…" : "Signing in…") : (creating ? "Sign up with email" : "Sign in with email"))
+                }
+                .buttonStyle(MeldPrimaryButtonStyle())
+                .disabled(!canSubmit)
+                if busy { WorkingBar() }
+                if let e = model.errorMessage { ErrorNote(message: e) }
+            }
+            HStack(spacing: 4) {
+                Text(creating ? "Already have an account?" : "New to Meld?")
+                    .foregroundStyle(Palette.muted)
+                Button(creating ? "Sign in" : "Create an account") {
+                    model.errorMessage = nil
+                    creating.toggle()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Palette.link)
+                .fontWeight(.medium)
+                .disabled(busy)
+            }
+            .font(.meldMeta)
+        }
+    }
+
+    private func submit() {
+        guard canSubmit else { return }
+        if creating {
+            model.signUp(name: name, email: email, password: password)
+        } else {
+            model.signIn(email: email, password: password)
+        }
+    }
+}
+
+/// "or" between the provider buttons and the email form.
+private struct OrDivider: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(Palette.border).frame(height: 1)
+            Text("or").font(.meldMeta).foregroundStyle(Palette.muted)
+            Rectangle().fill(Palette.border).frame(height: 1)
+        }
+        .padding(.vertical, 2)
     }
 }
 

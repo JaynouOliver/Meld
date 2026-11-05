@@ -22,6 +22,9 @@ final class AppModel {
         case waitingForBrowser(OAuthProvider)
         case finishing
         case startingDemo
+        case emailBusy
+        /// Signed up; the account needs the confirmation link sent to this address.
+        case checkEmail(String)
     }
 
     private(set) var phase: Phase = .launching
@@ -105,6 +108,44 @@ final class AppModel {
     func cancelSignIn() {
         UserDefaults.standard.removeObject(forKey: Self.verifierKey)
         signIn = .idle
+    }
+
+    /// Email and password, for accounts made that way (on the web or here).
+    func signIn(email: String, password: String) {
+        errorMessage = nil
+        signIn = .emailBusy
+        Task {
+            do {
+                let s = try await AuthClient.password(email: email.trimmingCharacters(in: .whitespaces), password: password)
+                await store(s)
+                await afterSignIn(firstTime: true)
+            } catch {
+                fail(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Create an account. With email confirmation on, the link in the email opens the app
+    /// (meld://auth/callback) and finishes signing in like Google/GitHub.
+    func signUp(name: String, email: String, password: String) {
+        errorMessage = nil
+        signIn = .emailBusy
+        let address = email.trimmingCharacters(in: .whitespaces)
+        let verifier = AuthClient.makeVerifier()
+        UserDefaults.standard.set(verifier, forKey: Self.verifierKey)
+        Task {
+            do {
+                switch try await AuthClient.signUp(email: address, password: password, name: name, verifier: verifier) {
+                case .signedIn(let s):
+                    await store(s)
+                    await afterSignIn(firstTime: true)
+                case .confirmEmail:
+                    signIn = .checkEmail(address)
+                }
+            } catch {
+                fail(error.localizedDescription)
+            }
+        }
     }
 
     /// "Try the demo": a private copy of the demo company, no account needed.

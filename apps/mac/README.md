@@ -35,8 +35,10 @@ with Developer ID don't have this.
   Get started / Try the demo) → Sign in → Workspace (create, with accent and live preview,
   or join with an invite link) → Meet your team → Notifications. Full window, warm tints,
   springs that respect Reduce Motion.
-- **Sign-in** (`Auth/`): PKCE in the default browser, straight back to `meld://auth/callback`;
-  the session lives in the Keychain and refreshes itself. **Setup:** Supabase → Authentication →
+- **Sign-in** (`Auth/`): Google or GitHub with PKCE in the default browser, straight back to
+  `meld://auth/callback`; or email and password (sign in, or create an account; if Supabase
+  asks for email confirmation, the link in the email opens the app and finishes sign-in).
+  The session lives in the Keychain and refreshes itself. **Setup:** Supabase → Authentication →
   URL Configuration → Redirect URLs must include `meld://**` (once per project).
   "Try the demo" signs in to a throwaway account from `POST /api/demo`.
 - **Workspace** (`Main/WorkspaceWebView.swift`): the Meld web app itself, signed in with the
