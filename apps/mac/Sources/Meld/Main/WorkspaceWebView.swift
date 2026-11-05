@@ -139,7 +139,11 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
 
     nonisolated func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
-            if message.body as? String == "signedOut" { onSignedOut?() }
+            // Only Meld's own top-level page, never an embedded frame or another site.
+            guard message.frameInfo.isMainFrame,
+                  message.frameInfo.securityOrigin.host == Config.webURL.host(),
+                  message.body as? String == "signedOut" else { return }
+            onSignedOut?()
         }
     }
 

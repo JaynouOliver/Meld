@@ -179,14 +179,20 @@ final class AppModel {
     func handle(url: URL) {
         guard url.scheme == Config.callbackScheme else { return }
         NSApp.activate()
-        if url.host() == "chat", let id = url.pathComponents.filter({ $0 != "/" }).first {
+        if url.host() == "chat", let id = url.pathComponents.filter({ $0 != "/" }).first,
+           id.range(of: #"^[A-Za-z0-9_-]{1,80}$"#, options: .regularExpression) != nil {
             workspace?.open(chat: id)
             return
         }
+        guard url.host() == "auth", url.path() == "/callback" else { return }
+        // Any website can open a meld:// link. Only act on a sign-in this app started (it
+        // holds the PKCE verifier); otherwise a page could show its own text as our error.
+        guard UserDefaults.standard.string(forKey: Self.verifierKey) != nil else { return }
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         let value = { (name: String) in items.first { $0.name == name }?.value }
         if let err = value("error_description") ?? value("error") {
-            fail(err.replacingOccurrences(of: "+", with: " "))
+            UserDefaults.standard.removeObject(forKey: Self.verifierKey)
+            fail(String(err.replacingOccurrences(of: "+", with: " ").prefix(200)))
             return
         }
         guard let code = value("code"), let verifier = UserDefaults.standard.string(forKey: Self.verifierKey) else {

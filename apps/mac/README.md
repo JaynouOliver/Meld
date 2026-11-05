@@ -9,7 +9,7 @@ Needs Xcode 26 or later (the SwiftUI macros ship with Xcode, not the Command Lin
 
 ```bash
 cd apps/mac
-scripts/build-app.sh      # → build/Meld.app (release, ad-hoc signed)
+scripts/build-app.sh      # → build/Meld.app (release, universal: Apple Silicon + Intel, hardened runtime)
 scripts/make-dmg.sh       # → build/Meld.dmg (drag to Applications)
 open build/Meld.app
 ```
@@ -58,6 +58,20 @@ with Developer ID don't have this.
 token as `Authorization: Bearer` and also keeps the session as the web's auth cookie (which
 also signs in the embedded pages), so it works against servers with or without the Bearer
 change in `src/server/auth.ts`.
+
+## Security
+
+- The only key in the app is Supabase's **publishable** key, the same one the website gives
+  every browser. Every table has row-level security with no policies and no grants for the
+  public role, so that key can't read or write data; only the server's secret key can, and it
+  stays on Vercel.
+- The session lives in the Keychain; nothing is logged.
+- `meld://` links: an auth callback is handled only while this app has a sign-in in progress
+  (it holds the PKCE verifier; a code from anywhere else can't be exchanged), error text is
+  capped, and chat links accept plain ids only.
+- The web view keeps Meld pages inside and opens other sites in the browser; its sign-out
+  bridge accepts messages only from Meld's own top-level page.
+- Builds use the hardened runtime.
 
 ## Shipping the DMG
 

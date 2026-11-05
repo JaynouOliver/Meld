@@ -10,8 +10,8 @@ cd "$(dirname "$0")/.."
 CONFIG="${1:-release}"
 APP="build/Meld.app"
 
-swift build -c "$CONFIG" --arch arm64
-BIN="$(swift build -c "$CONFIG" --arch arm64 --show-bin-path)/Meld"
+swift build -c "$CONFIG" --arch arm64 --arch x86_64
+BIN="$(swift build -c "$CONFIG" --arch arm64 --arch x86_64 --show-bin-path)/Meld"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -30,7 +30,7 @@ cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
 else
-  codesign --force --sign - "$APP"
+  codesign --force --options runtime --sign - "$APP"
 fi
 
 # Register the meld:// URL scheme with Launch Services so the browser can hand back to us.
