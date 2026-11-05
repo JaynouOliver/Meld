@@ -33,6 +33,25 @@ final class AppModel {
     var accent: Accent {
         didSet { UserDefaults.standard.set(accent.rawValue, forKey: "meld.accent") }
     }
+    /// Set when onboarding creates a workspace: the web app starts with this accent.
+    @ObservationIgnored private var pendingAccent: Accent?
+
+    func takePendingAccent() -> Accent? {
+        defer { pendingAccent = nil }
+        return pendingAccent
+    }
+
+    func markAccentChosen() { pendingAccent = accent }
+
+    /// The web view lost its cookie: write the session into it again and reload the app.
+    func restoreWebSession() async {
+        guard let s = await validSession() else { return }
+        await SessionCookies.install(s)
+        await SessionCookies.webReady.value
+        let ws = workspace
+        workspace = nil
+        workspace = ws
+    }
 
     @ObservationIgnored private(set) lazy var api = MeldAPI { [weak self] in await self?.validSession()?.accessToken }
 
@@ -109,8 +128,8 @@ final class AppModel {
     func handle(url: URL) {
         guard url.scheme == Config.callbackScheme else { return }
         NSApp.activate()
-        if url.host() != "auth" {
-            workspace?.route(url)
+        if url.host() == "chat", let id = url.pathComponents.filter({ $0 != "/" }).first {
+            workspace?.open(chat: id)
             return
         }
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
@@ -190,6 +209,11 @@ final class AppModel {
     // MARK: Session
 
     private func store(_ s: AuthSession) async {
+        // A different account than last time: drop the web app's saved state (its last
+        // chat, cached workspace) so the previous account's data never shows.
+        let lastUser = UserDefaults.standard.string(forKey: "meld.lastUserId")
+        if lastUser != nil && lastUser != s.user.id { await SessionCookies.clear() }
+        UserDefaults.standard.set(s.user.id, forKey: "meld.lastUserId")
         session = s
         Keychain.save(s.raw)
         await SessionCookies.install(s)

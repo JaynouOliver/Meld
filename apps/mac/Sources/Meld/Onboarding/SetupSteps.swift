@@ -155,6 +155,7 @@ struct WorkspaceStep: View {
         Task {
             do {
                 try await model.api.send("createWorkspace", [["name": name, "ticketPrefix": shownPrefix, "teams": ["Engineering", "Design", "Product"]]])
+                model.markAccentChosen()
                 await model.workspaceReady()
             } catch {
                 self.error = error.localizedDescription
@@ -225,9 +226,8 @@ private struct AccentPreview: View {
                         Text("Atlas").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.ink)
                         AgentTag()
                     }
-                    (Text("Filed ").foregroundStyle(Palette.ink)
-                        + Text("\(prefix)-1").foregroundStyle(Palette.link)
-                        + Text(" for you.").foregroundStyle(Palette.ink))
+                    Text("Filed \(Text("\(prefix)-1").foregroundStyle(Palette.link)) for you.")
+                        .foregroundStyle(Palette.ink)
                         .font(.system(size: 13))
                 }
             }

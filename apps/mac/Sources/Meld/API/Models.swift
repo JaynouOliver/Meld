@@ -181,41 +181,6 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-struct Ticket: Codable, Identifiable, Hashable, Sendable {
-    let id: String
-    let title: String
-    let status: TicketStatus
-    let priority: Priority
-    let assignee: PersonId
-}
-
-struct MessageHit: Codable, Hashable, Identifiable, Sendable {
-    let chatId: ChatId
-    let id: String
-    let threadId: String?
-    let who: PersonId
-    let time: String
-    let text: String
-}
-
-struct RunView: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let agentId: PersonId?
-    let chatId: ChatId
-    let threadId: String?
-    let status: String // queued | running | done | failed
-    let step: String?
-    let note: String?
-
-    var isActive: Bool { status == "queued" || status == "running" }
-}
-
-struct Boot: Decodable, Sendable {
-    let directory: Directory?
-    let tickets: [Ticket]?
-    let messages: [ChatId: [Message]]?
-}
-
 enum ISO8601 {
     nonisolated(unsafe) private static let withFraction: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()

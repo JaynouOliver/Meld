@@ -39,17 +39,15 @@ with Developer ID don't have this.
   the session lives in the Keychain and refreshes itself. **Setup:** Supabase → Authentication →
   URL Configuration → Redirect URLs must include `meld://**` (once per project).
   "Try the demo" signs in to a throwaway account from `POST /api/demo`.
-- **Main window** (`Main/`): `NavigationSplitView` with the system sidebar in the brief's
-  order. Chats are native: messages, threads (inspector), @mention picker, mention, ticket
-  and citation chips, reactions, agent action cards with Confirm / Undo, the agent "working"
-  bar and step. Home, Missions, Decisions, People, Playbooks and Tickets show the web pages
-  for now, with the web sidebar hidden and the same accent, to be rebuilt natively one by one.
-- **Live updates** (`API/Realtime.swift`): Supabase Realtime broadcast on `meld-ws-<id>`, plus
-  a slow poll. Unread counts in the sidebar and Dock; notifications for DMs and @mentions.
-- **Shortcuts:** ⌘K search, ⌘N new message, ⌘1–9 screens and channels.
-- **Design** (`Design/`): every color token from the doc in light and dark, the type scale,
-  components (agent tag, status pill, unread badge, buttons, skeletons, working bar), avatars
-  (rounded squares for people, circles for agents; the four named agents are bundled).
+- **Workspace** (`Main/WorkspaceWebView.swift`): the Meld web app itself, signed in with the
+  app's session, so the Mac app and the website share one design language. Around it: a
+  compact toolbar (back, forward, reload), Reload ⌘R / Back ⌘[ / Forward ⌘], Account → Sign
+  Out. The web's own sign-out signs the app out too. Links outside Meld open in the browser.
+- **Notifications** (`Main/WorkspaceStore.swift`, `API/Realtime.swift`): the same Supabase
+  Realtime pings the web app uses; DMs and @mentions of you become macOS notifications (a
+  click opens the chat) and count on the Dock badge while the app is in the background.
+- **Design** (`Design/`): the doc's color tokens in light and dark, the type scale, buttons,
+  avatars and the working bar, for the native onboarding and sign-in screens.
 
 ## API
 
@@ -72,4 +70,4 @@ xcrun stapler staple build/Meld.dmg
 
 ## Later
 
-On-device routing (Laya via `laya-mlx`) and Apple MLX features; native Tickets and Missions.
+On-device routing (Laya via `laya-mlx`) and Apple MLX features.

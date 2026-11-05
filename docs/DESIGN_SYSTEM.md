@@ -223,8 +223,8 @@ All values from `src/app/globals.css`. Light first, dark second.
 ### Platform and stack
 
 - **Code:** Swift and SwiftUI. Target the newest macOS and use its current system design. As of macOS 26 that's the Liquid Glass material for sidebars, toolbars and floating controls; check Apple's latest Human Interface Guidelines before starting.
-- **Navigation:** `NavigationSplitView` with the system translucent sidebar, a unified toolbar, native menus, keyboard shortcuts (⌘K search, ⌘N new message, ⌘1–9 to switch screens), native notifications and a Dock badge for unread.
-- **Map the design system onto native chrome, don't fight it.** Use the system sidebar material instead of the flat grey rail. Set the accent tint to the workspace accent. Use SF Pro and SF Symbols, and native corner radii for windows and controls. *Inside* the content (messages, ticket rows, pills, chips, avatars, action cards), use the Meld tokens above exactly.
+- **One design language (decided).** After sign-in the window shows the Meld web app itself (`WKWebView`, signed in with the app's session), so the Mac app and the website look and behave the same and every web change ships to both. Two separate UIs drift apart and double the bugs. The window adds only Mac things around it: a compact toolbar (back, forward, reload), native menus (Reload ⌘R, Back ⌘[, Forward ⌘], Account → Sign Out), macOS notifications for DMs and @mentions, and a Dock badge.
+- **Native where there is no web equivalent:** onboarding and sign-in, built with the Meld tokens above (colors, type scale, 6–8px radii, buttons, avatars) so they match the web app they lead into.
 - **Colors:** support light and dark, and follow the system appearance.
 - **Where the code lives:** branch `feature/mac-app`, folder `apps/mac/` (an Xcode project or Swift package). Don't touch the web app except for the small server changes listed below.
 
@@ -269,7 +269,7 @@ The motion is spring-based and short (200–350ms) and respects Reduce Motion. E
   - `listMissions`, `getMission`, `answerDecision`
   - `listTeamDecisions`, `getAgentRuns`, `decideAction` (Confirm or Undo)
 - **Realtime:** Supabase Realtime broadcast, one topic per workspace (see `src/hooks/use-realtime-sync.ts` and `src/server/realtime.ts`). When a ping arrives, refetch what it names, or apply the message it carries.
-- **Pragmatic first version:** the native shell (onboarding, sign-in, sidebar, notifications, search) plus native chat. Ticket and mission screens can start as the web pages inside a `WKWebView` sharing the session, then be rebuilt natively one at a time. Never show a web page that looks different from the native parts.
+- **As built:** native onboarding and sign-in, then the whole web app in the window. The app uses the data API only during onboarding (directory, create workspace, accept invite) and for notifications; realtime pings drive the notifications and the Dock badge.
 
 ### Distribution
 

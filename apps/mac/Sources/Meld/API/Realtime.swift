@@ -13,6 +13,7 @@ struct ChangePing: Decodable, Sendable {
     struct LiveMessage: Decodable, Sendable {
         let chatId: ChatId
         let threadId: String?
+        let message: Message?
     }
 }
 

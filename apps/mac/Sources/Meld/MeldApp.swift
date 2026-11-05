@@ -5,7 +5,7 @@ import UserNotifications
 struct MeldApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var model = AppModel()
-    @FocusedValue(\.meldActions) private var actions
+    @FocusedValue(\.webActions) private var web
 
     var body: some Scene {
         // A single window (not WindowGroup) so the meld:// callback lands in the
@@ -20,25 +20,20 @@ struct MeldApp: App {
                 .onAppear { appDelegate.model = model }
         }
         .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unifiedCompact)
         .defaultSize(Self.launchSize)
         .commands {
-            CommandGroup(replacing: .newItem) {
-                Button("New Message") { actions?.newMessage() }
-                    .keyboardShortcut("n")
-                    .disabled(actions == nil)
-            }
-            CommandGroup(after: .textEditing) {
-                Button("Search") { actions?.search() }
-                    .keyboardShortcut("k")
-                    .disabled(actions == nil)
-            }
-            CommandMenu("Go") {
-                ForEach(0..<9, id: \.self) { i in
-                    Button(Self.goTitle(i)) { actions?.go(i) }
-                        .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
-                        .disabled(actions == nil)
-                }
+            CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .toolbar) {
+                Button("Reload Page") { web?.reload() }
+                    .keyboardShortcut("r")
+                    .disabled(web == nil)
+                Button("Back") { web?.back() }
+                    .keyboardShortcut("[")
+                    .disabled(web == nil)
+                Button("Forward") { web?.forward() }
+                    .keyboardShortcut("]")
+                    .disabled(web == nil)
             }
             CommandMenu("Account") {
                 Button("Sign Out") { model.signOut() }
@@ -53,11 +48,6 @@ struct MeldApp: App {
         return parts.count == 2 ? CGSize(width: parts[0], height: parts[1]) : CGSize(width: 1280, height: 820)
     }
 
-    private static func goTitle(_ i: Int) -> String {
-        ["Home", "Missions", "Decisions", "People", "Playbooks", "Tickets"].indices.contains(i)
-            ? ["Home", "Missions", "Decisions", "People", "Playbooks", "Tickets"][i]
-            : "Channel \(i - 5)"
-    }
 }
 
 struct RootView: View {
@@ -71,7 +61,7 @@ struct RootView: View {
                 LaunchView()
             case .main:
                 if let store = model.workspace {
-                    MainView(store: store).transition(.opacity)
+                    WorkspaceWebView(store: store).transition(.opacity)
                 }
             default:
                 OnboardingView().transition(.opacity)
@@ -122,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     @MainActor private static func open(chat: String?) {
-        if let chat { current?.workspace?.screen = .chat(chat) }
+        if let chat { current?.workspace?.open(chat: chat) }
         NSApp.activate()
     }
 }

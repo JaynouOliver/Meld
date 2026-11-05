@@ -13,41 +13,6 @@ struct AgentTag: View {
     }
 }
 
-/// A 6pt dot plus the label, in the status colors.
-struct StatusPill: View {
-    let status: TicketStatus
-
-    var body: some View {
-        let c = Palette.status(status)
-        HStack(spacing: 5) {
-            Circle().fill(c.dot).frame(width: 6, height: 6)
-            Text(status.rawValue).font(.system(size: 11, weight: .medium))
-        }
-        .foregroundStyle(c.fg)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(c.bg, in: .rect(cornerRadius: 4))
-        .overlay {
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(c.line, style: StrokeStyle(lineWidth: 1, dash: status == .backburner ? [3, 2] : []))
-        }
-    }
-}
-
-/// Red count badge, 18pt tall, tabular figures.
-struct UnreadBadge: View {
-    let count: Int
-
-    var body: some View {
-        Text(count > 99 ? "99+" : "\(count)")
-            .font(.system(size: 11, weight: .semibold).monospacedDigit())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .frame(minWidth: 18, minHeight: 18)
-            .background(Palette.unread, in: .rect(cornerRadius: 4))
-    }
-}
-
 /// Primary: accent fill, white text, 6pt radius. Dips to 0.97 when pressed.
 struct MeldPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
